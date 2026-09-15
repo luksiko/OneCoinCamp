@@ -492,6 +492,45 @@
 .routes-table td { padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: middle; letter-spacing: 0.2px; }
 .routes-table input { width: 100%; min-width: 50px; padding: 4px; font-size: 11px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
 .routes-table td:first-child { white-space: nowrap; }
+
+/* Analytics tab */
+.analytics-empty { text-align: center; color: var(--hint); padding: 40px 0; font-size: 14px; }
+.analytics-reload { background: none; border: none; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; }
+
+/* Bar chart */
+.bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 80px; }
+.bar-chart-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 0; }
+.bar-col { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; position: relative; }
+.bar-col.total { background: rgba(var(--accent-rgb, 46,166,255), 0.25); }
+.bar-col.matched { background: var(--accent); border-radius: 3px 3px 0 0; }
+.bar-chart-label { font-size: 8px; color: var(--hint); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: clip; max-width: 100%; text-align: center; }
+.bar-chart-legend { display: flex; gap: 12px; margin-top: 8px; font-size: 11px; color: var(--subtext); }
+.bar-chart-legend span { display: flex; align-items: center; gap: 4px; }
+.bar-chart-legend .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.bar-chart-legend .dot.total   { background: rgba(46,166,255, 0.25); border: 1px solid rgba(46,166,255,0.5); }
+.bar-chart-legend .dot.matched { background: var(--accent); }
+
+/* Heatmap */
+.heatmap { display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; }
+.heatmap-cell { aspect-ratio: 1; border-radius: 3px; background: rgba(46,166,255, 0.08); position: relative; cursor: default; }
+.heatmap-cell[title] { cursor: help; }
+.heatmap-row-labels { display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; margin-top: 4px; }
+.heatmap-hour-label { font-size: 8px; color: var(--hint); text-align: center; }
+
+/* Top routes */
+.route-bar-row { margin-bottom: 8px; }
+.route-bar-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text); margin-bottom: 3px; }
+.route-bar-label .route-count { color: var(--accent); font-weight: 700; }
+.route-bar-track { height: 6px; background: var(--section); border-radius: 3px; overflow: hidden; }
+.route-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+
+/* Source cards */
+.source-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.source-card { background: var(--section); border-radius: 10px; padding: 10px 12px; }
+.source-card-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--hint); margin-bottom: 6px; }
+.source-card-total { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1; }
+.source-card-matched { font-size: 12px; color: var(--success); margin-top: 2px; }
+.source-card-pct { font-size: 11px; color: var(--hint); }
 </style>
 </head>
 <body>
@@ -509,6 +548,7 @@
       <div class="tab-nav" id="tabNav">
       <button type="button" class="tab-btn selected" id="tabSettings" onclick="switchTab('settings')">⚙️ Настройки</button>
       <button type="button" class="tab-btn" id="tabOffers" onclick="switchTab('offers')">🎫 Офферы</button>
+      <button type="button" class="tab-btn" id="tabAnalytics" onclick="switchTab('analytics')">📊 Аналитика</button>
     </div>
 
     <div id="screenSettings">
@@ -526,11 +566,20 @@
             <span>🚗 Movacar API</span>
             <span id="healthMv" style="color:var(--hint);">Проверка…</span>
           </div>
+          <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+            <span>⛺ Indie Campers</span>
+            <span id="healthIc" style="color:var(--hint);">Проверка…</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+            <span>🌐 Imoova</span>
+            <span id="healthIm" style="color:var(--hint);">Проверка…</span>
+          </div>
           <div style="display:flex; justify-content:space-between; padding:4px 0;">
             <span>🤖 Telegram Bot</span>
             <span id="healthTg" style="color:var(--hint);">Проверка…</span>
           </div>
         </div>
+
       </div>
 
       <div class="card">
@@ -584,6 +633,49 @@
       <div id="offersList"></div>
 
       <div class="offers-pagination" id="offersPagination"></div>
+    </div>
+
+    <div id="screenAnalytics" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div style="font-size:13px; color:var(--subtext);" id="analyticsSubtitle"></div>
+        <button type="button" class="analytics-reload" id="btnReloadAnalytics" onclick="loadAnalytics()">🔄 Обновить</button>
+      </div>
+
+      <!-- Daily bar chart -->
+      <div class="card" id="cardDailyChart">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div class="card-title" style="margin-bottom:0;">📅 Офферы по дням</div>
+        </div>
+        <div class="bar-chart" id="dailyBarChart"></div>
+        <div class="heatmap-row-labels" id="dailyBarLabels"></div>
+        <div class="bar-chart-legend">
+          <span><span class="dot total"></span>Всего найдено</span>
+          <span><span class="dot matched"></span>Подходящие</span>
+        </div>
+      </div>
+
+      <!-- Hourly heatmap -->
+      <div class="card" id="cardHourlyHeatmap">
+        <div class="card-title" style="margin-bottom:12px;">🕐 Когда появляются офферы (UTC)</div>
+        <div class="heatmap" id="hourlyHeatmap"></div>
+        <div class="heatmap-row-labels" id="hourlyHeatmapLabels"></div>
+      </div>
+
+      <!-- Top routes -->
+      <div class="card" id="cardTopRoutes">
+        <div class="card-title" style="margin-bottom:12px;">🗺 Топ направлений</div>
+        <div id="topRoutesList"></div>
+      </div>
+
+      <!-- By source -->
+      <div class="card" id="cardBySources">
+        <div class="card-title" style="margin-bottom:12px;">📡 По источникам</div>
+        <div class="source-grid" id="sourceGrid"></div>
+      </div>
+
+      <div class="analytics-empty" id="analyticsEmpty" style="display:none;">
+        📭 Данных пока нет.<br>Запустите мониторинг, чтобы накопить статистику.
+      </div>
     </div>
   </div>
 
@@ -658,16 +750,187 @@
 
     function switchTab(tab) {
       currentTab = tab;
-      var settingsBtn = document.getElementById('tabSettings');
-      var offersBtn = document.getElementById('tabOffers');
-      var screenSettings = document.getElementById('screenSettings');
-      var screenOffers = document.getElementById('screenOffers');
-      if (settingsBtn) settingsBtn.classList.toggle('selected', tab === 'settings');
-      if (offersBtn) offersBtn.classList.toggle('selected', tab === 'offers');
-      if (screenSettings) screenSettings.style.display = tab === 'settings' ? '' : 'none';
-      if (screenOffers) screenOffers.style.display = tab === 'offers' ? '' : 'none';
-      if (tab === 'offers') loadOffers();
+      var settingsBtn  = document.getElementById('tabSettings');
+      var offersBtn    = document.getElementById('tabOffers');
+      var analyticsBtn = document.getElementById('tabAnalytics');
+      var screenSettings  = document.getElementById('screenSettings');
+      var screenOffers    = document.getElementById('screenOffers');
+      var screenAnalytics = document.getElementById('screenAnalytics');
+      if (settingsBtn)  settingsBtn.classList.toggle('selected',  tab === 'settings');
+      if (offersBtn)    offersBtn.classList.toggle('selected',    tab === 'offers');
+      if (analyticsBtn) analyticsBtn.classList.toggle('selected', tab === 'analytics');
+      if (screenSettings)  screenSettings.style.display  = tab === 'settings'  ? '' : 'none';
+      if (screenOffers)    screenOffers.style.display    = tab === 'offers'    ? '' : 'none';
+      if (screenAnalytics) screenAnalytics.style.display = tab === 'analytics' ? '' : 'none';
+      if (tab === 'offers')    loadOffers();
+      if (tab === 'analytics') loadAnalytics();
     }
+
+    // ── Analytics ───────────────────────────────────────────────
+    var analyticsData = null;
+
+    function loadAnalytics() {
+      var subtitle = document.getElementById('analyticsSubtitle');
+      if (subtitle) subtitle.textContent = '⏳ Загрузка…';
+      google.script.run
+        .withSuccessHandler(function(data) {
+          analyticsData = data;
+          renderAnalytics(data);
+        })
+        .withFailureHandler(function(err) {
+          if (subtitle) subtitle.textContent = '❌ ' + ((err && err.message) || 'Ошибка загрузки');
+        })
+        .getAnalytics(getInitData());
+    }
+
+    function renderAnalytics(data) {
+      var subtitle = document.getElementById('analyticsSubtitle');
+      var empty    = document.getElementById('analyticsEmpty');
+      var hasData  = data && (
+        (data.dailyCounts   && data.dailyCounts.length)   ||
+        (data.topRoutes     && data.topRoutes.length)     ||
+        (data.bySources     && data.bySources.length)
+      );
+      if (!hasData) {
+        if (empty) empty.style.display = '';
+        ['cardDailyChart','cardHourlyHeatmap','cardTopRoutes','cardBySources'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) el.style.display = 'none';
+        });
+        if (subtitle) subtitle.textContent = '';
+        return;
+      }
+      if (empty) empty.style.display = 'none';
+      ['cardDailyChart','cardHourlyHeatmap','cardTopRoutes','cardBySources'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = '';
+      });
+
+      var totalArchive = data.bySources
+        ? data.bySources.reduce(function(s, x) { return s + (x.total || 0); }, 0)
+        : 0;
+      if (subtitle) subtitle.textContent = 'Всего в архиве: ' + totalArchive + ' офферов';
+
+      renderDailyChart(data.dailyCounts || []);
+      renderHourlyHeatmap(data.hourlyPattern || []);
+      renderTopRoutes(data.topRoutes || []);
+      renderBySources(data.bySources || []);
+    }
+
+    function renderDailyChart(days) {
+      var chartEl  = document.getElementById('dailyBarChart');
+      var labelsEl = document.getElementById('dailyBarLabels');
+      if (!chartEl || !labelsEl) return;
+      chartEl.innerHTML  = '';
+      labelsEl.innerHTML = '';
+      if (!days.length) { chartEl.innerHTML = '<div class="analytics-empty" style="padding:10px 0;">Нет данных</div>'; return; }
+
+      var maxTotal = Math.max.apply(null, days.map(function(d) { return d.total; })) || 1;
+      var CHART_H  = 80; // px — matches CSS .bar-chart height
+
+      days.forEach(function(d) {
+        var totalH   = Math.round((d.total   / maxTotal) * CHART_H);
+        var matchedH = Math.round((d.matched / maxTotal) * CHART_H);
+        var wrap = document.createElement('div');
+        wrap.className = 'bar-chart-wrap';
+        wrap.style.height = CHART_H + 'px';
+        wrap.title = d.date + ': ' + d.total + ' всего, ' + d.matched + ' подходящих';
+
+        var totalBar = document.createElement('div');
+        totalBar.className = 'bar-col total';
+        totalBar.style.height = totalH + 'px';
+        totalBar.style.position = 'relative';
+
+        var matchedBar = document.createElement('div');
+        matchedBar.className = 'bar-col matched';
+        matchedBar.style.height = matchedH + 'px';
+        matchedBar.style.position = 'absolute';
+        matchedBar.style.bottom = '0';
+        matchedBar.style.left   = '0';
+        matchedBar.style.right  = '0';
+
+        totalBar.appendChild(matchedBar);
+        wrap.appendChild(totalBar);
+        chartEl.appendChild(wrap);
+
+        var label = document.createElement('div');
+        label.className = 'heatmap-hour-label';
+        var parts = d.date.split('-');
+        label.textContent = parts.length >= 3 ? parts[1] + '/' + parts[2] : d.date.slice(-5);
+        labelsEl.appendChild(label);
+      });
+
+      // match grid columns count
+      labelsEl.style.gridTemplateColumns = 'repeat(' + days.length + ', 1fr)';
+    }
+
+    function renderHourlyHeatmap(hours) {
+      var heatmapEl = document.getElementById('hourlyHeatmap');
+      var labelsEl  = document.getElementById('hourlyHeatmapLabels');
+      if (!heatmapEl || !labelsEl) return;
+      heatmapEl.innerHTML  = '';
+      labelsEl.innerHTML   = '';
+      var maxCount = Math.max.apply(null, hours.map(function(h) { return h.count; })) || 1;
+      hours.forEach(function(h) {
+        var cell = document.createElement('div');
+        cell.className = 'heatmap-cell';
+        var opacity = h.count > 0 ? Math.max(0.12, h.count / maxCount) : 0.06;
+        cell.style.background = 'rgba(46,166,255,' + opacity.toFixed(2) + ')';
+        cell.title = h.hour + ':00 — ' + h.count + ' офф.';
+        heatmapEl.appendChild(cell);
+
+        var label = document.createElement('div');
+        label.className = 'heatmap-hour-label';
+        label.textContent = h.hour % 6 === 0 ? h.hour + 'h' : '';
+        labelsEl.appendChild(label);
+      });
+    }
+
+    function renderTopRoutes(routes) {
+      var el = document.getElementById('topRoutesList');
+      if (!el) return;
+      el.innerHTML = '';
+      if (!routes.length) { el.innerHTML = '<div style="color:var(--hint);font-size:13px;">Нет данных о подходящих маршрутах</div>'; return; }
+      var maxCount = routes[0].count || 1;
+      routes.forEach(function(r) {
+        var pct = Math.round((r.count / maxCount) * 100);
+        var row = document.createElement('div');
+        row.className = 'route-bar-row';
+        row.innerHTML =
+          '<div class="route-bar-label">' +
+            '<span>' + escHtml(r.route) + '</span>' +
+            '<span class="route-count">' + r.count + '</span>' +
+          '</div>' +
+          '<div class="route-bar-track">' +
+            '<div class="route-bar-fill" style="width:' + pct + '%"></div>' +
+          '</div>';
+        el.appendChild(row);
+      });
+    }
+
+    function renderBySources(sources) {
+      var el = document.getElementById('sourceGrid');
+      if (!el) return;
+      el.innerHTML = '';
+      var SOURCE_LABELS = { roadsurfer: '🚐 Roadsurfer', movacar: '🚗 Movacar', indieCampers: '🏕 Indie', imoova: '🌐 Imoova' };
+      sources.forEach(function(s) {
+        var pct = s.total > 0 ? Math.round(s.matched / s.total * 100) : 0;
+        var card = document.createElement('div');
+        card.className = 'source-card';
+        card.innerHTML =
+          '<div class="source-card-name">' + escHtml(SOURCE_LABELS[s.source] || s.source) + '</div>' +
+          '<div class="source-card-total">' + s.total + '</div>' +
+          '<div class="source-card-matched">✅ ' + s.matched + ' подходящих</div>' +
+          '<div class="source-card-pct">hit rate ' + pct + '%</div>';
+        el.appendChild(card);
+      });
+    }
+
+    function escHtml(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    // ── End Analytics ────────────────────────────────────────────
+
 
     function loadOffers() {
       var initData = getInitData();
@@ -686,12 +949,18 @@
     function renderSourceFilters() {
       var container = document.getElementById('sourceFilters');
       container.innerHTML = '';
-      var sources = ['roadsurfer', 'movacar'];
+      var sources = ['roadsurfer', 'movacar', 'indiecampers', 'imoova'];
+      var sourceLabels = {
+        roadsurfer: '🚐 Roadsurfer',
+        movacar: '🚗 Movacar',
+        indiecampers: '⛺ Indie Campers',
+        imoova: '🌐 Imoova'
+      };
       sources.forEach(function (src) {
         var chip = document.createElement('button');
         chip.type = 'button';
         chip.className = 'filter-chip' + (offerFilters.source === src ? ' active' : '');
-        chip.textContent = src === 'roadsurfer' ? '🚐 Roadsurfer' : '🚗 Movacar';
+        chip.textContent = sourceLabels[src] || src;
         chip.onclick = function () {
           offerFilters.source = offerFilters.source === src ? '' : src;
           offerFilters.page = 1;
@@ -699,6 +968,7 @@
         };
         container.appendChild(chip);
       });
+
       // Status filters
       var statusChips = [
         { value: '', label: 'Все' },
@@ -998,9 +1268,13 @@
       var initData = getInitData();
       var rs = document.getElementById('healthRs');
       var mv = document.getElementById('healthMv');
+      var ic = document.getElementById('healthIc');
+      var im = document.getElementById('healthIm');
       var tg = document.getElementById('healthTg');
       if (rs) { rs.textContent = '⏳ Проверка…'; rs.style.color = 'var(--hint)'; }
       if (mv) { mv.textContent = '⏳ Проверка…'; mv.style.color = 'var(--hint)'; }
+      if (ic) { ic.textContent = '⏳ Проверка…'; ic.style.color = 'var(--hint)'; }
+      if (im) { im.textContent = '⏳ Проверка…'; im.style.color = 'var(--hint)'; }
       if (tg) { tg.textContent = '⏳ Проверка…'; tg.style.color = 'var(--hint)'; }
 
       google.script.run
@@ -1013,6 +1287,14 @@
           if (mv && h.movacar) {
             mv.textContent = (h.movacar.ok ? '🟢 ' : '🔴 ') + h.movacar.message;
             mv.style.color = h.movacar.ok ? 'var(--success)' : 'var(--danger)';
+          }
+          if (ic && h.indiecampers) {
+            ic.textContent = (h.indiecampers.ok ? '🟢 ' : '🔴 ') + h.indiecampers.message;
+            ic.style.color = h.indiecampers.ok ? 'var(--success)' : 'var(--danger)';
+          }
+          if (im && h.imoova) {
+            im.textContent = (h.imoova.ok ? '🟢 ' : '🔴 ') + h.imoova.message;
+            im.style.color = h.imoova.ok ? 'var(--success)' : 'var(--danger)';
           }
           if (tg && h.telegram) {
             tg.textContent = (h.telegram.ok ? '🟢 ' : '🔴 ') + h.telegram.message;
@@ -1223,7 +1505,7 @@
       var wrap = document.createElement('div');
       wrap.className = 'route-edit';
       wrap.appendChild(fieldLabel('Источник'));
-      wrap.appendChild(select(['roadsurfer', 'movacar'], route.source, function (v) {
+      wrap.appendChild(select(['roadsurfer', 'movacar', 'indiecampers', 'imoova'], route.source, function (v) {
         route.source = v;
         renderRoutes();
       }));

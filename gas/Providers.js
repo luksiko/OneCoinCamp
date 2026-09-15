@@ -5,8 +5,15 @@ function fetchOffersForRoute_(route, window, filters) {
   if (route.source === 'movacar') {
     return fetchMovacarOffers_(route, window);
   }
+  if (route.source === 'indiecampers') {
+    return fetchIndieCampersOffers_(route, window);
+  }
+  if (route.source === 'imoova') {
+    return fetchImoovaOffers_(route, window);
+  }
   throw new Error('Unknown source: ' + route.source);
 }
+
 
 function isRoadsurferStationId_(value) {
   return /^\d+$/.test(String(value || '').trim());
@@ -624,3 +631,116 @@ function fetchMovacarDestinations_(originRef, filters) {
   
   return destinations;
 }
+
+function fetchIndieCampersOffers_(route, window) {
+  const origin = String(route.origin_id || route.origin || '').toLowerCase();
+  const destination = String(route.destination_id || route.destination || '').toLowerCase();
+  const pickupDate = (window && window.start) ? window.start : '2026-09-27';
+  const returnDate = (window && window.end) ? window.end : '2026-10-07';
+
+  const payload = {
+    booking: {
+      checkin_city: origin === '*' ? 'lisbon' : origin,
+      checkout_city: destination === '*' ? 'porto' : destination,
+      checkin_datetime: pickupDate + 'T16:30:00+00:00',
+      checkout_datetime: returnDate + 'T11:00:00+00:00',
+      locale: 'en',
+      legacy_search: false,
+      van_category: '',
+      limit: 50,
+      offset: 0,
+      only_marketplace: false,
+    },
+    filters: {},
+    meta: { current_route: 'rent-an-rv-search' }
+  };
+
+  const res = fetchJson_('https://edge.indiecampers.com/api/v3/availability', {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    headers: { Origin: 'https://indiecampers.com' }
+  });
+
+  const items = (res && res.data && Array.isArray(res.data.availability)) ? res.data.availability : [];
+  const offers = [];
+  const bookingUrl = 'https://indiecampers.com/rent-an-rv/search?from=' + origin + '&to=' + destination + '&start=' + pickupDate + '&end=' + returnDate;
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.available === false) continue;
+    const vanId = item.van_id || item.van_category || ('ic_' + i);
+    const price = item.total_cost || item.daily_cost || null;
+    const vehicle = item.manufacturer_name || item.van_category || 'Indie Camper';
+    offers.push({
+      source: 'indiecampers',
+      offerId: String(vanId),
+      origin: route.origin_name || route.origin || 'IndieCampers Origin',
+      destination: route.destination_name || route.destination || 'IndieCampers Dest',
+      pickupDate: item.checkin_date || pickupDate,
+      returnDate: item.checkout_date || returnDate,
+      price: price ? String(price) : null,
+      vehicle: String(vehicle),
+      bookingUrl: bookingUrl,
+      fingerprint: computeFingerprint_({
+        source: 'indiecampers',
+        offerId: String(vanId),
+        origin: route.origin,
+        destination: route.destination,
+        pickupDate: item.checkin_date || pickupDate,
+        returnDate: item.checkout_date || returnDate,
+        price: price ? String(price) : ''
+      })
+    });
+  }
+  return offers;
+}
+
+function fetchImoovaOffers_(route, window) {
+  const res = fetchJson_('https://api.imoova.com/graphql', {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({
+      query: 'query GetRelocations { relocations(first: 100) { data { id reference name type available_from_date available_to_date hire_unit_rate retail_rate currency vehicle { name } departureCity { id name slug } deliveryCity { id name slug } } } }',
+      operationName: 'GetRelocations'
+    }),
+    headers: { Origin: 'https://www.imoova.com' }
+  });
+
+  const items = (res && res.data && res.data.relocations && Array.isArray(res.data.relocations.data)) ? res.data.relocations.data : [];
+  const offers = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const dep = item.departureCity || {};
+    const deliv = item.deliveryCity || {};
+
+    const relId = item.id || ('im_' + i);
+    const bookingUrl = 'https://www.imoova.com/imoova/relocations/' + relId;
+    const vehicleName = (item.vehicle && item.vehicle.name) || item.name || 'Imoova vehicle';
+    const price = item.hire_unit_rate || item.retail_rate || null;
+
+    offers.push({
+      source: 'imoova',
+      offerId: String(relId),
+      origin: dep.name || route.origin || 'Imoova Origin',
+      destination: deliv.name || route.destination || 'Imoova Dest',
+      pickupDate: item.available_from_date || (window && window.start) || '2026-09-01',
+      returnDate: item.available_to_date || (window && window.end) || '2026-09-15',
+      price: price ? String(price) : null,
+      vehicle: String(vehicleName),
+      bookingUrl: bookingUrl,
+      fingerprint: computeFingerprint_({
+        source: 'imoova',
+        offerId: String(relId),
+        origin: dep.name || route.origin,
+        destination: deliv.name || route.destination,
+        pickupDate: item.available_from_date || '',
+        returnDate: item.available_to_date || '',
+        price: price ? String(price) : ''
+      })
+    });
+  }
+  return offers;
+}
+

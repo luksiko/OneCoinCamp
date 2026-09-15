@@ -58,7 +58,8 @@ function handleApiRequest_(e) {
       'getOfferSources',
       'getOffers',
       'deleteOffer',
-      'checkOffersAvailabilityWeb'
+      'checkOffersAvailabilityWeb',
+      'getAnalytics'
     ];
     
     if (allowedMethods.indexOf(method) === -1) {
@@ -172,6 +173,8 @@ function checkProvidersHealth(initData) {
   const result = {
     roadsurfer: { ok: false, message: 'Проверка…' },
     movacar: { ok: false, message: 'Проверка…' },
+    indiecampers: { ok: false, message: 'Проверка…' },
+    imoova: { ok: false, message: 'Проверка…' },
     telegram: { ok: false, message: 'Не настроен' },
   };
 
@@ -215,7 +218,48 @@ function checkProvidersHealth(initData) {
     result.movacar = { ok: false, message: 'Ошибка: ' + (e.message || String(e)).slice(0, 50) };
   }
 
-  // 3. Telegram
+  // 3. Indie Campers
+  try {
+    const t0 = new Date().getTime();
+    const ic = fetchJson_('https://edge.indiecampers.com/api/v3/availability', {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({
+        booking: { checkin_city: 'lisbon', checkout_city: 'porto', checkin_datetime: '2026-09-27T16:30:00+00:00', checkout_datetime: '2026-10-07T11:00:00+00:00', locale: 'en', legacy_search: false, van_category: '', limit: 20, offset: 0, only_marketplace: false },
+        filters: {},
+        meta: { current_route: 'rent-an-rv-search' }
+      }),
+      headers: { Origin: 'https://indiecampers.com' },
+      retries: 0
+    });
+    const ms = new Date().getTime() - t0;
+    const count = ic && ic.data && Array.isArray(ic.data.availability) ? ic.data.availability.length : 0;
+    result.indiecampers = { ok: true, message: 'Онлайн (' + count + ' слотов, ' + ms + 'мс)' };
+  } catch (e) {
+    result.indiecampers = { ok: false, message: 'Ошибка: ' + (e.message || String(e)).slice(0, 50) };
+  }
+
+  // 4. Imoova
+  try {
+    const t0 = new Date().getTime();
+    const im = fetchJson_('https://api.imoova.com/graphql', {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({
+        query: 'query GetRelocations { relocations(first: 100) { data { id } } }',
+        operationName: 'GetRelocations'
+      }),
+      headers: { Origin: 'https://www.imoova.com' },
+      retries: 0
+    });
+    const ms = new Date().getTime() - t0;
+    const count = im && im.data && im.data.relocations && Array.isArray(im.data.relocations.data) ? im.data.relocations.data.length : 0;
+    result.imoova = { ok: true, message: 'Онлайн (' + count + ' слотов, ' + ms + 'мс)' };
+  } catch (e) {
+    result.imoova = { ok: false, message: 'Ошибка: ' + (e.message || String(e)).slice(0, 50) };
+  }
+
+  // 5. Telegram
   if (secrets.telegramBotToken && secrets.telegramChatId) {
     try {
       const t0 = new Date().getTime();
@@ -245,13 +289,21 @@ function getProviderStations(provider, countryCodes, initData) {
     return [];
   }
 
-  const stations = provider === 'movacar' ? getMovacarAllStations_() : getRoadsurferAllStations_();
+  let stations = [];
+  if (provider === 'movacar') {
+    stations = getMovacarAllStations_();
+  } else if (provider === 'roadsurfer') {
+    stations = getRoadsurferAllStations_();
+  } else {
+    stations = [{ id: '*', name: '✨ Все города / Любой', country: '' }];
+  }
   return stations.filter(function (station) {
     return !station.country || selectedCountries.indexOf(String(station.country).toUpperCase()) !== -1;
   }).sort(function (a, b) {
     return a.name.localeCompare(b.name);
   });
 }
+
 
 function getProviderDestinations(provider, originId, countryCodes, initData) {
   const secrets = getScriptSecrets();
@@ -653,3 +705,81 @@ function checkOffersAvailabilityWeb(initData) {
   return checkOffersAvailability();
 }
 
+function getAnalytics(initData) {
+  const secrets = getScriptSecrets();
+  authorizeWebAppRequest_(initData, secrets);
+
+  const spreadsheet = getSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(SHEET_NAMES.ARCHIVE);
+  if (!sheet || sheet.getLastRow() < 2) {
+    return { dailyCounts: [], topRoutes: [], hourlyPattern: [], bySources: [] };
+  }
+
+  const values = sheet
+    .getRange(2, 1, sheet.getLastRow() - 1, ARCHIVE_HEADERS.length)
+    .getValues();
+
+  const iFoundAt = ARCHIVE_HEADERS.indexOf('found_at');
+  const iMatches = ARCHIVE_HEADERS.indexOf('matches_filter');
+  const iOrigin  = ARCHIVE_HEADERS.indexOf('origin');
+  const iDest    = ARCHIVE_HEADERS.indexOf('destination');
+  const iSource  = ARCHIVE_HEADERS.indexOf('source');
+
+  const dailyMap  = {};
+  const routeMap  = {};
+  const hourMap   = new Array(24).fill(0);
+  const sourceMap = {};
+
+  values.forEach(function(row) {
+    const rawDate = row[iFoundAt];
+    if (!rawDate) return;
+    const d       = new Date(rawDate);
+    const dateKey = Utilities.formatDate(d, 'UTC', 'yyyy-MM-dd');
+    const hour    = d.getUTCHours();
+    const matched = row[iMatches] === true || String(row[iMatches]).toLowerCase() === 'true';
+    const source  = String(row[iSource] || '').trim();
+    const origin  = String(row[iOrigin] || '').trim();
+    const dest    = String(row[iDest]   || '').trim();
+
+    // daily totals
+    if (!dailyMap[dateKey]) dailyMap[dateKey] = { date: dateKey, total: 0, matched: 0 };
+    dailyMap[dateKey].total++;
+    if (matched) dailyMap[dateKey].matched++;
+
+    // top routes (matched only)
+    if (matched && origin && dest) {
+      const route = origin + ' → ' + dest;
+      routeMap[route] = (routeMap[route] || 0) + 1;
+    }
+
+    // hourly pattern (matched only, UTC hours)
+    if (matched) hourMap[hour]++;
+
+    // by source
+    if (source) {
+      if (!sourceMap[source]) sourceMap[source] = { source: source, total: 0, matched: 0 };
+      sourceMap[source].total++;
+      if (matched) sourceMap[source].matched++;
+    }
+  });
+
+  const dailyCounts = Object.values(dailyMap)
+    .sort(function(a, b) { return a.date < b.date ? -1 : 1; })
+    .slice(-30);
+
+  const topRoutes = Object.keys(routeMap)
+    .map(function(r) { return { route: r, count: routeMap[r] }; })
+    .sort(function(a, b) { return b.count - a.count; })
+    .slice(0, 10);
+
+  const hourlyPattern = hourMap.map(function(count, h) { return { hour: h, count: count }; });
+
+  const bySources = Object.values(sourceMap).sort(function(a, b) { return b.total - a.total; });
+
+  return {
+    dailyCounts:   dailyCounts,
+    topRoutes:     topRoutes,
+    hourlyPattern: hourlyPattern,
+    bySources:     bySources,
+  };
+}
