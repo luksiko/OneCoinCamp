@@ -189,3 +189,227 @@ class MovacarProvider:
                 )
             )
         return offers
+
+
+class IndieCampersProvider:
+    base_url = "https://edge.indiecampers.com"
+
+    def __init__(self, http: JsonHttpClient) -> None:
+        self.http = http
+
+    def fetch_offers(
+        self,
+        route: Route,
+        allowed_destination_countries: tuple[str, ...] | None = None,
+    ) -> list[Offer]:
+        origin = str(route.origin_id or route.origin).lower()
+        destination = str(route.destination_id or route.destination).lower()
+
+        payload = {
+            "booking": {
+                "checkin_city": origin,
+                "checkout_city": destination,
+                "checkin_datetime": f"{route.pickup_date}T16:30:00+00:00",
+                "checkout_datetime": f"{route.return_date}T11:00:00+00:00",
+                "locale": "en",
+                "legacy_search": False,
+                "van_category": "",
+                "limit": 50,
+                "offset": 0,
+                "only_marketplace": False,
+            },
+            "filters": {},
+            "meta": {
+                "current_route": "rent-an-rv-search",
+            },
+        }
+
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Origin": "https://indiecampers.com",
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+            ),
+        }
+
+        url = f"{self.base_url}/api/v3/availability"
+        res = self.http.post(url, payload, headers=headers)
+
+        items = res.get("data", {}).get("availability", []) if isinstance(res, dict) else []
+        offers: list[Offer] = []
+        booking_url = (
+            f"https://indiecampers.com/rent-an-rv/search?"
+            f"from={origin}&to={destination}&start={route.pickup_date}&end={route.return_date}"
+        )
+
+        for item in items:
+            if not item.get("available", True):
+                continue
+
+            van_id = item.get("van_id") or item.get("van_category") or uuid.uuid4()
+            price = str(item.get("total_cost") or item.get("daily_cost") or "")
+            vehicle_name = (
+                item.get("manufacturer_name")
+                or item.get("van_category")
+                or item.get("category_badge")
+            )
+
+            offers.append(
+                Offer(
+                    source="indiecampers",
+                    offer_id=str(van_id),
+                    origin=route.origin,
+                    destination=route.destination,
+                    pickup_date=item.get("checkin_date") or route.pickup_date,
+                    return_date=item.get("checkout_date") or route.return_date,
+                    price=price if price else None,
+                    vehicle=str(vehicle_name) if vehicle_name else "Indie Camper",
+                    booking_url=booking_url,
+                )
+            )
+
+        return offers
+
+
+
+class ImoovaProvider:
+    base_url = "https://api.imoova.com"
+
+    def __init__(self, http: JsonHttpClient) -> None:
+        self.http = http
+
+    def fetch_offers(
+        self,
+        route: Route,
+        allowed_destination_countries: tuple[str, ...] | None = None,
+    ) -> list[Offer]:
+        payload = {
+            "query": """
+            query GetRelocations {
+              relocations(first: 100) {
+                data {
+                  id
+                  reference
+                  name
+                  type
+                  available_from_date
+                  available_to_date
+                  earliest_departure_date
+                  latest_departure_date
+                  hire_unit_rate
+                  retail_rate
+                  currency
+                  vehicle {
+                    name
+                  }
+                  departureCity {
+                    id
+                    name
+                    slug
+                    region
+                  }
+                  deliveryCity {
+                    id
+                    name
+                    slug
+                  }
+                }
+              }
+            }
+            """,
+            "operationName": "GetRelocations",
+        }
+
+        headers = {
+            "Accept": "application/json",
+            "Origin": "https://www.imoova.com",
+            "Referer": "https://www.imoova.com/",
+            "User-Agent": (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+            ),
+        }
+
+        url = f"{self.base_url}/graphql"
+        res = self.http.post(url, payload, headers=headers)
+
+        items = (
+            res.get("data", {}).get("relocations", {}).get("data", [])
+            if isinstance(res, dict)
+            else []
+        )
+        offers: list[Offer] = []
+
+        for item in items:
+            dep = item.get("departureCity") or {}
+            deliv = item.get("deliveryCity") or {}
+
+            if not self._city_matches(route.origin_id or route.origin, dep):
+                continue
+            if not self._city_matches(route.destination_id or route.destination, deliv):
+                continue
+
+            rel_id = item.get("id") or str(uuid.uuid4())
+            booking_url = f"https://www.imoova.com/imoova/relocations/{rel_id}"
+            vehicle_info = item.get("vehicle") or {}
+            vehicle_name = vehicle_info.get("name") or item.get("name") or "Imoova vehicle"
+
+            raw_price = item.get("hire_unit_rate") or item.get("retail_rate")
+            price = str(raw_price) if raw_price is not None else None
+
+            pickup = (
+                item.get("available_from_date")
+                or item.get("earliest_departure_date")
+                or route.pickup_date
+            )
+            ret = (
+                item.get("available_to_date")
+                or item.get("latest_departure_date")
+                or route.return_date
+            )
+
+            offers.append(
+                Offer(
+                    source="imoova",
+                    offer_id=str(rel_id),
+                    origin=route.origin,
+                    destination=route.destination,
+                    pickup_date=pickup,
+                    return_date=ret,
+                    price=price,
+                    vehicle=str(vehicle_name),
+                    booking_url=booking_url,
+                )
+            )
+
+        return offers
+
+
+    @staticmethod
+    def _city_matches(target: str | int | None, city_info: dict[str, Any]) -> bool:
+        if target is None or target == "*":
+            return True
+        t = str(target).lower().strip()
+        if not t:
+            return True
+        name = str(city_info.get("name") or "").lower().strip()
+        slug = str(city_info.get("slug") or "").lower().strip()
+        city_id = str(city_info.get("id") or "").lower().strip()
+        return t in (name, slug, city_id)
+
+
+
+class FreewayCamperProvider:
+    base_url = "https://freeway-camper.com"  # TODO: Update with real API
+
+    def __init__(self, http: JsonHttpClient) -> None:
+        self.http = http
+
+    def fetch_offers(
+        self,
+        route: Route,
+        allowed_destination_countries: tuple[str, ...] | None = None,
+    ) -> list[Offer]:
+        # TODO: Implement actual API request and parsing
+        return []

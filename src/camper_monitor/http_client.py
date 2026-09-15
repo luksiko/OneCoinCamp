@@ -32,12 +32,20 @@ class JsonHttpClient:
             time.sleep(2**attempt)
         raise AssertionError("unreachable")
 
-    def post(self, url: str, payload: Mapping[str, Any]) -> Any:
+    def post(
+        self,
+        url: str,
+        payload: Mapping[str, Any],
+        headers: Mapping[str, str] | None = None,
+    ) -> Any:
         body = json.dumps(payload).encode("utf-8")
+        req_headers = {"Content-Type": "application/json"}
+        if headers:
+            req_headers.update(headers)
         request = Request(
             url,
             data=body,
-            headers={"Content-Type": "application/json"},
+            headers=req_headers,
             method="POST",
         )
         try:

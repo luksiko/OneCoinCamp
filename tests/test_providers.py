@@ -4,7 +4,90 @@ import pytest
 
 from camper_monitor.http_client import FetchError
 from camper_monitor.models import Route
-from camper_monitor.providers import MovacarProvider, RoadsurferProvider
+from camper_monitor.providers import (
+    ImoovaProvider,
+    IndieCampersProvider,
+    MovacarProvider,
+    RoadsurferProvider,
+)
+
+
+def test_imoova_search_normalizes_offer():
+    payload = {
+        "data": {
+            "relocations": {
+                "data": [
+                    {
+                        "id": "116242",
+                        "reference": "RLC116242",
+                        "name": "Melbourne to Cairns",
+                        "type": "RELOCATION",
+                        "available_from_date": "2026-08-05",
+                        "available_to_date": "2026-08-21",
+                        "retail_rate": 50.0,
+                        "vehicle": {"name": "9+ Seater Commuter"},
+                        "departureCity": {"id": "66", "name": "Melbourne", "slug": "melbourne"},
+                        "deliveryCity": {"id": "74", "name": "Cairns", "slug": "cairns"},
+                    }
+                ]
+            }
+        }
+    }
+    http = FakeHttp(payload)
+    provider = ImoovaProvider(http)
+    route = Route(
+        source="imoova",
+        origin="melbourne",
+        destination="cairns",
+        pickup_date="2026-08-05",
+        return_date="2026-08-21",
+    )
+
+    offers = provider.fetch_offers(route)
+
+    assert len(offers) == 1
+    assert offers[0].offer_id == "116242"
+    assert offers[0].vehicle == "9+ Seater Commuter"
+    assert offers[0].price == "50.0"
+    assert offers[0].booking_url == "https://www.imoova.com/imoova/relocations/116242"
+
+
+
+
+def test_indie_campers_search_normalizes_offer():
+    payload = {
+        "data": {
+            "availability": [
+                {
+                    "available": True,
+                    "van_id": 192,
+                    "manufacturer_name": "Weinsberg",
+                    "total_cost": 1872.2,
+                    "checkin_date": "2026-09-27",
+                    "checkout_date": "2026-10-07",
+                }
+            ]
+        }
+    }
+    http = FakeHttp(payload)
+    provider = IndieCampersProvider(http)
+    route = Route(
+        source="indiecampers",
+        origin="lisbon",
+        destination="porto",
+        pickup_date="2026-09-27",
+        return_date="2026-10-07",
+    )
+
+    offers = provider.fetch_offers(route)
+
+    assert len(offers) == 1
+    assert offers[0].offer_id == "192"
+    assert offers[0].vehicle == "Weinsberg"
+    assert offers[0].price == "1872.2"
+    assert "from=lisbon&to=porto" in offers[0].booking_url
+    assert http.post_payload["booking"]["checkin_city"] == "lisbon"
+
 
 
 class FakeHttp:
@@ -13,10 +96,19 @@ class FakeHttp:
         self.error = error
         self.url = None
         self.headers = None
+        self.post_payload = None
 
     def get(self, url, headers=None):
         self.url = url
         self.headers = headers
+        if self.error:
+            raise self.error
+        return self.payload
+
+    def post(self, url, payload=None, headers=None):
+        self.url = url
+        self.headers = headers
+        self.post_payload = payload
         if self.error:
             raise self.error
         return self.payload
