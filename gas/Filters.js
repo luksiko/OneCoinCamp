@@ -1,4 +1,7 @@
 function parseCountryList_(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
   return String(value || '')
     .split(',')
     .map(function (item) {
@@ -9,12 +12,14 @@ function parseCountryList_(value) {
 
 function nextSunday_(timezone) {
   const now = new Date();
-  const local = new Date(Utilities.formatDate(now, timezone, "yyyy-MM-dd'T'HH:mm:ss"));
-  const day = local.getDay();
-  const add = day === 0 ? 0 : 7 - day;
-  local.setDate(local.getDate() + add);
-  local.setHours(0, 0, 0, 0);
-  return local;
+  const dayOfWeek = parseInt(Utilities.formatDate(now, timezone, 'u'), 10);
+  const daysUntilSunday = dayOfWeek === 7 ? 0 : 7 - dayOfWeek;
+  const sundayStr = Utilities.formatDate(
+    new Date(now.getTime() + daysUntilSunday * 86400000),
+    timezone,
+    "yyyy-MM-dd"
+  );
+  return parseIsoDate_(sundayStr);
 }
 
 function addDays_(date, days) {

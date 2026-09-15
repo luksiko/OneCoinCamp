@@ -128,12 +128,16 @@ function fetchRoadsurferDestinations_(originId, filters) {
         name: s ? s.name : 'Station ' + destinationId,
         country: s ? s.country : '',
       };
+    }).filter(function (r) {
+      if (allowed.length === 0) return true;
+      const country = (r.country || '').toUpperCase().trim();
+      return allowed.indexOf(country) !== -1;
     });
   }
   return routes
     .filter(function (r) {
       const country = (r.country || r.destination_country || '').toUpperCase().trim();
-      return allowed.indexOf(country) !== -1;
+      return allowed.length === 0 || allowed.indexOf(country) !== -1;
     })
     .map(function (r) {
       return {

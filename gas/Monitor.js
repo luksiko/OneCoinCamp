@@ -271,19 +271,17 @@ function runMonitorOnce() {
       appendArchiveRows_(spreadsheet, rowsToAppend);
     }
 
-    if (!hasErrors) {
-      logRun_(spreadsheet, {
-        startedAt: startedAt,
-        finishedAt: new Date(),
-        source: 'all',
-        requestCount: requestCount,
-        offersFound: foundOffers.length,
-        offersFiltered: rowsToAppend.length,
-        telegramSent: telegramSentCount,
-        status: 'OK',
-        errorMessage: '',
-      });
-    }
+    logRun_(spreadsheet, {
+      startedAt: startedAt,
+      finishedAt: new Date(),
+      source: 'all',
+      requestCount: requestCount,
+      offersFound: foundOffers.length,
+      offersFiltered: rowsToAppend.length,
+      telegramSent: telegramSentCount,
+      status: hasErrors ? 'PARTIAL' : 'OK',
+      errorMessage: '',
+    });
   } catch (error) {
     const errorMessage = (error.message || String(error)).slice(0, 500);
     const props = PropertiesService.getScriptProperties();

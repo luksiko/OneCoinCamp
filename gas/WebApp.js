@@ -302,22 +302,7 @@ function getRoadsurferDestinations(originId, countryCodes, initData) {
   });
 }
 
-function parseCountryList_(raw) {
-  if (Array.isArray(raw)) {
-    return raw;
-  }
-  if (!raw) {
-    return [];
-  }
-  return String(raw)
-    .split(',')
-    .map(function (c) {
-      return c.trim().toUpperCase();
-    })
-    .filter(function (c) {
-      return c.length > 0;
-    });
-}
+
 
 function buildStatus_(spreadsheet, settings) {
   const interval = Number(settings.poll_interval_minutes) || Number(DEFAULT_SETTINGS.poll_interval_minutes);

@@ -206,8 +206,8 @@ function appendRunRow_(spreadsheet, row) {
 
 function logRun_(spreadsheet, run) {
   appendRunRow_(spreadsheet, [
-    run.startedAt ? Utilities.formatDate(new Date(run.startedAt), DEFAULT_SETTINGS.timezone, "yyyy-MM-dd'T'HH:mm:ss") : '',
-    run.finishedAt ? Utilities.formatDate(new Date(run.finishedAt), DEFAULT_SETTINGS.timezone, "yyyy-MM-dd'T'HH:mm:ss") : '',
+    run.startedAt ? new Date(run.startedAt).toISOString() : '',
+    run.finishedAt ? new Date(run.finishedAt).toISOString() : '',
     run.source || 'all',
     run.requestCount || 0,
     run.offersFound || 0,
@@ -220,7 +220,7 @@ function logRun_(spreadsheet, run) {
 
 function offerToRow_(offer, fingerprint, matches, telegramSentAt) {
   return [
-    Utilities.formatDate(new Date(), DEFAULT_SETTINGS.timezone, "yyyy-MM-dd'T'HH:mm:ss"),
+    new Date().toISOString(),
     offer.source || '',
     offer.offerId || '',
     offer.vehicleId || '',
