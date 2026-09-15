@@ -1281,17 +1281,13 @@
 
       var pair1 = document.createElement('div');
       pair1.className = 'pair';
-      var oField = fieldGroup('Откуда (название)', textInput(route.originName, function (v) { route.originName = v; }));
-      var oIdField = fieldGroup('origin_id', textInput(route.originId, function (v) { route.originId = v; }));
+      var oField = fieldGroup('Откуда (название города или *)', textInput(route.originName, function (v) { route.originName = v; }));
       pair1.appendChild(oField);
-      pair1.appendChild(oIdField);
 
       var pair2 = document.createElement('div');
       pair2.className = 'pair';
-      var dField = fieldGroup('Куда (название)', textInput(route.destinationName, function (v) { route.destinationName = v; }));
-      var dIdField = fieldGroup('destination_id', textInput(route.destinationId, function (v) { route.destinationId = v; }));
+      var dField = fieldGroup('Куда (название города или *)', textInput(route.destinationName, function (v) { route.destinationName = v; }));
       pair2.appendChild(dField);
-      pair2.appendChild(dIdField);
 
       var pair3 = document.createElement('div');
       pair3.className = 'pair';

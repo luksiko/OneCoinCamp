@@ -341,14 +341,53 @@ function fetchRoadsurferOffers_(route, window, filters) {
 }
 
 function fetchMovacarOffers_(route, window) {
-  if (!route.originId || !route.destinationId) {
-    return [];
+  let originRef = route.originId;
+  let destRef = route.destinationId;
+  let destLocId = destRef;
+
+  if (!originRef || !destRef || isWildcardStation_(originRef) || isWildcardStation_(destRef)) {
+    if (!route.originName || !route.destinationName || isWildcardStation_(route.originName) || isWildcardStation_(route.destinationName)) {
+      return [];
+    }
+    const allLocationsUrl = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de';
+    const payloadAll = fetchJson_(allLocationsUrl, {
+      headers: {
+        Accept: 'application/vnd.api+json',
+        Origin: 'https://movacar.com',
+        Referer: 'https://movacar.com/',
+        'X-Request-Id': randomRequestId_(),
+      },
+      retries: 1
+    });
+
+    const includedAll = payloadAll.included || [];
+    const oName = String(route.originName).toLowerCase().trim();
+    const dName = String(route.destinationName).toLowerCase().trim();
+    
+    const originLoc = includedAll.filter(function(item) {
+      return item.type === 'locationsummary' && item.attributes && item.attributes.location_type === 'origin' &&
+             (item.attributes.name || '').toLowerCase().indexOf(oName) !== -1;
+    })[0];
+    
+    const destLoc = includedAll.filter(function(item) {
+      return item.type === 'locationsummary' && item.attributes && item.attributes.location_type === 'destination' &&
+             (item.attributes.name || '').toLowerCase().indexOf(dName) !== -1;
+    })[0];
+
+    if (!originLoc || !destLoc) {
+      return [];
+    }
+
+    originRef = originLoc.attributes.reference;
+    destRef = destLoc.attributes.reference;
+    destLocId = destLoc.id;
   }
+
   const query =
     'locale=de&origin_reference=' +
-    encodeURIComponent(route.originId) +
+    encodeURIComponent(originRef) +
     '&destination_reference=' +
-    encodeURIComponent(route.destinationId);
+    encodeURIComponent(destRef);
   const url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?' + query;
   const payload = fetchJson_(url, {
     headers: {
@@ -361,7 +400,7 @@ function fetchMovacarOffers_(route, window) {
 
   const included = payload.included || [];
   const destinationSummary = included.filter(function (item) {
-    return item.type === 'locationsummary' && String(item.id) === String(route.destinationId);
+    return item.type === 'locationsummary' && String(item.id) === String(destLocId);
   })[0];
 
   const offerCount =
@@ -373,7 +412,7 @@ function fetchMovacarOffers_(route, window) {
   return [
     {
       source: 'movacar',
-      offerId: String(route.originId) + '->' + String(route.destinationId) + '@' + formatIsoDate_(window.start),
+      offerId: String(originRef) + '->' + String(destRef) + '@' + formatIsoDate_(window.start),
       vehicleId: '',
       vehicle: 'Movacar vehicle (' + offerCount + ' available)',
       origin: route.originName,

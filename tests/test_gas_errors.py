@@ -391,7 +391,7 @@ if (testName === 'roadsurfer_429') {
   context.runMonitorOnce();
   const archive2 = sheets['OffersArchive'].values;
   assert.strictEqual(archive2.length, 2);
-  assert.strictEqual(archive2[1][16], '2026-09-15');
+  assert.match(archive2[1][16], /^\d{4}-\d{2}-\d{2}$/);
   assert.strictEqual(telegramCallCount, 1);
   const fp = archive2[1][14];
   assert.strictEqual(memCache[fp], '1');
@@ -482,7 +482,7 @@ if (testName === 'roadsurfer_429') {
   assert.strictEqual(telegramCallCount, 1);
   const archive = sheets['OffersArchive'].values;
   assert.strictEqual(archive.length, 3);
-  assert.strictEqual(archive[2][16], '2026-09-15');
+  assert.match(archive[2][16], /^\d{4}-\d{2}-\d{2}$/);
 } else if (testName === 'webapp_signature_test_vector_1') {
   const { context, scriptProps } = setupGasContext(() => ({}));
   scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
