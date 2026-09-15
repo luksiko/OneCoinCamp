@@ -22,6 +22,10 @@ const WEBAPP_COUNTRIES = [
 const WEBAPP_INTERVALS = [1, 5, 10, 15, 30];
 
 function doPost(e) {
+  if (e && e.parameter && e.parameter.api === '1') {
+    return handleApiRequest_(e);
+  }
+
   const secrets = getScriptSecrets();
   const expectedSecret = secrets.telegramWebhookSecret;
   const providedSecret =
@@ -35,6 +39,44 @@ function doPost(e) {
 
   return handleTelegramWebhook(e);
 }
+
+function handleApiRequest_(e) {
+  try {
+    const body = JSON.parse(e.postData.contents);
+    const method = body.method;
+    const args = body.args || [];
+    
+    // Explicitly list allowed frontend methods for security
+    const allowedMethods = [
+      'getUiData',
+      'checkProvidersHealth',
+      'getRoadsurferStations',
+      'getRoadsurferDestinations',
+      'saveUiData',
+      'runMonitorFromUi',
+      'ensureTriggersFromUi',
+      'getOfferSources',
+      'getOffers',
+      'deleteOffer',
+      'checkOffersAvailabilityWeb'
+    ];
+    
+    if (allowedMethods.indexOf(method) === -1) {
+      throw new Error("Method not allowed or not found: " + method);
+    }
+    
+    // Call the corresponding function dynamically
+    // `this[method]` works because top-level functions are properties of `this` in Apps Script
+    const result = this[method].apply(this, args);
+    
+    return ContentService.createTextOutput(JSON.stringify({ result: result }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ error: err.message || String(err) }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
 
 function doGet() {
   ensureTriggersFromWebApp_();
