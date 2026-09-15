@@ -36,7 +36,7 @@ function fetchRoadsurferOffers_(route, window, filters) {
 
   for (let i = 0; i < destinations.length; i++) {
     const dest = destinations[i];
-    const bookingUrl =
+    const refererUrl =
       'https://booking.roadsurfer.com/en/rally/pick?station=' +
       encodeURIComponent(route.originId) +
       '&end_station=' +
@@ -57,7 +57,7 @@ function fetchRoadsurferOffers_(route, window, filters) {
     const payload = fetchJson_(searchUrl, {
       headers: {
         Accept: 'application/json, text/plain, */*',
-        Referer: bookingUrl,
+        Referer: refererUrl,
         'X-Requested-Alias': 'rally.search',
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -71,6 +71,21 @@ function fetchRoadsurferOffers_(route, window, filters) {
       const price = firstDefined_(item.price, item.total_price, item.totalPrice, item.amount);
       const vehicle = item.name || model.name || '';
       const destName = dest.name || route.destinationName || ('Station ' + dest.id);
+      
+      const itemPickupDate = firstDefined_(item.pickup_date, item.pickupDate, rangeStart);
+      const itemReturnDate = firstDefined_(item.return_date, item.returnDate, rangeEnd);
+      
+      const itemBookingUrl =
+        'https://booking.roadsurfer.com/en/rally/pick?station=' +
+        encodeURIComponent(route.originId) +
+        '&end_station=' +
+        encodeURIComponent(dest.id) +
+        '&pickup_date=' +
+        itemPickupDate +
+        '&return_date=' +
+        itemReturnDate +
+        '&currency=EUR';
+
       allOffers.push({
         source: 'roadsurfer',
         offerId: String(firstDefined_(item.id, item.offer_id, Utilities.getUuid())),
@@ -80,11 +95,11 @@ function fetchRoadsurferOffers_(route, window, filters) {
         originCountry: route.originCountry || '',
         destination: destName,
         destinationCountry: dest.country || route.destinationCountry || '',
-        pickupDate: firstDefined_(item.pickup_date, item.pickupDate, rangeStart),
-        returnDate: firstDefined_(item.return_date, item.returnDate, rangeEnd),
+        pickupDate: itemPickupDate,
+        returnDate: itemReturnDate,
         price: price == null ? '' : Number(price),
         currency: 'EUR',
-        bookingUrl: bookingUrl,
+        bookingUrl: itemBookingUrl,
         rawJson: JSON.stringify(item),
       });
     }
