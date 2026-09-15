@@ -132,7 +132,11 @@ class MovacarProvider:
         )
         return payload.get("included", [])
 
-    def fetch_offers(self, route: Route) -> list[Offer]:
+    def fetch_offers(
+        self,
+        route: Route,
+        allowed_destination_countries: tuple[str, ...] | None = None,
+    ) -> list[Offer]:
         if route.origin_id is None or route.destination_id is None:
             raise ValueError("Movacar routes require origin_id and destination_id")
         query = urlencode(

@@ -12,6 +12,12 @@ function fetchRoadsurferOffers_(route, window, filters) {
   if (!route.originId) {
     throw new Error('Roadsurfer route needs origin_id');
   }
+  if (!isRoadsurferStationId_(route.originId)) {
+    throw new Error('Roadsurfer origin_id must be a numeric station ID, not a city name');
+  }
+  if (route.destinationId && !isRoadsurferStationId_(route.destinationId)) {
+    throw new Error('Roadsurfer destination_id must be a numeric station ID, not a city name');
+  }
 
   let destinations = [];
   if (route.destinationId) {
@@ -103,6 +109,11 @@ function fetchRoadsurferDestinations_(originId, filters) {
   });
 
   const routes = Array.isArray(payload) ? payload : payload.routes || payload.data || [];
+  if (Array.isArray(payload && payload.returns)) {
+    return payload.returns.map(function (destinationId) {
+      return { id: destinationId, name: 'Station ' + destinationId, country: '' };
+    });
+  }
   return routes
     .filter(function (r) {
       const country = (r.country || r.destination_country || '').toUpperCase().trim();
@@ -115,6 +126,10 @@ function fetchRoadsurferDestinations_(originId, filters) {
         country: (r.country || r.destination_country || '').toUpperCase().trim(),
       };
     });
+}
+
+function isRoadsurferStationId_(value) {
+  return /^\d+$/.test(String(value || '').trim());
 }
 
 function fetchMovacarOffers_(route, window) {

@@ -14,8 +14,9 @@ LLM в рантайме нет.
 
 Инструкция: [docs/clasp-setup.md](docs/clasp-setup.md).
 
-Архитектура: [docs/architecture.md](docs/architecture.md).  
+Архитектура: [docs/architecture.md](docs/architecture.md).
 API: [docs/network-api.md](docs/network-api.md).
+План реализации: [docs/implementation-plan.md](docs/implementation-plan.md).
 
 ```sh
 clasp login

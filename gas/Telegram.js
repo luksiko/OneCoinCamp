@@ -267,6 +267,35 @@ function testTelegramConnection() {
   }
 }
 
+function setupTelegramMiniApp() {
+  const secrets = getScriptSecrets();
+  if (!secrets.telegramBotToken) {
+    throw new Error('TELEGRAM_BOT_TOKEN is missing in Script Properties');
+  }
+
+  const webAppUrl = ScriptApp.getService().getUrl();
+  if (!webAppUrl) {
+    throw new Error('Web App is not deployed');
+  }
+
+  const result = fetchJson_('https://api.telegram.org/bot' + secrets.telegramBotToken + '/setChatMenuButton', {
+    method: 'post',
+    payload: JSON.stringify({
+      menu_button: {
+        type: 'web_app',
+        text: 'Открыть монитор',
+        web_app: { url: webAppUrl },
+      },
+    }),
+  });
+
+  if (!result || result.ok !== true) {
+    throw new Error('Telegram setChatMenuButton failed: ' + ((result && result.description) || 'unknown error'));
+  }
+
+  return { ok: true, webAppUrl: webAppUrl };
+}
+
 function setupTelegramWebhook() {
   const secrets = getScriptSecrets();
   if (!secrets.telegramBotToken) {

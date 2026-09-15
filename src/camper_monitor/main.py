@@ -43,7 +43,6 @@ def poll_once(
         else None
     )
     found = 0
-    total_requests = 0
     for route in settings.routes:
         if not route.enabled:
             continue
@@ -52,6 +51,7 @@ def poll_once(
             logger.error("Unknown provider: %s", route.source)
             continue
         state.start_poll_run(route.source)
+        request_count = 1
         try:
             offers = provider.fetch_offers(
                 route,
@@ -61,9 +61,8 @@ def poll_once(
             logger.error(
                 "%s %s → %s: %s", route.source, route.origin, route.destination, error
             )
-            state.finish_poll_run(request_count=total_requests, offers_found=0)
+            state.finish_poll_run(request_count=request_count, offers_found=0)
             continue
-        total_requests += 1
         filtered = filter_offers(
             offers,
             min_trip_days=settings.min_trip_days,
@@ -85,7 +84,7 @@ def poll_once(
             state.mark_sent(offer.fingerprint)
             sent += 1
         state.finish_poll_run(
-            request_count=total_requests,
+            request_count=request_count,
             offers_found=len(filtered),
             telegram_sent=sent,
         )

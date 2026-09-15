@@ -39,6 +39,7 @@ clasp open
 | `TELEGRAM_BOT_TOKEN` | токен бота |
 | `TELEGRAM_CHAT_ID` | chat id |
 | `SPREADSHEET_ID` | id таблицы (обычно ставится автоматически при `setupMonitor`) |
+| `WEB_APP_REQUIRE_TELEGRAM_AUTH` | `true` только для production; если не задан, dev-версия доступна по прямой ссылке |
 
 Не класть токен в Git и не вставлять в код.
 

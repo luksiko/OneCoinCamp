@@ -194,6 +194,17 @@ function saveRoutes_(spreadsheet, routes) {
   if (!sheet) {
     return;
   }
+  if (routes && routes.length) {
+    routes.forEach(function (route, index) {
+      if (route.source !== 'roadsurfer') {
+        return;
+      }
+      if (!/^\d+$/.test(String(route.originId || '').trim()) ||
+          (String(route.destinationId || '').trim() && !/^\d+$/.test(String(route.destinationId).trim()))) {
+        throw new Error('Маршрут Roadsurfer #' + (index + 1) + ': origin_id и destination_id должны быть числовыми ID станций.');
+      }
+    });
+  }
   const headersCount = 8;
   const lastRow = Math.max(sheet.getLastRow(), 2);
   sheet.getRange(2, 1, lastRow - 1, headersCount).clearContent();

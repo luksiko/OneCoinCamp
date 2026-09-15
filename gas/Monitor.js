@@ -8,6 +8,7 @@ function onOpen() {
     .addItem('⚙️ Configure Telegram (Token & Chat ID)', 'configureTelegramSecrets')
     .addItem('🧪 Test Telegram connection', 'testTelegramConnection')
     .addItem('📥 Poll Telegram updates now', 'processTelegramUpdates')
+    .addItem('📱 Configure Telegram Mini App', 'setupTelegramMiniApp')
     .addSeparator()
     .addItem('🌐 Register Telegram Webhook', 'setupTelegramWebhook')
     .addItem('❌ Delete Telegram Webhook', 'deleteTelegramWebhook')

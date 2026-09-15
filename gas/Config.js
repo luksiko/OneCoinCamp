@@ -9,7 +9,9 @@ const SHEET_NAMES = {
 const PROPERTY_KEYS = {
   TELEGRAM_BOT_TOKEN: 'TELEGRAM_BOT_TOKEN',
   TELEGRAM_CHAT_ID: 'TELEGRAM_CHAT_ID',
+  TELEGRAM_ALLOWED_USERS: 'TELEGRAM_ALLOWED_USERS',
   TELEGRAM_WEBHOOK_SECRET: 'TELEGRAM_WEBHOOK_SECRET',
+  WEB_APP_REQUIRE_TELEGRAM_AUTH: 'WEB_APP_REQUIRE_TELEGRAM_AUTH',
   SPREADSHEET_ID: 'SPREADSHEET_ID',
 };
 
@@ -103,7 +105,9 @@ function getScriptSecrets() {
   return {
     telegramBotToken: props.getProperty(PROPERTY_KEYS.TELEGRAM_BOT_TOKEN) || '',
     telegramChatId: props.getProperty(PROPERTY_KEYS.TELEGRAM_CHAT_ID) || '',
+    telegramAllowedUsers: props.getProperty(PROPERTY_KEYS.TELEGRAM_ALLOWED_USERS) || '',
     telegramWebhookSecret: props.getProperty(PROPERTY_KEYS.TELEGRAM_WEBHOOK_SECRET) || '',
+    webAppRequireTelegramAuth: props.getProperty(PROPERTY_KEYS.WEB_APP_REQUIRE_TELEGRAM_AUTH) === 'true',
     spreadsheetId: props.getProperty(PROPERTY_KEYS.SPREADSHEET_ID) || '',
   };
 }

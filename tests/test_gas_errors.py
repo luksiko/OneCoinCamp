@@ -57,6 +57,8 @@ function setupGasContext(fetchMock) {
     Object,
     RegExp,
     encodeURIComponent,
+    decodeURIComponent,
+    parseInt,
     loggedRuns,
     Utilities: {
       sleep: () => {},
@@ -68,6 +70,15 @@ function setupGasContext(fetchMock) {
         const crypto = require('crypto');
         const buf = crypto.createHash('sha256').update(String(str), 'utf8').digest();
         return Array.from(buf);
+      },
+      computeHmacSha256Signature: (value, key, charset) => {
+        const crypto = require('crypto');
+        const keyBuf = Buffer.isBuffer(key) ? key : (Array.isArray(key) ? Buffer.from(key.map(b => (b < 0 ? b + 256 : b))) : Buffer.from(String(key), 'utf8'));
+        const valBuf = Buffer.isBuffer(value) ? value : (Array.isArray(value) ? Buffer.from(value.map(b => (b < 0 ? b + 256 : b))) : Buffer.from(String(value), 'utf8'));
+        const hmac = crypto.createHmac('sha256', keyBuf);
+        hmac.update(valBuf);
+        const buf = hmac.digest();
+        return Array.from(buf).map(b => (b > 127 ? b - 256 : b));
       },
     },
     UrlFetchApp: {
@@ -84,6 +95,11 @@ function setupGasContext(fetchMock) {
         tryLock: () => true,
         releaseLock: () => {}
       })
+    },
+    ScriptApp: {
+      getService: () => ({
+        getUrl: () => 'https://script.google.com/macros/s/test-deployment/exec',
+      }),
     },
     CacheService: {
       getScriptCache: () => ({
@@ -134,7 +150,7 @@ function setupGasContext(fetchMock) {
   };
 
   vm.createContext(context);
-  const files = ['gas/Config.js', 'gas/Http.js', 'gas/Filters.js', 'gas/Sheets.js', 'gas/Telegram.js', 'gas/Providers.js', 'gas/Monitor.js'];
+  const files = ['gas/Config.js', 'gas/Http.js', 'gas/Filters.js', 'gas/Sheets.js', 'gas/Telegram.js', 'gas/Providers.js', 'gas/Monitor.js', 'gas/WebApp.js'];
   for (const f of files) {
     vm.runInContext(fs.readFileSync(f, 'utf8'), context);
   }
@@ -167,6 +183,25 @@ if (testName === 'roadsurfer_429') {
   assert.throws(() => {
     context.fetchRoadsurferDestinations_('6', {});
   }, /Invalid JSON/);
+} else if (testName === 'roadsurfer_station_returns_are_destinations') {
+  const { context } = setupGasContext(() => ({
+    getResponseCode: () => 200,
+    getContentText: () => JSON.stringify({ id: 6, returns: [16, 35] })
+  }));
+  const destinations = context.fetchRoadsurferDestinations_('6', {});
+  assert.deepStrictEqual(destinations.map(d => d.id), [16, 35]);
+} else if (testName === 'roadsurfer_rejects_city_as_station_id') {
+  const { context } = setupGasContext(() => ({
+    getResponseCode: () => 200,
+    getContentText: () => '[]'
+  }));
+  assert.throws(() => {
+    context.fetchRoadsurferOffers_(
+      { source: 'roadsurfer', originId: 'Rome', destinationId: '35' },
+      { start: new Date(), end: new Date() },
+      {}
+    );
+  }, /numeric station ID/);
 } else if (testName === 'movacar_429') {
   const { context } = setupGasContext(() => ({
     getResponseCode: () => 429,
@@ -418,6 +453,133 @@ if (testName === 'roadsurfer_429') {
   const archive = sheets['OffersArchive'].values;
   assert.strictEqual(archive.length, 3);
   assert.strictEqual(archive[2][16], '2026-09-15');
+} else if (testName === 'webapp_signature_test_vector_1') {
+  const { context, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+  const initData = 'auth_date=1710000000&query_id=AAHdF6IQAAAAAN0XohDhrOrc&user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22John%22%2C%22last_name%22%3A%22Doe%22%2C%22username%22%3A%22johndoe%22%7D&hash=2f373971862e44d0e6259cbd3db6d4bc5b704d59af8019340c8f0e392cfe3413';
+  const result = context.validateTelegramWebAppData_(initData, null, 1710000050);
+  assert.strictEqual(result.user.id, 123456789);
+  assert.strictEqual(result.user.username, 'johndoe');
+  assert.strictEqual(result.authDate, 1710000000);
+} else if (testName === 'webapp_signature_test_vector_2') {
+  const { context, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '987654:XYZ-UVW9876abCde-rst12A3b4c567de89';
+  scriptProps.TELEGRAM_ALLOWED_USERS = 'alice_tg';
+  const initData = 'auth_date=1725000000&chat_instance=8472947291823749&chat_type=sender&user=%7B%22id%22%3A99887766%2C%22first_name%22%3A%22Alice%22%2C%22username%22%3A%22alice_tg%22%7D&hash=8f56a2e32ad57eef3860b18292c9d4051f9bca8311fb0b0a3346aeb58159845a';
+  const result = context.validateTelegramWebAppData_(initData, null, 1725000050);
+  assert.strictEqual(result.user.id, 99887766);
+  assert.strictEqual(result.user.username, 'alice_tg');
+} else if (testName === 'webapp_missing_init_data') {
+  const { context, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+  scriptProps.WEB_APP_REQUIRE_TELEGRAM_AUTH = 'true';
+  assert.throws(() => {
+    context.getUiData();
+  }, /Missing Telegram WebApp initData/);
+  assert.throws(() => {
+    context.saveUiData({ settings: { poll_interval_minutes: 10 } });
+  }, /Missing Telegram WebApp initData/);
+  assert.throws(() => {
+    context.runMonitorFromUi();
+  }, /Missing Telegram WebApp initData/);
+  assert.throws(() => {
+    context.checkProvidersHealth();
+  }, /Missing Telegram WebApp initData/);
+} else if (testName === 'webapp_development_mode_allows_direct_access') {
+  const { context, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+  const uiData = context.getUiData('');
+  assert.strictEqual(uiData.settings.poll_interval_minutes, 5);
+} else if (testName === 'webapp_status_serializes_dates') {
+  const { context, sheets } = setupGasContext(() => ({}));
+  sheets['Runs'].values = [
+    ['started_at', 'finished_at', 'source', 'request_count', 'offers_found', 'archived', 'alerts_sent', 'status', 'error'],
+    [new Date('2026-09-15T10:00:00.000Z'), new Date('2026-09-15T10:01:00.000Z'), 'all', 2, 1, 1, 1, 'OK', ''],
+  ];
+  const status = context.buildStatus_(context.SpreadsheetApp.openById('test-sheet-id'), { poll_interval_minutes: 5 });
+  assert.strictEqual(status.lastRun.started_at, '2026-09-15T10:00:00.000Z');
+  assert.strictEqual(status.lastRun.finished_at, '2026-09-15T10:01:00.000Z');
+  assert.strictEqual(typeof status.lastRun.started_at, 'string');
+} else if (testName === 'telegram_mini_app_menu') {
+  let request = null;
+  const { context, scriptProps } = setupGasContext((url, options) => {
+    request = { url: url, options: options };
+    return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ok: true, result: true }) };
+  });
+  scriptProps.TELEGRAM_BOT_TOKEN = 'bot-token';
+  const result = context.setupTelegramMiniApp();
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(result.webAppUrl, 'https://script.google.com/macros/s/test-deployment/exec');
+  assert.ok(request.url.endsWith('/setChatMenuButton'));
+  const payload = JSON.parse(request.options.payload);
+  assert.strictEqual(payload.menu_button.type, 'web_app');
+  assert.strictEqual(payload.menu_button.web_app.url, result.webAppUrl);
+} else if (testName === 'webapp_invalid_signature') {
+  const { context, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+  context.Date.now = () => 1710000050 * 1000;
+  const tampered = 'auth_date=1710000000&query_id=TAMPERED&user=%7B%22id%22%3A123456789%7D&hash=2f373971862e44d0e6259cbd3db6d4bc5b704d59af8019340c8f0e392cfe3413';
+  assert.throws(() => {
+    context.getUiData(tampered);
+  }, /Invalid Telegram WebApp initData signature/);
+} else if (testName === 'webapp_expired_auth_date') {
+  const { context, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+  const initData = 'auth_date=1710000000&query_id=AAHdF6IQAAAAAN0XohDhrOrc&user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22John%22%2C%22last_name%22%3A%22Doe%22%2C%22username%22%3A%22johndoe%22%7D&hash=2f373971862e44d0e6259cbd3db6d4bc5b704d59af8019340c8f0e392cfe3413';
+  assert.throws(() => {
+    context.validateTelegramWebAppData_(initData, null, 1710000000 + 86401);
+  }, /Telegram WebApp initData expired/);
+} else if (testName === 'webapp_unauthorized_user') {
+  const { context, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '999999999';
+  const initData = 'auth_date=1710000000&query_id=AAHdF6IQAAAAAN0XohDhrOrc&user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22John%22%2C%22last_name%22%3A%22Doe%22%2C%22username%22%3A%22johndoe%22%7D&hash=2f373971862e44d0e6259cbd3db6d4bc5b704d59af8019340c8f0e392cfe3413';
+  assert.throws(() => {
+    context.validateTelegramWebAppData_(initData, null, 1710000050);
+  }, /Access denied: Unauthorized Telegram user or chat/);
+} else if (testName === 'webapp_authorized_operations') {
+  const { context, scriptProps, sheets } = setupGasContext((url) => {
+    if (url.includes('stations')) {
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ data: [{ id: 6 }] }) };
+    }
+    if (url.includes('locations/popular')) {
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ data: [{ id: '1' }] }) };
+    }
+    if (url.includes('getMe')) {
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ok: true, result: { username: 'test_bot' } }) };
+    }
+    return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ok: true }) };
+  });
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+  const initData = 'auth_date=1710000000&query_id=AAHdF6IQAAAAAN0XohDhrOrc&user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22John%22%2C%22last_name%22%3A%22Doe%22%2C%22username%22%3A%22johndoe%22%7D&hash=2f373971862e44d0e6259cbd3db6d4bc5b704d59af8019340c8f0e392cfe3413';
+
+  // Override Date.now for expiration checks during UI calls
+  const origNow = context.Date.now;
+  context.Date.now = () => 1710000050 * 1000;
+
+  const uiData = context.getUiData(initData);
+  assert.strictEqual(uiData.settings.poll_interval_minutes, 5);
+  assert.strictEqual(uiData.telegramReady, true);
+
+  const health = context.checkProvidersHealth(initData);
+  assert.strictEqual(health.roadsurfer.ok, true);
+  assert.strictEqual(health.movacar.ok, true);
+  assert.strictEqual(health.telegram.ok, true);
+
+  const saveRes = context.saveUiData({ settings: { poll_interval_minutes: 15 } }, initData);
+  assert.strictEqual(saveRes.settings.poll_interval_minutes, 15);
+
+  context.runMonitorFromUi(initData);
+  const runs = sheets['Runs'].values;
+  assert.strictEqual(runs.length, 2);
+
+  context.Date.now = origNow;
 } else {
   throw new Error('Unknown test: ' + testName);
 }
@@ -440,6 +602,8 @@ def run_node_test(test_name: str):
         "roadsurfer_429",
         "roadsurfer_500",
         "roadsurfer_invalid_json",
+        "roadsurfer_station_returns_are_destinations",
+        "roadsurfer_rejects_city_as_station_id",
         "movacar_429",
         "movacar_500",
         "movacar_invalid_json",
@@ -448,7 +612,17 @@ def run_node_test(test_name: str):
         "monitor_logs_ok_when_successful",
         "telegram_temporary_failure_and_retry",
         "telegram_failed_existing_archive_retry",
+        "webapp_signature_test_vector_1",
+        "webapp_signature_test_vector_2",
+        "webapp_missing_init_data",
+        "webapp_development_mode_allows_direct_access",
+        "webapp_status_serializes_dates",
+        "telegram_mini_app_menu",
+        "webapp_invalid_signature",
+        "webapp_expired_auth_date",
+        "webapp_unauthorized_user",
+        "webapp_authorized_operations",
     ],
 )
-def test_gas_error_handling(test_name):
+def test_gas_node_suite(test_name: str):
     run_node_test(test_name)

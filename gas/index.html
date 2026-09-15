@@ -276,67 +276,69 @@
       </div>
     </div>
 
-    <div class="card" id="healthCard">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <div class="card-title" style="margin-bottom:0;">🌐 Статус связи с сайтами</div>
-        <button type="button" style="background:none; border:none; color:var(--accent); font-size:12px; font-weight:600; cursor:pointer;" onclick="checkHealth()">🔄 Обновить</button>
-      </div>
-      <div style="font-size:13px; line-height:1.6;">
-        <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
-          <span>🚐 Roadsurfer Rally</span>
-          <span id="healthRs" style="color:var(--hint);">Проверка…</span>
+    <div id="mainForm">
+      <div class="card" id="healthCard">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div class="card-title" style="margin-bottom:0;">🌐 Статус связи с сайтами</div>
+          <button type="button" style="background:none; border:none; color:var(--accent); font-size:12px; font-weight:600; cursor:pointer;" onclick="checkHealth()">🔄 Обновить</button>
         </div>
-        <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
-          <span>🚗 Movacar API</span>
-          <span id="healthMv" style="color:var(--hint);">Проверка…</span>
+        <div style="font-size:13px; line-height:1.6;">
+          <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+            <span>🚐 Roadsurfer Rally</span>
+            <span id="healthRs" style="color:var(--hint);">Проверка…</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+            <span>🚗 Movacar API</span>
+            <span id="healthMv" style="color:var(--hint);">Проверка…</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:4px 0;">
+            <span>🤖 Telegram Bot</span>
+            <span id="healthTg" style="color:var(--hint);">Проверка…</span>
+          </div>
         </div>
-        <div style="display:flex; justify-content:space-between; padding:4px 0;">
-          <span>🤖 Telegram Bot</span>
-          <span id="healthTg" style="color:var(--hint);">Проверка…</span>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Настройки</div>
+        <div class="field">
+          <span class="field-label">Интервал опроса, мин</span>
+          <div class="seg" id="intervalSeg"></div>
+        </div>
+        <div class="field">
+          <span class="field-label">Окно поиска, дней</span>
+          <div class="seg" id="windowSeg"></div>
+        </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span>Telegram-уведомления</span>
+            <span class="switch">
+              <input type="checkbox" id="telegramEnabled">
+              <span class="slider"></span>
+            </span>
+          </label>
         </div>
       </div>
-    </div>
 
-    <div class="card">
-      <div class="card-title">Настройки</div>
-      <div class="field">
-        <span class="field-label">Интервал опроса, мин</span>
-        <div class="seg" id="intervalSeg"></div>
+      <div class="card">
+        <div class="card-title">Страны отправления</div>
+        <div class="chips" id="originChips"></div>
       </div>
-      <div class="field">
-        <span class="field-label">Окно поиска, дней</span>
-        <div class="seg" id="windowSeg"></div>
+
+      <div class="card">
+        <div class="card-title">Страны назначения</div>
+        <div class="chips" id="destChips"></div>
       </div>
-      <div class="field">
-        <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
-          <span>Telegram-уведомления</span>
-          <span class="switch">
-            <input type="checkbox" id="telegramEnabled">
-            <span class="slider"></span>
-          </span>
-        </label>
+
+      <div class="card">
+        <div class="card-title">Маршруты</div>
+        <div id="routesList"></div>
+        <button type="button" class="add-route" id="btnAddRoute">+ Добавить маршрут</button>
       </div>
-    </div>
 
-    <div class="card">
-      <div class="card-title">Страны отправления</div>
-      <div class="chips" id="originChips"></div>
+      <button type="button" class="btn btn-secondary" id="btnRun">▶ Запустить проверку</button>
+      <button type="button" class="btn btn-accent" id="btnSave">Сохранить</button>
+      <button type="button" class="link-reset" id="btnReset">Сбросить несохранённые изменения</button>
     </div>
-
-    <div class="card">
-      <div class="card-title">Страны назначения</div>
-      <div class="chips" id="destChips"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Маршруты</div>
-      <div id="routesList"></div>
-      <button type="button" class="add-route" id="btnAddRoute">+ Добавить маршрут</button>
-    </div>
-
-    <button type="button" class="btn btn-secondary" id="btnRun">▶ Запустить проверку</button>
-    <button type="button" class="btn btn-accent" id="btnSave">Сохранить</button>
-    <button type="button" class="link-reset" id="btnReset">Сбросить несохранённые изменения</button>
   </div>
 
   <div id="toast"></div>
@@ -348,8 +350,29 @@
     var tg = window.Telegram && Telegram.WebApp ? Telegram.WebApp : null;
     var toastTimer = null;
 
+    function getInitData() {
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+        return window.Telegram.WebApp.initData;
+      }
+      return '';
+    }
+
+    function showAccessDenied(msg) {
+      var banner = document.getElementById('banner');
+      if (banner) {
+        var emoji = banner.querySelector('.emoji');
+        if (emoji) emoji.textContent = '🔒';
+        var title = document.getElementById('bannerTitle');
+        if (title) title.textContent = 'Доступ запрещён';
+        var sub = document.getElementById('bannerSub');
+        if (sub) sub.textContent = msg || 'Откройте приложение через Telegram бота.';
+      }
+      var form = document.getElementById('mainForm');
+      if (form) form.style.display = 'none';
+    }
+
     function init() {
-      if (tg) {
+      if (tg && getInitData()) {
         tg.ready();
         tg.expand();
         tg.MainButton.setText('Сохранить').onClick(function () { saveSettings(); }).show();
@@ -370,14 +393,24 @@
     }
 
     function load() {
+      var initData = getInitData();
       google.script.run
-        .withSuccessHandler(render)
-        .withFailureHandler(function (err) { toast((err && err.message) || err || 'Ошибка загрузки', true); })
-        .getUiData();
+        .withSuccessHandler(function (data) {
+          var form = document.getElementById('mainForm');
+          if (form) form.style.display = 'block';
+          render(data);
+        })
+        .withFailureHandler(function (err) {
+          var msg = (err && err.message) || err || 'Ошибка загрузки';
+          showAccessDenied(msg);
+          toast(msg, true);
+        })
+        .getUiData(initData);
       checkHealth();
     }
 
     function checkHealth() {
+      var initData = getInitData();
       var rs = document.getElementById('healthRs');
       var mv = document.getElementById('healthMv');
       var tg = document.getElementById('healthTg');
@@ -404,7 +437,7 @@
         .withFailureHandler(function (err) {
           if (rs) rs.textContent = '❌ Ошибка';
         })
-        .checkProvidersHealth();
+        .checkProvidersHealth(initData);
     }
 
     function render(data) {
@@ -428,7 +461,7 @@
         parts.push('⚠️ Telegram не настроен');
       }
       if (lastRun) {
-        if (lastRun.status && lastRun.status !== 'ok') {
+        if (lastRun.status && String(lastRun.status).toLowerCase() !== 'ok') {
           emoji = '⚠️';
           title = 'Последняя проверка с ошибкой';
           if (lastRun.error) {
@@ -545,6 +578,17 @@
       badge.className = 'src';
       badge.textContent = route.source;
       head.appendChild(badge);
+
+      var edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'delete-link';
+      edit.title = 'Редактировать маршрут';
+      edit.textContent = '✏️';
+      edit.onclick = function () {
+        route._editing = true;
+        renderRoutes();
+      };
+      head.appendChild(edit);
       card.appendChild(head);
 
       var foot = document.createElement('div');
@@ -596,7 +640,50 @@
       var wrap = document.createElement('div');
       wrap.className = 'route-edit';
       wrap.appendChild(fieldLabel('Источник'));
-      wrap.appendChild(select(['roadsurfer', 'movacar'], route.source, function (v) { route.source = v; }));
+      wrap.appendChild(select(['roadsurfer', 'movacar'], route.source, function (v) {
+        route.source = v;
+        renderRoutes();
+      }));
+
+      if (route.source === 'roadsurfer') {
+        var countries = document.createElement('div');
+        countries.className = 'pair';
+        countries.appendChild(fieldGroup('Страна отправления', countrySelect(route.originCountry, function (v) {
+          route.originCountry = v;
+          route.originId = '';
+          route.originName = '';
+          renderRoutes();
+        })));
+        countries.appendChild(fieldGroup('Страна назначения', countrySelect(route.destinationCountry, function (v) {
+          route.destinationCountry = v;
+          route.destinationId = '';
+          route.destinationName = '';
+          renderRoutes();
+        })));
+        wrap.appendChild(countries);
+
+        var stations = document.createElement('div');
+        stations.className = 'pair';
+        stations.appendChild(fieldGroup('Город отправления', roadSurferStationSelect(route, 'origin')));
+        stations.appendChild(fieldGroup('Город назначения', roadSurferStationSelect(route, 'destination')));
+        wrap.appendChild(stations);
+      } else {
+        appendManualRouteFields_(wrap, route);
+      }
+
+      var btnDone = document.createElement('button');
+      btnDone.type = 'button';
+      btnDone.className = 'btn btn-accent';
+      btnDone.textContent = 'Готово';
+      btnDone.onclick = function () {
+        route._editing = undefined;
+        renderRoutes();
+      };
+      wrap.appendChild(btnDone);
+      return wrap;
+    }
+
+    function appendManualRouteFields_(wrap, route) {
 
       var pair1 = document.createElement('div');
       pair1.className = 'pair';
@@ -622,17 +709,46 @@
       wrap.appendChild(pair1);
       wrap.appendChild(pair2);
       wrap.appendChild(pair3);
+    }
 
-      var btnDone = document.createElement('button');
-      btnDone.type = 'button';
-      btnDone.className = 'btn btn-accent';
-      btnDone.textContent = 'Готово';
-      btnDone.onclick = function () {
-        route._editing = undefined;
-        renderRoutes();
-      };
-      wrap.appendChild(btnDone);
-      return wrap;
+    function roadSurferStationSelect(route, kind) {
+      var idKey = kind === 'origin' ? 'originId' : 'destinationId';
+      var nameKey = kind === 'origin' ? 'originName' : 'destinationName';
+      var country = kind === 'origin' ? route.originCountry : route.destinationCountry;
+      var sel = document.createElement('select');
+      sel.disabled = true;
+      var loading = document.createElement('option');
+      loading.textContent = country ? 'Загрузка городов…' : 'Сначала выберите страну';
+      loading.value = '';
+      sel.appendChild(loading);
+      if (!country) return sel;
+
+      google.script.run
+        .withSuccessHandler(function (stations) {
+          sel.innerHTML = '';
+          var placeholder = document.createElement('option');
+          placeholder.value = '';
+          placeholder.textContent = 'Выберите город';
+          sel.appendChild(placeholder);
+          stations.forEach(function (station) {
+            var option = document.createElement('option');
+            option.value = station.id;
+            option.textContent = station.name;
+            option.dataset.name = station.name;
+            sel.appendChild(option);
+          });
+          sel.value = String(route[idKey] || '');
+          sel.disabled = false;
+          sel.onchange = function () {
+            route[idKey] = sel.value;
+            route[nameKey] = sel.options[sel.selectedIndex].dataset.name || '';
+          };
+        })
+        .withFailureHandler(function () {
+          loading.textContent = 'Не удалось загрузить города';
+        })
+        .getRoadsurferStations([country], getInitData());
+      return sel;
     }
 
     function addRoute() {
@@ -652,6 +768,7 @@
     }
 
     function saveSettings() {
+      var initData = getInitData();
       var payload = {
         settings: {
           poll_interval_minutes: state.settings.poll_interval_minutes,
@@ -671,15 +788,26 @@
       google.script.run
         .withSuccessHandler(function () { toast('Сохранено ✓'); setTimeout(load, 600); })
         .withFailureHandler(function (err) { toast((err && err.message) || 'Ошибка сохранения', true); })
-        .saveUiData(payload);
+        .saveUiData(payload, initData);
     }
 
     function runCheck() {
-      document.getElementById('btnRun').disabled = true;
+      var initData = getInitData();
+      var btn = document.getElementById('btnRun');
+      if (btn) btn.disabled = true;
       google.script.run
-        .withSuccessHandler(function () { toast('Проверка запущена…'); setTimeout(load, 4000); })
-        .withFailureHandler(function (err) { toast((err && err.message) || 'Ошибка запуска', true); })
-        .runMonitorOnce();
+        .withSuccessHandler(function () {
+          toast('Проверка запущена…');
+          setTimeout(function () {
+            if (btn) btn.disabled = false;
+            load();
+          }, 4000);
+        })
+        .withFailureHandler(function (err) {
+          if (btn) btn.disabled = false;
+          toast((err && err.message) || 'Ошибка запуска', true);
+        })
+        .runMonitorFromUi(initData);
     }
 
     // --- UI helpers ---
