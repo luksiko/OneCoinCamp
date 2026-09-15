@@ -208,7 +208,7 @@ function runMonitorOnce() {
     const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
     const filters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
     const secrets = getScriptSecrets();
-    const window = buildDateWindow_(settings, filters);
+
     const routes = readRoutes_(spreadsheet).filter(function (route) {
       return route.enabled;
     });
@@ -220,15 +220,20 @@ function runMonitorOnce() {
     let hasErrors = false;
 
     const checkNeighbors = isTruthy_(settings.check_neighbors);
-    const allWindows = [window];
-    if (checkNeighbors) {
-      var neighborWindows = buildNeighborWindows_(window, 2);
-      for (var nw = 0; nw < neighborWindows.length; nw++) {
-        allWindows.push(neighborWindows[nw]);
-      }
-    }
 
     routes.forEach(function (route) {
+      // Build date windows per route. If route has no dates, fallback to global settings
+      const pickupDate = route.pickupDate || settings.pickup_date;
+      const returnDate = route.returnDate || settings.return_date;
+      const routeWindow = buildDateWindow_(settings, filters, pickupDate, returnDate);
+      const allWindows = [routeWindow];
+      
+      if (checkNeighbors) {
+        var neighborWindows = buildNeighborWindows_(routeWindow, 2);
+        for (var nw = 0; nw < neighborWindows.length; nw++) {
+          allWindows.push(neighborWindows[nw]);
+        }
+      }
       for (var wi = 0; wi < allWindows.length; wi++) {
         var currentWindow = allWindows[wi];
         let offers = [];

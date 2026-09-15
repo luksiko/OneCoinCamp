@@ -14,6 +14,8 @@ function ensureWorkbook_() {
       'destination_id',
       'origin_country',
       'destination_country',
+      'pickup_date',
+      'return_date'
     ],
     DEFAULT_ROUTES.map(routeToRow_)
   );
@@ -62,6 +64,8 @@ function routeToRow_(route) {
     route.destination_id !== undefined ? route.destination_id : route.destinationId || '',
     route.origin_country !== undefined ? route.origin_country : route.originCountry || '',
     route.destination_country !== undefined ? route.destination_country : route.destinationCountry || '',
+    route.pickup_date !== undefined ? route.pickup_date : route.pickupDate || '',
+    route.return_date !== undefined ? route.return_date : route.returnDate || '',
   ];
 }
 
@@ -85,7 +89,7 @@ function readRoutes_(spreadsheet) {
   if (!sheet || sheet.getLastRow() < 2) {
     return [];
   }
-  const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 8).getValues();
+  const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 10).getValues();
   return values
     .filter(function (row) {
       return row[1];
@@ -100,6 +104,8 @@ function readRoutes_(spreadsheet) {
         destinationId: String(row[5]).trim(),
         originCountry: String(row[6]).trim().toUpperCase(),
         destinationCountry: String(row[7]).trim().toUpperCase(),
+        pickupDate: row[8] instanceof Date ? Utilities.formatDate(row[8], Session.getScriptTimeZone(), "yyyy-MM-dd") : String(row[8] || '').trim(),
+        returnDate: row[9] instanceof Date ? Utilities.formatDate(row[9], Session.getScriptTimeZone(), "yyyy-MM-dd") : String(row[9] || '').trim(),
       };
     });
 }
@@ -270,7 +276,7 @@ function saveRoutes_(spreadsheet, routes) {
       }
     });
   }
-  const headersCount = 8;
+  const headersCount = 10;
   const lastRow = Math.max(sheet.getLastRow(), 2);
   sheet.getRange(2, 1, lastRow - 1, headersCount).clearContent();
   if (routes && routes.length) {

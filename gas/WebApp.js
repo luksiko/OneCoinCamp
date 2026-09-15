@@ -80,10 +80,8 @@ function handleApiRequest_(e) {
 
 function doGet() {
   ensureTriggersFromWebApp_();
-  return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('Camper Monitor')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0');
+  return ContentService.createTextOutput("This web app UI has been moved to GitHub Pages.")
+    .setMimeType(ContentService.MimeType.TEXT);
 }
 
 function ensureTriggersFromWebApp_() {
@@ -130,13 +128,11 @@ function getUiData(initData) {
   const filters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
   const routes = readRoutes_(spreadsheet);
   selfHealMonitorFromWebApp_(spreadsheet, settings);
-  const dateWindow = buildDateWindow_(settings, filters);
+  const dateWindow = buildDateWindow_(settings, filters, settings.pickup_date, settings.return_date);
   return {
     settings: {
       poll_interval_minutes: settings.poll_interval_minutes,
       window_days: settings.window_days,
-      pickup_date: settings.pickup_date || '',
-      return_date: settings.return_date || '',
       check_neighbors: isTruthy_(settings.check_neighbors),
       timezone: settings.timezone,
       telegram_enabled: settings.telegram_enabled,
@@ -147,7 +143,15 @@ function getUiData(initData) {
       min_trip_days: filters.min_trip_days || '',
       max_trip_days: filters.max_trip_days || '',
     },
-    routes: routes,
+    routes: routes.map(function(r) {
+      var w = buildDateWindow_(settings, filters, r.pickupDate || settings.pickup_date, r.returnDate || settings.return_date);
+      r.window = {
+        start: formatIsoDate_(w.start),
+        end: formatIsoDate_(w.end),
+        days: w.windowDays,
+      };
+      return r;
+    }),
     window: {
       start: formatIsoDate_(dateWindow.start),
       end: formatIsoDate_(dateWindow.end),

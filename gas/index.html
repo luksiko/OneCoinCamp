@@ -539,17 +539,7 @@
           <span class="field-label">Интервал опроса, мин</span>
           <div class="seg" id="intervalSeg"></div>
         </div>
-        <div class="field">
-          <span class="field-label">Дата отбытия</span>
-          <input type="date" id="pickupDate" style="width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:15px;color-scheme:dark;">
-        </div>
-        <div class="field">
-          <span class="field-label">Дата возвращения</span>
-          <input type="date" id="returnDate" style="width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:15px;color-scheme:dark;">
-        </div>
-        <div class="field" id="dateHint" style="font-size:12px;color:var(--hint);margin-top:-6px;">
-          Если даты пустые — ближайшее воскресенье + 14 дней
-        </div>
+
         <div class="field">
           <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
             <span>Проверять соседние даты (±2 дня)</span>
@@ -600,6 +590,56 @@
   <div id="toast"></div>
 
   <script>
+    // --- ПОЛИФИЛЛ ДЛЯ google.script.run ---
+    // ВАЖНО: ЗАМЕНИТЕ ЭТУ ССЫЛКУ НА URL ВАШЕГО РАЗВЕРНУТОГО APPS SCRIPT WEB APP!
+    var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxYkBcGj8-TMe_4TocnDgUCdh8I3AKqayAZwve-dgt21R6U6UQxa24lF5eQUvHUKn9FNw/exec';
+
+    var google = {
+      script: {
+        run: buildApiCaller(null, null)
+      }
+    };
+
+    function buildApiCaller(onSuccess, onFailure) {
+      return new Proxy({}, {
+        get: function(target, method) {
+          if (method === 'withSuccessHandler') {
+            return function(newOnSuccess) {
+              return buildApiCaller(newOnSuccess, onFailure || console.error);
+            };
+          }
+          if (method === 'withFailureHandler') {
+            return function(newOnFailure) {
+              return buildApiCaller(onSuccess, newOnFailure);
+            };
+          }
+          
+          return function() {
+            var args = Array.prototype.slice.call(arguments);
+            fetch(APPS_SCRIPT_URL + '?api=1', {
+              method: 'POST',
+              body: JSON.stringify({ method: method, args: args }),
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+              if (data.error) {
+                if (onFailure) onFailure(new Error(data.error));
+                else console.error(data.error);
+              } else {
+                if (onSuccess) onSuccess(data.result);
+              }
+            })
+            .catch(function(err) {
+              if (onFailure) onFailure(err);
+              else console.error(err);
+            });
+          };
+        }
+      });
+    }
+    // --------------------------------------
+
     var state = null;
     var currentTab = 'settings';
     var offersData = null;
@@ -1048,23 +1088,7 @@
       renderSeg('intervalSeg', INTERVALS,
         String(state.settings.poll_interval_minutes),
         function (v) { state.settings.poll_interval_minutes = v; });
-      var pickupEl = document.getElementById('pickupDate');
-      var returnEl = document.getElementById('returnDate');
       var neighborsEl = document.getElementById('checkNeighbors');
-      if (pickupEl) {
-        pickupEl.value = state.settings.pickup_date || '';
-        pickupEl.onchange = function () {
-          state.settings.pickup_date = pickupEl.value;
-          updateDateHint();
-        };
-      }
-      if (returnEl) {
-        returnEl.value = state.settings.return_date || '';
-        returnEl.onchange = function () {
-          state.settings.return_date = returnEl.value;
-          updateDateHint();
-        };
-      }
       if (neighborsEl) {
         neighborsEl.checked = !!state.settings.check_neighbors;
         neighborsEl.onchange = function () {
@@ -1072,21 +1096,6 @@
         };
       }
       document.getElementById('telegramEnabled').checked = isTruthy(state.settings.telegram_enabled);
-      updateDateHint();
-    }
-
-    function updateDateHint() {
-      var hint = document.getElementById('dateHint');
-      if (!hint) return;
-      var pickup = state.settings.pickup_date;
-      var ret = state.settings.return_date;
-      if (pickup && ret) {
-        hint.textContent = 'Поиск: ' + shortDate(pickup) + ' — ' + shortDate(ret);
-      } else if (pickup) {
-        hint.textContent = 'Поиск: ' + shortDate(pickup) + ' + 14 дней';
-      } else {
-        hint.textContent = 'Если даты пустые — ближайшее воскресенье + 14 дней';
-      }
     }
 
     function renderSeg(id, values, selected, onPick) {
@@ -1157,9 +1166,10 @@
 
       var foot = document.createElement('div');
       foot.className = 'route-foot';
-      foot.appendChild(routeDates());
+      foot.appendChild(routeDates(route));
 
-      var daysLabel = document.createTextNode('(' + state.window.days + ' дн)');
+      var w = route.window || state.window;
+      var daysLabel = document.createTextNode('(' + w.days + ' дн)');
       foot.appendChild(daysLabel);
 
       if (state.settings.check_neighbors) {
@@ -1204,8 +1214,8 @@
       return card;
     }
 
-    function routeDates() {
-      var w = state.window;
+    function routeDates(route) {
+      var w = route.window || state.window;
       return document.createTextNode(shortDate(w.start) + ' — ' + shortDate(w.end) + ' ');
     }
 
@@ -1243,6 +1253,17 @@
       } else {
         appendManualRouteFields_(wrap, route);
       }
+
+      var dates = document.createElement('div');
+      dates.className = 'pair';
+      dates.appendChild(fieldGroup('Искать с', dateInput(route.pickupDate, function (v) { route.pickupDate = v; })));
+      dates.appendChild(fieldGroup('Искать по', dateInput(route.returnDate, function (v) { route.returnDate = v; })));
+      wrap.appendChild(dates);
+
+      var datesHint = document.createElement('div');
+      datesHint.style.cssText = 'font-size:12px;color:var(--hint);margin-bottom:12px;margin-top:-2px;';
+      datesHint.textContent = (!route.pickupDate && !route.returnDate) ? 'Если даты пустые — ближайшее воскресенье + 14 дней' : '';
+      wrap.appendChild(datesHint);
 
       var btnDone = document.createElement('button');
       btnDone.type = 'button';
@@ -1421,8 +1442,6 @@
         settings: {
           poll_interval_minutes: state.settings.poll_interval_minutes,
           window_days: state.settings.window_days,
-          pickup_date: state.settings.pickup_date || '',
-          return_date: state.settings.return_date || '',
           check_neighbors: state.settings.check_neighbors,
           telegram_enabled: state.settings.telegram_enabled
         },
@@ -1535,6 +1554,14 @@
       input.type = 'text';
       input.value = value == null ? '' : value;
       input.oninput = function () { onInput(input.value); };
+      return input;
+    }
+    function dateInput(value, onChange) {
+      var input = document.createElement('input');
+      input.type = 'date';
+      input.value = value == null ? '' : value;
+      input.style.cssText = 'width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:14px;color-scheme:dark;';
+      input.onchange = function () { onChange(input.value); };
       return input;
     }
     function select(options, value, onPick) {

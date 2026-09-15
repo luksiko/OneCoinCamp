@@ -46,11 +46,11 @@ function formatIsoDate_(date) {
   return year + '-' + month + '-' + day;
 }
 
-function buildDateWindow_(settings, filters) {
+function buildDateWindow_(settings, filters, pickupStr, returnStr) {
   const timezone = settings.timezone || DEFAULT_SETTINGS.timezone;
   const windowDays = Number(filters.window_days || settings.window_days || DEFAULT_SETTINGS.window_days);
-  const pickupDate = parseIsoDate_(settings.pickup_date);
-  const returnDate = parseIsoDate_(settings.return_date);
+  const pickupDate = parseIsoDate_(pickupStr);
+  const returnDate = parseIsoDate_(returnStr);
 
   let start, end;
   if (pickupDate && returnDate) {
