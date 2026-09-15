@@ -1132,10 +1132,12 @@
         return card;
       }
 
+      var origText = route.originName || (isWildcardStation(route.originId) ? 'Все города' : ('Станция ' + route.originId));
+      var destText = route.destinationName || (isWildcardStation(route.destinationId) ? 'Все города' : ('Станция ' + route.destinationId));
       var head = document.createElement('div');
       head.className = 'route-head';
-      head.textContent = flagEmoji(route.originCountry) + ' ' + route.originName + '  ➔  ' +
-        flagEmoji(route.destinationCountry) + ' ' + route.destinationName;
+      head.textContent = flagEmoji(route.originCountry) + ' ' + origText + '  ➔  ' +
+        flagEmoji(route.destinationCountry) + ' ' + destText;
       var badge = document.createElement('span');
       badge.className = 'src';
       badge.textContent = route.source;
@@ -1221,14 +1223,14 @@
         countries.className = 'pair';
         countries.appendChild(fieldGroup('Страна отправления', countrySelect(route.originCountry, function (v) {
           route.originCountry = v;
-          route.originId = '';
-          route.originName = '';
+          route.originId = '*';
+          route.originName = 'Все города';
           renderRoutes();
         })));
         countries.appendChild(fieldGroup('Страна назначения', countrySelect(route.destinationCountry, function (v) {
           route.destinationCountry = v;
-          route.destinationId = '';
-          route.destinationName = '';
+          route.destinationId = '*';
+          route.destinationName = 'Все города';
           renderRoutes();
         }, true)));
         wrap.appendChild(countries);
@@ -1297,26 +1299,35 @@
       google.script.run
         .withSuccessHandler(function (stations) {
           sel.innerHTML = '';
-          var placeholder = document.createElement('option');
-          placeholder.value = '';
-          placeholder.textContent = 'Выберите город';
-          sel.appendChild(placeholder);
+          var wildcardOpt = document.createElement('option');
+          wildcardOpt.value = '*';
+          wildcardOpt.textContent = '✨ Все города / Любой';
+          wildcardOpt.dataset.name = 'Все города';
+          sel.appendChild(wildcardOpt);
+
           stations.forEach(function (station) {
             var option = document.createElement('option');
-            option.value = station.id;
+            option.value = String(station.id);
             option.textContent = station.name;
             option.dataset.name = station.name;
             sel.appendChild(option);
           });
-          sel.value = String(route[idKey] || '');
+
+          var curVal = String(route[idKey] || '*');
+          if (isWildcardStation(curVal)) {
+            sel.value = '*';
+          } else {
+            sel.value = curVal;
+          }
           sel.disabled = false;
           sel.onchange = function () {
             var prevId = route[idKey];
             route[idKey] = sel.value;
-            route[nameKey] = sel.options[sel.selectedIndex].dataset.name || '';
+            var opt = sel.options[sel.selectedIndex];
+            route[nameKey] = (opt && opt.dataset.name) || (sel.value === '*' ? 'Все города' : '');
             if (kind === 'origin' && prevId !== route.originId) {
-              route.destinationId = '';
-              route.destinationName = '';
+              route.destinationId = '*';
+              route.destinationName = 'Все города';
               renderRoutes();
             }
           };
@@ -1333,72 +1344,58 @@
       sel.disabled = true;
       var loading = document.createElement('option');
       loading.value = '';
-      if (!route.originId) {
-        loading.textContent = 'Сначала выберите город отправления';
+      if (!route.originCountry && !route.originId) {
+        loading.textContent = 'Сначала выберите страну отправления';
         sel.appendChild(loading);
         return sel;
       }
       loading.textContent = 'Загрузка направлений…';
       sel.appendChild(loading);
 
-      var expectedOriginId = String(route.originId);
+      var expectedOriginId = String(route.originId || '*');
       var countryFilter = route.destinationCountry ? [route.destinationCountry] : [];
       google.script.run
         .withSuccessHandler(function (destinations) {
-          if (String(route.originId) !== expectedOriginId) {
+          if (String(route.originId || '*') !== expectedOriginId) {
             return;
           }
           sel.innerHTML = '';
-          if (!destinations || !destinations.length) {
-            var emptyOpt = document.createElement('option');
-            emptyOpt.value = '';
-            emptyOpt.textContent = route.destinationCountry
-              ? 'Нет направлений в эту страну'
-              : 'Нет доступных направлений';
-            sel.appendChild(emptyOpt);
-            route.destinationId = '';
-            route.destinationName = '';
-            return;
-          }
+          var wildcardOpt = document.createElement('option');
+          wildcardOpt.value = '*';
+          wildcardOpt.textContent = '✨ Все города / Любой';
+          wildcardOpt.dataset.name = 'Все города';
+          sel.appendChild(wildcardOpt);
 
-          var placeholder = document.createElement('option');
-          placeholder.value = '';
-          placeholder.textContent = 'Выберите город (' + destinations.length + ' доступно)';
-          sel.appendChild(placeholder);
-
-          var hasCurrent = false;
-          destinations.forEach(function (station) {
+          (destinations || []).forEach(function (station) {
             var option = document.createElement('option');
             option.value = String(station.id);
             option.textContent = station.name + (station.country ? ' (' + station.country + ')' : '');
             option.dataset.name = station.name;
             option.dataset.country = station.country || '';
-            if (String(route.destinationId) === String(station.id)) {
-              hasCurrent = true;
-            }
             sel.appendChild(option);
           });
 
-          if (!hasCurrent) {
-            route.destinationId = '';
-            route.destinationName = '';
+          var curVal = String(route.destinationId || '*');
+          if (isWildcardStation(curVal)) {
+            sel.value = '*';
+          } else {
+            sel.value = curVal;
           }
-          sel.value = String(route.destinationId || '');
           sel.disabled = false;
           sel.onchange = function () {
             route.destinationId = sel.value;
             var opt = sel.options[sel.selectedIndex];
-            route.destinationName = (opt && opt.dataset.name) || '';
+            route.destinationName = (opt && opt.dataset.name) || (sel.value === '*' ? 'Все города' : '');
             if (opt && opt.dataset.country && (!route.destinationCountry || route.destinationCountry !== opt.dataset.country)) {
               route.destinationCountry = opt.dataset.country;
             }
           };
         })
         .withFailureHandler(function () {
-          if (String(route.originId) !== expectedOriginId) return;
+          if (String(route.originId || '*') !== expectedOriginId) return;
           loading.textContent = 'Не удалось загрузить направления';
         })
-        .getRoadsurferDestinations(route.originId, countryFilter, getInitData());
+        .getRoadsurferDestinations(route.originId || '*', countryFilter, getInitData());
       return sel;
     }
 
@@ -1406,10 +1403,10 @@
       var route = {
         enabled: true,
         source: 'roadsurfer',
-        originName: 'Berlin',
-        originId: '6',
-        destinationName: 'Rome Fiumicino Airport',
-        destinationId: '35',
+        originName: 'Все города',
+        originId: '*',
+        destinationName: 'Все города',
+        destinationId: '*',
         originCountry: 'DE',
         destinationCountry: 'IT',
         _editing: true
@@ -1511,6 +1508,11 @@
       if (typeof value === 'boolean') { return value; }
       var text = String(value).trim().toLowerCase();
       return text === 'true' || text === '1' || text === 'yes' || text === 'y';
+    }
+
+    function isWildcardStation(value) {
+      var s = String(value || '').trim().toUpperCase();
+      return !s || s === '*' || s === 'ALL' || s === 'ANY';
     }
 
     function fieldLabel(text) {

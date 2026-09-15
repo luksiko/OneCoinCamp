@@ -230,37 +230,6 @@ function checkProvidersHealth(initData) {
   return result;
 }
 
-function getRoadsurferAllStations_() {
-  const cache = CacheService.getScriptCache();
-  const cacheKey = 'roadsurfer:start-stations:v1';
-  let stations = null;
-  const cached = cache.get(cacheKey);
-  if (cached) {
-    try { stations = JSON.parse(cached); } catch (e) {}
-  }
-  if (!stations) {
-    const payload = fetchJson_('https://booking.roadsurfer.com/api/en/rally/stations', {
-      headers: {
-        Accept: 'application/json, text/plain, */*',
-        'X-Requested-Alias': 'rally.startStations',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-      retries: 1,
-    });
-    stations = (Array.isArray(payload) ? payload : []).filter(function (station) {
-      return station && station.id != null && station.city && station.city.country && station.enabled !== false;
-    }).map(function (station) {
-      return {
-        id: String(station.id),
-        name: station.name || station.city.name,
-        country: String(station.city.country || '').trim().toUpperCase(),
-      };
-    });
-    cache.put(cacheKey, JSON.stringify(stations), 21600);
-  }
-  return stations;
-}
-
 function getRoadsurferStations(countryCodes, initData) {
   const secrets = getScriptSecrets();
   authorizeWebAppRequest_(initData, secrets);
@@ -284,65 +253,42 @@ function getRoadsurferDestinations(originId, countryCodes, initData) {
   const secrets = getScriptSecrets();
   authorizeWebAppRequest_(initData, secrets);
 
-  if (!originId || !String(originId).trim()) {
+  const cleanOriginId = String(originId || '').trim();
+  if (!cleanOriginId) {
     return [];
   }
-
-  const cleanOriginId = String(originId).trim();
-  const cache = CacheService.getScriptCache();
-  const cacheKey = 'roadsurfer:destinations:v1:' + cleanOriginId;
-  let returnIds = null;
-  const cached = cache.get(cacheKey);
-  if (cached) {
-    try { returnIds = JSON.parse(cached); } catch (e) {}
-  }
-  if (!returnIds) {
-    const url = 'https://booking.roadsurfer.com/api/en/rally/stations/' + encodeURIComponent(cleanOriginId);
-    const payload = fetchJson_(url, {
-      headers: {
-        Accept: 'application/json, text/plain, */*',
-        'X-Requested-Alias': 'rally.fetchRoutes',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-      retries: 1,
-    });
-    if (payload && Array.isArray(payload.returns)) {
-      returnIds = payload.returns.map(String);
-    } else if (payload && Array.isArray(payload.routes)) {
-      returnIds = payload.routes.map(function (r) { return String(r.id || r.station_id); });
-    } else if (Array.isArray(payload)) {
-      returnIds = payload.map(function (r) { return String(r.id || r.station_id || r); });
-    } else {
-      returnIds = [];
-    }
-    cache.put(cacheKey, JSON.stringify(returnIds), 21600);
-  }
-
-  const allStations = getRoadsurferAllStations_();
-  const stationMap = {};
-  allStations.forEach(function (s) {
-    stationMap[String(s.id)] = s;
-  });
 
   const selectedCountries = (countryCodes || []).map(function (country) {
     return String(country || '').trim().toUpperCase();
   }).filter(Boolean);
 
-  let destinations = returnIds.map(function (id) {
-    const s = stationMap[String(id)];
-    if (s) {
-      return { id: s.id, name: s.name, country: s.country };
-    }
-    return { id: String(id), name: 'Station ' + id, country: '' };
-  });
-
-  if (selectedCountries.length > 0) {
-    destinations = destinations.filter(function (d) {
-      return selectedCountries.indexOf(String(d.country).toUpperCase()) !== -1;
+  if (cleanOriginId === '*' || cleanOriginId.toUpperCase() === 'ALL' || cleanOriginId.toUpperCase() === 'ANY') {
+    const allStations = getRoadsurferAllStations_();
+    return allStations.filter(function (s) {
+      if (!selectedCountries.length) return true;
+      return selectedCountries.indexOf(String(s.country).toUpperCase()) !== -1;
+    }).map(function (s) {
+      return {
+        id: String(s.id),
+        name: s.name,
+        country: s.country,
+      };
+    }).sort(function (a, b) {
+      return a.name.localeCompare(b.name);
     });
   }
 
-  return destinations.sort(function (a, b) {
+  const destinations = fetchRoadsurferDestinations_(cleanOriginId, {
+    allowed_destination_countries: selectedCountries.join(','),
+  });
+
+  return destinations.map(function (d) {
+    return {
+      id: String(d.id),
+      name: d.name,
+      country: d.country,
+    };
+  }).sort(function (a, b) {
     return a.name.localeCompare(b.name);
   });
 }

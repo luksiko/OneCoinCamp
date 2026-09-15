@@ -820,6 +820,58 @@ if (testName === 'roadsurfer_429') {
   assert.strictEqual(result.removed, 0);
   assert.strictEqual(sheets.OffersArchive.values.length, 2);
   assert.strictEqual(sheets.OffersArchive.values[1][14], 'fp_safe');
+} else if (testName === 'roadsurfer_country_to_country_wildcard_search') {
+  const searchedStations = [];
+  const fetchMock = (url) => {
+    if (url.includes('/api/en/rally/stations/6')) {
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ id: 6, returns: [35] }) };
+    }
+    if (url.includes('/api/en/rally/stations/7')) {
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ id: 7, returns: [35] }) };
+    }
+    if (url.includes('/api/en/rally/stations')) {
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify([
+          { id: 6, name: 'Berlin', city: { name: 'Berlin', country: 'DE' }, enabled: true },
+          { id: 7, name: 'Munich', city: { name: 'Munich', country: 'DE' }, enabled: true },
+          { id: 35, name: 'Rome', city: { name: 'Rome', country: 'IT' }, enabled: true }
+        ])
+      };
+    }
+    if (url.includes('/api/en/rally/search')) {
+      searchedStations.push(url);
+      if (decodeURIComponent(url).includes('[[6,35]]')) {
+        return {
+          getResponseCode: () => 200,
+          getContentText: () => JSON.stringify([
+            { id: 1001, name: 'Camper DE-IT', model: { name: 'VW California' }, price: 1, available: true }
+          ])
+        };
+      }
+      return { getResponseCode: () => 200, getContentText: () => '[]' };
+    }
+    return { getResponseCode: () => 200, getContentText: () => '{}' };
+  };
+
+  const { context } = setupGasContext(fetchMock);
+  const route = {
+    source: 'roadsurfer',
+    originId: '*',
+    originCountry: 'DE',
+    destinationId: '*',
+    destinationCountry: 'IT'
+  };
+  const window = { start: new Date('2026-10-01'), end: new Date('2026-10-15') };
+  const offers = context.fetchRoadsurferOffers_(route, window, {});
+
+  assert.strictEqual(searchedStations.length, 2);
+  assert.strictEqual(offers.length, 1);
+  assert.strictEqual(offers[0].origin, 'Berlin');
+  assert.strictEqual(offers[0].originCountry, 'DE');
+  assert.strictEqual(offers[0].destination, 'Rome');
+  assert.strictEqual(offers[0].destinationCountry, 'IT');
+  assert.ok(offers[0].bookingUrl.includes('station=6&end_station=35'));
 } else {
   throw new Error('Unknown test: ' + testName);
 }
@@ -870,6 +922,7 @@ def run_node_test(test_name: str):
         "webapp_delete_offer_removes_row_and_marks_dismissed",
         "check_offers_availability_removes_expired_and_missing_offers",
         "check_offers_availability_retains_offers_on_network_error",
+        "roadsurfer_country_to_country_wildcard_search",
     ],
 )
 def test_gas_node_suite(test_name: str):
