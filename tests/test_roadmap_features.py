@@ -72,3 +72,17 @@ def test_roadsurfer_auto_queries_allowed_destinations():
     assert any("stations/6" in u for u in http.urls)
     search_urls = [u for u in http.urls if "rally/search" in u]
     assert len(search_urls) == 2
+
+
+def test_roadsurfer_returns_in_payload():
+    class FakeReturnsHttp:
+        def get(self, url, headers=None):
+            if "stations/6" in url:
+                return {"id": 6, "returns": [16, 35]}
+            return []
+
+    http = FakeReturnsHttp()
+    provider = RoadsurferProvider(http)
+    destinations = provider.fetch_available_destinations(6, ())
+    assert len(destinations) == 2
+    assert [d["id"] for d in destinations] == [16, 35]

@@ -25,21 +25,27 @@ class RoadsurferProvider:
                 "X-Requested-Alias": "rally.fetchRoutes",
             },
         )
-        destinations = payload.get("routes", payload) if isinstance(payload, dict) else payload
-        if not isinstance(destinations, list):
+        destinations: list[dict[str, Any]] = []
+        if isinstance(payload, dict):
+            if "routes" in payload and isinstance(payload["routes"], list):
+                destinations = payload["routes"]
+            elif "returns" in payload and isinstance(payload["returns"], list):
+                destinations = [{"id": rid, "country": ""} for rid in payload["returns"]]
+            elif isinstance(payload.get("data"), list):
+                destinations = payload["data"]
+        elif isinstance(payload, list):
+            destinations = payload
+
+        if not destinations:
             return []
-        return [
-            d
-            for d in destinations
-            if d.get("country", "")
-            .upper()
-            .strip()
-            in allowed_countries
-            or d.get("destination_country", "")
-            .upper()
-            .strip()
-            in allowed_countries
-        ]
+        if not allowed_countries:
+            return destinations
+        res = []
+        for d in destinations:
+            country = (d.get("country") or d.get("destination_country") or "").upper().strip()
+            if not country or country in allowed_countries:
+                res.append(d)
+        return res
 
     def fetch_offers(
         self,

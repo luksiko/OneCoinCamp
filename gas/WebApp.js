@@ -37,10 +37,46 @@ function doPost(e) {
 }
 
 function doGet() {
+  ensureTriggersFromWebApp_();
   return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('Camper Monitor')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0');
+}
+
+function ensureTriggersFromWebApp_() {
+  try {
+    const created = ensureMonitorTriggers_();
+    if (created && created.length) {
+      const props = PropertiesService.getScriptProperties();
+      props.setProperty(PROPERTY_KEYS.MONITOR_FRESHNESS_INSTALLED_AT, new Date().toISOString());
+    }
+  } catch (e) {}
+}
+
+function selfHealMonitorFromWebApp_(spreadsheet, settings) {
+  try {
+    const freshness = getMonitorFreshness_(spreadsheet, settings);
+    if (!freshness.isStale) {
+      return;
+    }
+    const created = ensureMonitorTriggers_();
+    if (created && created.length) {
+      const props = PropertiesService.getScriptProperties();
+      props.setProperty(PROPERTY_KEYS.MONITOR_FRESHNESS_INSTALLED_AT, new Date().toISOString());
+    }
+  } catch (e) {}
+}
+
+function ensureTriggersFromUi(initData) {
+  const secrets = getScriptSecrets();
+  authorizeWebAppRequest_(initData, secrets);
+  const created = ensureMonitorTriggers_();
+  if (created && created.length) {
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty(PROPERTY_KEYS.MONITOR_FRESHNESS_INSTALLED_AT, new Date().toISOString());
+  }
+  return created || [];
 }
 
 function getUiData(initData) {
@@ -51,6 +87,7 @@ function getUiData(initData) {
   const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
   const filters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
   const routes = readRoutes_(spreadsheet);
+  selfHealMonitorFromWebApp_(spreadsheet, settings);
   const dateWindow = buildDateWindow_(settings, filters);
   return {
     settings: {
@@ -147,17 +184,7 @@ function checkProvidersHealth(initData) {
   return result;
 }
 
-function getRoadsurferStations(countryCodes, initData) {
-  const secrets = getScriptSecrets();
-  authorizeWebAppRequest_(initData, secrets);
-
-  const selectedCountries = (countryCodes || []).map(function (country) {
-    return String(country || '').trim().toUpperCase();
-  }).filter(Boolean);
-  if (!selectedCountries.length) {
-    return [];
-  }
-
+function getRoadsurferAllStations_() {
   const cache = CacheService.getScriptCache();
   const cacheKey = 'roadsurfer:start-stations:v1';
   let stations = null;
@@ -177,13 +204,99 @@ function getRoadsurferStations(countryCodes, initData) {
     stations = (Array.isArray(payload) ? payload : []).filter(function (station) {
       return station && station.id != null && station.city && station.city.country && station.enabled !== false;
     }).map(function (station) {
-      return { id: String(station.id), name: station.name || station.city.name, country: station.city.country };
+      return {
+        id: String(station.id),
+        name: station.name || station.city.name,
+        country: String(station.city.country || '').trim().toUpperCase(),
+      };
     });
     cache.put(cacheKey, JSON.stringify(stations), 21600);
   }
+  return stations;
+}
+
+function getRoadsurferStations(countryCodes, initData) {
+  const secrets = getScriptSecrets();
+  authorizeWebAppRequest_(initData, secrets);
+
+  const selectedCountries = (countryCodes || []).map(function (country) {
+    return String(country || '').trim().toUpperCase();
+  }).filter(Boolean);
+  if (!selectedCountries.length) {
+    return [];
+  }
+
+  const stations = getRoadsurferAllStations_();
   return stations.filter(function (station) {
     return selectedCountries.indexOf(String(station.country).toUpperCase()) !== -1;
   }).sort(function (a, b) {
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function getRoadsurferDestinations(originId, countryCodes, initData) {
+  const secrets = getScriptSecrets();
+  authorizeWebAppRequest_(initData, secrets);
+
+  if (!originId || !String(originId).trim()) {
+    return [];
+  }
+
+  const cleanOriginId = String(originId).trim();
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'roadsurfer:destinations:v1:' + cleanOriginId;
+  let returnIds = null;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try { returnIds = JSON.parse(cached); } catch (e) {}
+  }
+  if (!returnIds) {
+    const url = 'https://booking.roadsurfer.com/api/en/rally/stations/' + encodeURIComponent(cleanOriginId);
+    const payload = fetchJson_(url, {
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        'X-Requested-Alias': 'rally.fetchRoutes',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+      retries: 1,
+    });
+    if (payload && Array.isArray(payload.returns)) {
+      returnIds = payload.returns.map(String);
+    } else if (payload && Array.isArray(payload.routes)) {
+      returnIds = payload.routes.map(function (r) { return String(r.id || r.station_id); });
+    } else if (Array.isArray(payload)) {
+      returnIds = payload.map(function (r) { return String(r.id || r.station_id || r); });
+    } else {
+      returnIds = [];
+    }
+    cache.put(cacheKey, JSON.stringify(returnIds), 21600);
+  }
+
+  const allStations = getRoadsurferAllStations_();
+  const stationMap = {};
+  allStations.forEach(function (s) {
+    stationMap[String(s.id)] = s;
+  });
+
+  const selectedCountries = (countryCodes || []).map(function (country) {
+    return String(country || '').trim().toUpperCase();
+  }).filter(Boolean);
+
+  let destinations = returnIds.map(function (id) {
+    const s = stationMap[String(id)];
+    if (s) {
+      return { id: s.id, name: s.name, country: s.country };
+    }
+    return { id: String(id), name: 'Station ' + id, country: '' };
+  });
+
+  if (selectedCountries.length > 0) {
+    destinations = destinations.filter(function (d) {
+      return selectedCountries.indexOf(String(d.country).toUpperCase()) !== -1;
+    });
+  }
+
+  return destinations.sort(function (a, b) {
     return a.name.localeCompare(b.name);
   });
 }

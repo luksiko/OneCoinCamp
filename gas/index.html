@@ -523,6 +523,7 @@
       </div>
 
       <button type="button" class="btn btn-secondary" id="btnRun">▶ Запустить проверку</button>
+      <button type="button" class="btn btn-secondary" id="btnTriggers" style="margin-top:8px;">🔧 Восстановить триггеры</button>
       <button type="button" class="btn btn-accent" id="btnSave">Сохранить</button>
       <button type="button" class="link-reset" id="btnReset">Сбросить несохранённые изменения</button>
     </div>
@@ -773,6 +774,8 @@
         document.getElementById('btnSave').style.display = 'none';
       }
       document.getElementById('btnRun').onclick = runCheck;
+      var btnTriggers = document.getElementById('btnTriggers');
+      if (btnTriggers) btnTriggers.onclick = installTriggers;
       document.getElementById('btnAddRoute').onclick = addRoute;
       document.getElementById('btnSave').onclick = saveSettings;
       document.getElementById('btnReset').onclick = function () {
@@ -1071,13 +1074,13 @@
           route.destinationId = '';
           route.destinationName = '';
           renderRoutes();
-        })));
+        }, true)));
         wrap.appendChild(countries);
 
         var stations = document.createElement('div');
         stations.className = 'pair';
         stations.appendChild(fieldGroup('Город отправления', roadSurferStationSelect(route, 'origin')));
-        stations.appendChild(fieldGroup('Город назначения', roadSurferStationSelect(route, 'destination')));
+        stations.appendChild(fieldGroup('Город назначения', roadSurferDestinationSelect(route)));
         wrap.appendChild(stations);
       } else {
         appendManualRouteFields_(wrap, route);
@@ -1152,14 +1155,89 @@
           sel.value = String(route[idKey] || '');
           sel.disabled = false;
           sel.onchange = function () {
+            var prevId = route[idKey];
             route[idKey] = sel.value;
             route[nameKey] = sel.options[sel.selectedIndex].dataset.name || '';
+            if (kind === 'origin' && prevId !== route.originId) {
+              route.destinationId = '';
+              route.destinationName = '';
+              renderRoutes();
+            }
           };
         })
         .withFailureHandler(function () {
           loading.textContent = 'Не удалось загрузить города';
         })
         .getRoadsurferStations([country], getInitData());
+      return sel;
+    }
+
+    function roadSurferDestinationSelect(route) {
+      var sel = document.createElement('select');
+      sel.disabled = true;
+      var loading = document.createElement('option');
+      loading.value = '';
+      if (!route.originId) {
+        loading.textContent = 'Сначала выберите город отправления';
+        sel.appendChild(loading);
+        return sel;
+      }
+      loading.textContent = 'Загрузка направлений…';
+      sel.appendChild(loading);
+
+      var countryFilter = route.destinationCountry ? [route.destinationCountry] : [];
+      google.script.run
+        .withSuccessHandler(function (destinations) {
+          sel.innerHTML = '';
+          if (!destinations || !destinations.length) {
+            var emptyOpt = document.createElement('option');
+            emptyOpt.value = '';
+            emptyOpt.textContent = route.destinationCountry
+              ? 'Нет направлений в эту страну'
+              : 'Нет доступных направлений';
+            sel.appendChild(emptyOpt);
+            route.destinationId = '';
+            route.destinationName = '';
+            return;
+          }
+
+          var placeholder = document.createElement('option');
+          placeholder.value = '';
+          placeholder.textContent = 'Выберите город (' + destinations.length + ' доступно)';
+          sel.appendChild(placeholder);
+
+          var hasCurrent = false;
+          destinations.forEach(function (station) {
+            var option = document.createElement('option');
+            option.value = String(station.id);
+            option.textContent = station.name + (station.country ? ' (' + station.country + ')' : '');
+            option.dataset.name = station.name;
+            option.dataset.country = station.country || '';
+            if (String(route.destinationId) === String(station.id)) {
+              hasCurrent = true;
+            }
+            sel.appendChild(option);
+          });
+
+          if (!hasCurrent) {
+            route.destinationId = '';
+            route.destinationName = '';
+          }
+          sel.value = String(route.destinationId || '');
+          sel.disabled = false;
+          sel.onchange = function () {
+            route.destinationId = sel.value;
+            var opt = sel.options[sel.selectedIndex];
+            route.destinationName = (opt && opt.dataset.name) || '';
+            if (opt && opt.dataset.country && (!route.destinationCountry || route.destinationCountry !== opt.dataset.country)) {
+              route.destinationCountry = opt.dataset.country;
+            }
+          };
+        })
+        .withFailureHandler(function () {
+          loading.textContent = 'Не удалось загрузить направления';
+        })
+        .getRoadsurferDestinations(route.originId, countryFilter, getInitData());
       return sel;
     }
 
@@ -1201,6 +1279,21 @@
         .withSuccessHandler(function () { toast('Сохранено ✓'); setTimeout(load, 600); })
         .withFailureHandler(function (err) { toast((err && err.message) || 'Ошибка сохранения', true); })
         .saveUiData(payload, initData);
+    }
+
+    function installTriggers() {
+      var initData = getInitData();
+      google.script.run
+        .withSuccessHandler(function (created) {
+          if (created && created.length) {
+            toast('Триггеры восстановлены ✓ ' + created.join(', '));
+          } else {
+            toast('Триггеры уже на месте ✓');
+          }
+          load();
+        })
+        .withFailureHandler(function (err) { toast((err && err.message) || 'Ошибка установки триггеров', true); })
+        .ensureTriggersFromUi(initData);
     }
 
     function runCheck() {
@@ -1290,15 +1383,21 @@
       sel.onchange = function () { onPick(sel.value); };
       return sel;
     }
-    function countrySelect(value, onPick) {
+    function countrySelect(value, onPick, allowAll) {
       var sel = document.createElement('select');
+      if (allowAll) {
+        var anyEl = document.createElement('option');
+        anyEl.value = '';
+        anyEl.textContent = '🌍 Любая страна';
+        sel.appendChild(anyEl);
+      }
       (state.countries || []).forEach(function (c) {
         var el = document.createElement('option');
         el.value = c[0];
         el.textContent = flagEmoji(c[0]) + ' ' + c[1];
         sel.appendChild(el);
       });
-      sel.value = value;
+      sel.value = value || '';
       sel.onchange = function () { onPick(sel.value); };
       return sel;
     }

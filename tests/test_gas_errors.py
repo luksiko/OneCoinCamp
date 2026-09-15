@@ -16,6 +16,7 @@ function setupGasContext(fetchMock) {
     TELEGRAM_CHAT_ID: '',
   };
   const memCache = {};
+  const scriptTriggers = [];
 
   const sheets = {
     'Settings': {
@@ -87,7 +88,8 @@ function setupGasContext(fetchMock) {
     PropertiesService: {
       getScriptProperties: () => ({
         getProperty: (k) => scriptProps[k] || '',
-        setProperty: (k, v) => { scriptProps[k] = v; }
+        setProperty: (k, v) => { scriptProps[k] = v; },
+        deleteProperty: (k) => { delete scriptProps[k]; }
       })
     },
     LockService: {
@@ -100,6 +102,21 @@ function setupGasContext(fetchMock) {
       getService: () => ({
         getUrl: () => 'https://script.google.com/macros/s/test-deployment/exec',
       }),
+      getProjectTriggers: () => scriptTriggers.map(function (fn) {
+        return { getHandlerFunction: () => fn };
+      }),
+      newTrigger: (fn) => ({
+        timeBased: () => ({
+          everyMinutes: (m) => ({
+            create: () => { scriptTriggers.push(fn); }
+          })
+        })
+      }),
+      deleteTrigger: (trigger) => {
+        const fn = trigger.getHandlerFunction();
+        const idx = scriptTriggers.indexOf(fn);
+        if (idx !== -1) scriptTriggers.splice(idx, 1);
+      }
     },
     CacheService: {
       getScriptCache: () => ({
@@ -154,7 +171,7 @@ function setupGasContext(fetchMock) {
   for (const f of files) {
     vm.runInContext(fs.readFileSync(f, 'utf8'), context);
   }
-  return { context, sheets, scriptProps, memCache };
+  return { context, sheets, scriptProps, memCache, scriptTriggers };
 }
 
 const testName = process.argv.slice(1).find(arg => arg !== '[eval]' && !arg.endsWith('.js') && !arg.endsWith('node'));
@@ -592,6 +609,127 @@ if (testName === 'roadsurfer_429') {
   assert.strictEqual(runs.length, 2);
 
   context.Date.now = origNow;
+} else if (testName === 'freshness_repairs_missing_monitor_trigger') {
+  const { context, sheets, scriptTriggers, scriptProps } = setupGasContext((url) => {
+    if (url.includes('stations/6')) {
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ routes: [] }) };
+    }
+    if (url.includes('rally/search')) {
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify([]) };
+    }
+    if (url.includes('api.telegram.org')) {
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ok: true, result: { message_id: 1 } }) };
+    }
+    return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ included: [] }) };
+  });
+
+  // Stale run: finished 3h ago (threshold with poll_interval 5 => 10 min)
+  const threeHoursAgo = new Date(Date.now() - 180 * 60 * 1000).toISOString();
+  sheets['Runs'].values = [
+    ['started_at', 'finished_at', 'source', 'request_count', 'offers_found', 'archived', 'alerts_sent', 'status', 'error'],
+    [threeHoursAgo, threeHoursAgo, 'all', 2, 0, 0, 0, 'OK', ''],
+  ];
+  sheets['Settings'].values = [
+    ['key', 'value'],
+    ['poll_interval_minutes', 5],
+    ['window_days', 14],
+    ['timezone', 'Europe/Berlin'],
+    ['telegram_enabled', false],
+  ];
+  sheets['Routes'].values = [
+    ['enabled', 'source', 'origin_name', 'origin_id', 'destination_name', 'destination_id', 'origin_country', 'destination_country'],
+    [true, 'roadsurfer', 'Berlin', '6', 'Rome', '35', 'DE', 'IT'],
+    [false, 'movacar', 'Berlin', '01JCR', 'Rome', '01JCD', 'DE', 'IT'],
+  ];
+
+  // No monitor trigger installed (simulating the deployed-loss scenario)
+  scriptTriggers.splice(0, scriptTriggers.length);
+
+  const freshness = context.checkMonitorFreshness();
+  assert.strictEqual(freshness.isStale, true);
+  assert.ok(scriptTriggers.indexOf('runMonitorOnce') !== -1, 'runMonitorOnce trigger must be recreated');
+  assert.ok(scriptTriggers.indexOf('processTelegramUpdates') !== -1, 'processTelegramUpdates trigger must be recreated');
+  // A manual run was kicked off as part of self-heal
+  assert.ok(sheets['Runs'].values.length >= 3, 'manual run should append a run row');
+  // INSTALLED_AT refreshed
+  assert.ok(scriptProps.MONITOR_FRESHNESS_INSTALLED_AT, 'INSTALLED_AT should be refreshed');
+} else if (testName === 'freshness_no_repair_when_fresh') {
+  const { context, sheets, scriptTriggers } = setupGasContext((url) => {
+    return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ included: [] }) };
+  });
+  const now = new Date().toISOString();
+  sheets['Runs'].values = [
+    ['started_at', 'finished_at', 'source', 'request_count', 'offers_found', 'archived', 'alerts_sent', 'status', 'error'],
+    [now, now, 'all', 2, 0, 0, 0, 'OK', ''],
+  ];
+  sheets['Settings'].values = [
+    ['key', 'value'],
+    ['poll_interval_minutes', 5],
+    ['window_days', 14],
+    ['timezone', 'Europe/Berlin'],
+    ['telegram_enabled', false],
+  ];
+  scriptTriggers.splice(0, scriptTriggers.length);
+
+  const freshness = context.checkMonitorFreshness();
+  assert.strictEqual(freshness.isStale, false);
+  // No repair needed => no runMonitorOnce was (re)installed, no forced run appended
+  assert.strictEqual(scriptTriggers.indexOf('runMonitorOnce'), -1);
+  assert.strictEqual(sheets['Runs'].values.length, 2);
+} else if (testName === 'monitor_logs_error_run_when_setup_fails') {
+  const { context, sheets } = setupGasContext((url) => {
+    return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ included: [] }) };
+  });
+  // Ensure the workbook opens fine but a later setup step crashes (as happens if a
+  // config sheet is corrupted). runMonitorOnce must still record an ERROR run row.
+  context.buildDateWindow_ = () => { throw new Error('broken date window'); };
+  context.runMonitorOnce();
+  const runs = sheets['Runs'].values;
+  assert.strictEqual(runs.length, 2);
+  assert.strictEqual(runs[1][7], 'ERROR');
+  assert.match(runs[1][8], /broken date window/);
+} else if (testName === 'roadsurfer_get_destinations_filters_valid_pairs') {
+  const { context, scriptProps } = setupGasContext((url) => {
+    if (url.endsWith('/stations')) {
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify([
+          { id: 6, name: 'Berlin', city: { name: 'Berlin', country: 'DE' }, enabled: true },
+          { id: 16, name: 'Aix-Marseille', city: { name: 'Cabriès', country: 'FR' }, enabled: true },
+          { id: 35, name: 'Rome Fiumicino Airport', city: { name: 'Rome', country: 'IT' }, enabled: true },
+          { id: 40, name: 'Madrid', city: { name: 'Madrid', country: 'ES' }, enabled: true },
+        ])
+      };
+    }
+    if (url.includes('/stations/6')) {
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({ id: 6, returns: [16, 35] })
+      };
+    }
+    return { getResponseCode: () => 200, getContentText: () => '[]' };
+  });
+
+  scriptProps.WEBAPP_SKIP_AUTH = 'true';
+
+  // 1. All valid destinations for origin 6 (Berlin)
+  const allDestinations = context.getRoadsurferDestinations('6', [], '');
+  assert.strictEqual(allDestinations.length, 2);
+  assert.deepStrictEqual(allDestinations.map(d => d.id), ['16', '35']);
+  assert.deepStrictEqual(allDestinations.map(d => d.country), ['FR', 'IT']);
+
+  // 2. Filtered by Italy ('IT')
+  const itDestinations = context.getRoadsurferDestinations('6', ['IT'], '');
+  assert.strictEqual(itDestinations.length, 1);
+  assert.strictEqual(itDestinations[0].id, '35');
+  assert.strictEqual(itDestinations[0].name, 'Rome Fiumicino Airport');
+
+  // 3. Filtered by Spain ('ES') -> Berlin has NO returns in Spain
+  const esDestinations = context.getRoadsurferDestinations('6', ['ES'], '');
+  assert.strictEqual(esDestinations.length, 0);
+
+  // 4. Empty or missing originId returns empty list
+  assert.strictEqual(context.getRoadsurferDestinations('', [], '').length, 0);
 } else {
   throw new Error('Unknown test: ' + testName);
 }
@@ -635,6 +773,10 @@ def run_node_test(test_name: str):
         "webapp_expired_auth_date",
         "webapp_unauthorized_user",
         "webapp_authorized_operations",
+        "freshness_repairs_missing_monitor_trigger",
+        "freshness_no_repair_when_fresh",
+        "monitor_logs_error_run_when_setup_fails",
+        "roadsurfer_get_destinations_filters_valid_pairs",
     ],
 )
 def test_gas_node_suite(test_name: str):

@@ -1,11 +1,13 @@
 function fetchJson_(url, options) {
   const retries = options.retries == null ? 2 : options.retries;
   const mute = options.muteHttpExceptions !== false;
+  const timeoutSeconds = Math.min(Math.max(Number(options.timeoutSeconds) || 20, 5), 60);
   const request = {
     method: options.method || 'get',
     headers: options.headers || {},
     muteHttpExceptions: mute,
     followRedirects: true,
+    timeoutInMilliseconds: timeoutSeconds * 1000,
   };
   if (options.payload) {
     request.payload = options.payload;
