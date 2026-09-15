@@ -284,8 +284,8 @@ if (testName === 'roadsurfer_429') {
   });
   context.runMonitorOnce();
   const runs = sheets['Runs'].values;
-  // Header row + 1 error row for roadsurfer
-  assert.strictEqual(runs.length, 2);
+  // Header row + 1 error row for roadsurfer + 1 row for movacar
+  assert.strictEqual(runs.length, 3);
   assert.strictEqual(runs[1][2], 'roadsurfer');
   assert.strictEqual(runs[1][7], 'ERROR');
   assert.match(runs[1][8], /HTTP 429/);

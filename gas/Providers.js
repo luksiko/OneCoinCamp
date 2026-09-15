@@ -129,8 +129,8 @@ function fetchRoadsurferDestinations_(originId, filters) {
         country: s ? s.country : '',
       };
     }).filter(function (r) {
-      if (allowed.length === 0) return true;
       const country = (r.country || '').toUpperCase().trim();
+      if (!country || allowed.length === 0) return true;
       return allowed.indexOf(country) !== -1;
     });
   }

@@ -112,7 +112,7 @@ function getUiData(initData) {
     monitorError: PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.MONITOR_LAST_ERROR) || '',
     telegramReady: !!(secrets.telegramBotToken && secrets.telegramChatId),
     countries: WEBAPP_COUNTRIES,
-    offersTabEnabled: !!secrets.webAppSkipAuth,
+    offersTabEnabled: true,
   };
 }
 
