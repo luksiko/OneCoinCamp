@@ -67,6 +67,9 @@ function fetchRoadsurferOffers_(route, window, filters) {
     const items = Array.isArray(payload) ? payload : payload.results || payload.data || [];
     for (let j = 0; j < items.length; j++) {
       const item = items[j];
+      if (item.available === false) {
+        continue;
+      }
       const model = item.model || {};
       const price = firstDefined_(item.price, item.total_price, item.totalPrice, item.amount);
       const vehicle = item.name || model.name || '';
