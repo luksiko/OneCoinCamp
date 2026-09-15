@@ -4,6 +4,7 @@ function onOpen() {
     .addItem('Initialize sheets', 'setupMonitor')
     .addItem('Run once', 'runMonitorOnce')
     .addItem('Install trigger', 'installTrigger')
+    .addItem('🔄 Check offers availability', 'checkOffersAvailability')
     .addSeparator()
     .addItem('⚙️ Configure Telegram (Token & Chat ID)', 'configureTelegramSecrets')
     .addItem('🧪 Test Telegram connection', 'testTelegramConnection')
@@ -35,6 +36,7 @@ function installTrigger() {
     SpreadsheetApp.getUi().alert(
       '✅ Триггеры успешно установлены!\n\n' +
       '⏱ Мониторинг сайтов: каждые ' + interval + ' мин.\n' +
+      '🔄 Проверка доступности: каждые 15 мин.\n' +
       '🤖 Telegram бот: каждую 1 мин.'
     );
   } catch (e) {}
@@ -44,15 +46,19 @@ function installMonitorTriggers_(settings) {
   const minutes = Number(settings.poll_interval_minutes || DEFAULT_SETTINGS.poll_interval_minutes);
   const allowed = [1, 5, 10, 15, 30];
   const interval = allowed.indexOf(minutes) === -1 ? 5 : minutes;
+  const availMinutes = Number(settings.availability_check_interval_minutes || DEFAULT_SETTINGS.availability_check_interval_minutes || 15);
+  const availInterval = allowed.indexOf(availMinutes) === -1 ? 15 : availMinutes;
+
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     const fn = trigger.getHandlerFunction();
-    if (fn === 'runMonitorOnce' || fn === 'pollOnce' || fn === 'processTelegramUpdates' || fn === 'checkMonitorFreshness') {
+    if (fn === 'runMonitorOnce' || fn === 'pollOnce' || fn === 'processTelegramUpdates' || fn === 'checkMonitorFreshness' || fn === 'checkOffersAvailability') {
       ScriptApp.deleteTrigger(trigger);
     }
   });
   ScriptApp.newTrigger('runMonitorOnce').timeBased().everyMinutes(interval).create();
   ScriptApp.newTrigger('processTelegramUpdates').timeBased().everyMinutes(1).create();
   ScriptApp.newTrigger('checkMonitorFreshness').timeBased().everyMinutes(1).create();
+  ScriptApp.newTrigger('checkOffersAvailability').timeBased().everyMinutes(availInterval).create();
   return interval;
 }
 
@@ -62,6 +68,9 @@ function ensureMonitorTriggers_() {
   const minutes = Number(settings.poll_interval_minutes || DEFAULT_SETTINGS.poll_interval_minutes);
   const allowed = [1, 5, 10, 15, 30];
   const interval = allowed.indexOf(minutes) === -1 ? 5 : minutes;
+  const availMinutes = Number(settings.availability_check_interval_minutes || DEFAULT_SETTINGS.availability_check_interval_minutes || 15);
+  const availInterval = allowed.indexOf(availMinutes) === -1 ? 15 : availMinutes;
+
   const existing = {};
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     existing[trigger.getHandlerFunction()] = true;
@@ -78,6 +87,10 @@ function ensureMonitorTriggers_() {
   if (!existing.checkMonitorFreshness) {
     ScriptApp.newTrigger('checkMonitorFreshness').timeBased().everyMinutes(1).create();
     created.push('checkMonitorFreshness');
+  }
+  if (!existing.checkOffersAvailability) {
+    ScriptApp.newTrigger('checkOffersAvailability').timeBased().everyMinutes(availInterval).create();
+    created.push('checkOffersAvailability');
   }
   return created;
 }
@@ -230,7 +243,7 @@ function runMonitorOnce() {
       offers.forEach(function (offer) {
         const fingerprint = offerFingerprint_(offer);
         const matches = offerMatchesFilter_(offer, filters, window);
-        const alreadyKnown = known.has(fingerprint) || cache.get(fingerprint) === '1';
+        const alreadyKnown = known.has(fingerprint) || cache.get(fingerprint) === '1' || isFingerprintDismissed_(fingerprint);
 
         if (alreadyKnown) {
           return;
@@ -354,3 +367,209 @@ function buildStatusMessage_(spreadsheet) {
   lines.push('/routes — список маршрутов');
   return lines.join('\n');
 }
+
+function checkOffersAvailability() {
+  const startedAt = new Date();
+  let spreadsheet = null;
+  let requestCount = 0;
+
+  try {
+    spreadsheet = ensureWorkbook_();
+    const sheet = spreadsheet.getSheetByName(SHEET_NAMES.ARCHIVE);
+    if (!sheet || sheet.getLastRow() < 2) {
+      return { checked: 0, removed: 0 };
+    }
+
+    const totalDataRows = sheet.getLastRow() - 1;
+    const values = sheet.getRange(2, 1, totalDataRows, ARCHIVE_HEADERS.length).getValues();
+    const totalChecked = values.length;
+
+    const sourceCol = ARCHIVE_HEADERS.indexOf('source');
+    const offerIdCol = ARCHIVE_HEADERS.indexOf('offer_id');
+    const pickupCol = ARCHIVE_HEADERS.indexOf('pickup_date');
+    const bookingUrlCol = ARCHIVE_HEADERS.indexOf('booking_url');
+    const fpCol = ARCHIVE_HEADERS.indexOf('fingerprint');
+
+    const now = new Date();
+    const todayStr = Utilities.formatDate(now, DEFAULT_SETTINGS.timezone, 'yyyy-MM-dd');
+    const toRemoveFingerprints = new Set();
+
+    const roadsurferPairs = {};
+    const movacarPairs = {};
+
+    for (let i = 0; i < values.length; i++) {
+      const row = values[i];
+      const source = String(row[sourceCol] || '').trim();
+      const offerId = String(row[offerIdCol] || '').trim();
+      const pickupDate = String(row[pickupCol] || '').trim();
+      const bookingUrl = String(row[bookingUrlCol] || '').trim();
+      const fp = String(row[fpCol] || '').trim();
+
+      if (!fp) continue;
+
+      if (pickupDate && pickupDate < todayStr) {
+        toRemoveFingerprints.add(fp);
+        continue;
+      }
+
+      if (source === 'roadsurfer') {
+        const stationMatch = bookingUrl.match(/[?&]station=(\d+)/);
+        const endStationMatch = bookingUrl.match(/[?&]end_station=(\d+)/);
+        if (stationMatch && endStationMatch) {
+          const originId = stationMatch[1];
+          const destId = endStationMatch[1];
+          const key = originId + '_' + destId;
+          if (!roadsurferPairs[key]) {
+            roadsurferPairs[key] = { originId: originId, destId: destId, offers: [] };
+          }
+          roadsurferPairs[key].offers.push({ offerId: offerId, fingerprint: fp, pickupDate: pickupDate });
+        }
+      } else if (source === 'movacar') {
+        const parts = offerId.split('@')[0].split('->');
+        if (parts.length === 2 && parts[0] && parts[1]) {
+          const originRef = parts[0];
+          const destRef = parts[1];
+          const key = originRef + '_' + destRef;
+          if (!movacarPairs[key]) {
+            movacarPairs[key] = { originRef: originRef, destRef: destRef, offers: [] };
+          }
+          movacarPairs[key].offers.push({ offerId: offerId, fingerprint: fp });
+        }
+      }
+    }
+
+    // Query Roadsurfer search API for each station pair
+    const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const rangeEnd = Utilities.formatDate(endDate, DEFAULT_SETTINGS.timezone, 'yyyy-MM-dd');
+
+    const rsKeys = Object.keys(roadsurferPairs);
+    for (let k = 0; k < rsKeys.length; k++) {
+      const pair = roadsurferPairs[rsKeys[k]];
+      const searchUrl =
+        'https://booking.roadsurfer.com/api/en/rally/search?stations=' +
+        encodeURIComponent('[[' + pair.originId + ',' + pair.destId + ']]') +
+        '&range=' +
+        encodeURIComponent(JSON.stringify([todayStr, rangeEnd])) +
+        '&currency=EUR&models=' +
+        encodeURIComponent('[]');
+      const refererUrl =
+        'https://booking.roadsurfer.com/en/rally/pick?station=' +
+        encodeURIComponent(pair.originId) +
+        '&end_station=' +
+        encodeURIComponent(pair.destId);
+
+      requestCount++;
+      let payload = null;
+      try {
+        payload = fetchJson_(searchUrl, {
+          headers: {
+            Accept: 'application/json, text/plain, */*',
+            Referer: refererUrl,
+            'X-Requested-Alias': 'rally.search',
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        });
+      } catch (err) {
+        // Fail-safe: do not remove offers on network or API failure
+        continue;
+      }
+
+      if (payload) {
+        const items = Array.isArray(payload) ? payload : payload.results || payload.data || [];
+        const activeIds = new Set();
+        for (let j = 0; j < items.length; j++) {
+          const item = items[j];
+          const id = firstDefined_(item.id, item.offer_id);
+          if (id != null) {
+            activeIds.add(String(id));
+          }
+        }
+        for (let o = 0; o < pair.offers.length; o++) {
+          const off = pair.offers[o];
+          if (!activeIds.has(String(off.offerId))) {
+            toRemoveFingerprints.add(off.fingerprint);
+          }
+        }
+      }
+    }
+
+    // Query Movacar API for each pair
+    const mvKeys = Object.keys(movacarPairs);
+    for (let m = 0; m < mvKeys.length; m++) {
+      const mvPair = movacarPairs[mvKeys[m]];
+      const query =
+        'locale=de&origin_reference=' +
+        encodeURIComponent(mvPair.originRef) +
+        '&destination_reference=' +
+        encodeURIComponent(mvPair.destRef);
+      const url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?' + query;
+
+      requestCount++;
+      let payload = null;
+      try {
+        payload = fetchJson_(url, {
+          headers: {
+            Accept: 'application/vnd.api+json',
+            Origin: 'https://movacar.com',
+            Referer: 'https://movacar.com/',
+            'X-Request-Id': randomRequestId_(),
+          },
+        });
+      } catch (err) {
+        // Fail-safe
+        continue;
+      }
+
+      if (payload) {
+        const included = payload.included || [];
+        const destinationSummary = included.filter(function (item) {
+          return item.type === 'locationsummary' && String(item.id) === String(mvPair.destRef);
+        })[0];
+        const offerCount = destinationSummary && destinationSummary.attributes ? destinationSummary.attributes.offer_count || 0 : 0;
+        if (!offerCount) {
+          for (let mo = 0; mo < mvPair.offers.length; mo++) {
+            toRemoveFingerprints.add(mvPair.offers[mo].fingerprint);
+          }
+        }
+      }
+    }
+
+    const removedCount = deleteArchiveRowsByFingerprints_(spreadsheet, toRemoveFingerprints);
+
+    PropertiesService.getScriptProperties().setProperty(
+      PROPERTY_KEYS.OFFERS_AVAILABILITY_LAST_RUN,
+      new Date().toISOString()
+    );
+
+    logRun_(spreadsheet, {
+      startedAt: startedAt,
+      finishedAt: new Date(),
+      source: 'availability_check',
+      requestCount: requestCount,
+      offersFound: totalChecked,
+      offersFiltered: removedCount,
+      telegramSent: 0,
+      status: 'OK',
+      errorMessage: 'Removed ' + removedCount + ' unavailable offers',
+    });
+
+    return { checked: totalChecked, removed: removedCount };
+  } catch (err) {
+    if (spreadsheet) {
+      logRun_(spreadsheet, {
+        startedAt: startedAt,
+        finishedAt: new Date(),
+        source: 'availability_check',
+        requestCount: requestCount,
+        offersFound: 0,
+        offersFiltered: 0,
+        telegramSent: 0,
+        status: 'ERROR',
+        errorMessage: err.message || String(err),
+      });
+    }
+    throw err;
+  }
+}
+

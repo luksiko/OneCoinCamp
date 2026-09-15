@@ -134,6 +134,71 @@ function appendArchiveRows_(spreadsheet, rows) {
   sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, ARCHIVE_HEADERS.length).setValues(rows);
 }
 
+function markFingerprintDismissed_(fingerprint) {
+  if (!fingerprint) return;
+  try {
+    const cache = CacheService.getScriptCache();
+    cache.put('dismissed_' + fingerprint, '1', 86400); // 24 hours
+  } catch (e) {}
+}
+
+function isFingerprintDismissed_(fingerprint) {
+  if (!fingerprint) return false;
+  try {
+    const cache = CacheService.getScriptCache();
+    return cache.get('dismissed_' + fingerprint) === '1';
+  } catch (e) {
+    return false;
+  }
+}
+
+function deleteArchiveRowsByFingerprints_(spreadsheet, fingerprintsSet) {
+  if (!fingerprintsSet || fingerprintsSet.size === 0) {
+    return 0;
+  }
+  const sheet = spreadsheet.getSheetByName(SHEET_NAMES.ARCHIVE);
+  if (!sheet || sheet.getLastRow() < 2) {
+    return 0;
+  }
+
+  const fpCol = ARCHIVE_HEADERS.indexOf('fingerprint');
+  const totalDataRows = sheet.getLastRow() - 1;
+  const values = sheet.getRange(2, 1, totalDataRows, ARCHIVE_HEADERS.length).getValues();
+  const remainingRows = [];
+  let deletedCount = 0;
+
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    const fp = String(row[fpCol] || '').trim();
+    if (fingerprintsSet.has(fp)) {
+      deletedCount++;
+    } else {
+      remainingRows.push(row);
+    }
+  }
+
+  if (deletedCount > 0) {
+    if (remainingRows.length > 0) {
+      sheet.getRange(2, 1, remainingRows.length, ARCHIVE_HEADERS.length).setValues(remainingRows);
+      if (sheet.getLastRow() > remainingRows.length + 1) {
+        sheet.deleteRows(remainingRows.length + 2, sheet.getLastRow() - (remainingRows.length + 1));
+      }
+    } else {
+      sheet.deleteRows(2, totalDataRows);
+    }
+  }
+
+  return deletedCount;
+}
+
+function deleteArchiveRowByFingerprint_(spreadsheet, fingerprint) {
+  if (!fingerprint) return false;
+  const set = new Set();
+  set.add(String(fingerprint).trim());
+  const deleted = deleteArchiveRowsByFingerprints_(spreadsheet, set);
+  return deleted > 0;
+}
+
 function appendRunRow_(spreadsheet, row) {
   const sheet = spreadsheet.getSheetByName(SHEET_NAMES.RUNS);
   sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);

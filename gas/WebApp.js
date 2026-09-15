@@ -109,6 +109,7 @@ function getUiData(initData) {
       days: dateWindow.windowDays,
     },
     status: buildStatus_(spreadsheet, settings),
+    monitorError: PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.MONITOR_LAST_ERROR) || '',
     telegramReady: !!(secrets.telegramBotToken && secrets.telegramChatId),
     countries: WEBAPP_COUNTRIES,
     offersTabEnabled: !!secrets.webAppSkipAuth,
@@ -647,3 +648,28 @@ function getOffers(filter, initData) {
     totalPages: Math.ceil(filtered.length / limit),
   };
 }
+
+function deleteOffer(fingerprint, initData) {
+  const secrets = getScriptSecrets();
+  authorizeWebAppRequest_(initData, secrets);
+
+  if (!fingerprint) {
+    throw new Error('fingerprint is required');
+  }
+
+  const spreadsheet = getSpreadsheet();
+  const deleted = deleteArchiveRowByFingerprint_(spreadsheet, fingerprint);
+  if (deleted) {
+    markFingerprintDismissed_(fingerprint);
+  }
+
+  return { success: true, deleted: deleted, fingerprint: fingerprint };
+}
+
+function checkOffersAvailabilityWeb(initData) {
+  const secrets = getScriptSecrets();
+  authorizeWebAppRequest_(initData, secrets);
+
+  return checkOffersAvailability();
+}
+

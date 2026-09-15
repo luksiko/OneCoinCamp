@@ -376,6 +376,54 @@
     }
     .btn-book:disabled { opacity: 0.5; }
 
+    .btn-delete-offer {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      color: var(--hint);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-delete-offer:hover {
+      background: rgba(255, 59, 48, 0.15);
+      border-color: #ff3b30;
+    }
+    .btn-delete-offer:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-check-avail {
+      background: var(--section);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .btn-check-avail:hover {
+      background: rgba(46, 166, 255, 0.15);
+    }
+    .btn-check-avail:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .offer-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .offers-empty {
       text-align: center;
       padding: 40px 20px;
@@ -530,7 +578,10 @@
     </div>
 
     <div id="screenOffers" style="display:none;">
-      <div class="filters-bar" id="sourceFilters"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
+        <div class="filters-bar" id="sourceFilters" style="margin-bottom:0; flex-grow:1;"></div>
+        <button type="button" class="btn-check-avail" id="btnCheckAvail" title="Проверить доступность офферов у провайдеров и удалить недоступные">🔄 Проверить доступность</button>
+      </div>
 
       <div class="offers-summary" id="offersSummary"></div>
 
@@ -726,7 +777,56 @@
       status.textContent = offer.telegramSentAt ? '✓ Отправлен' : 'Новый';
       footer.appendChild(status);
 
+      var actions = document.createElement('div');
+      actions.className = 'offer-actions';
+
+      var deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn-delete-offer';
+      deleteBtn.innerHTML = '🗑️';
+      deleteBtn.title = 'Удалить этот оффер';
+      deleteBtn.onclick = function (e) {
+        e.stopPropagation();
+        if (!window.confirm('Удалить этот оффер?')) return;
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = '⏳';
+        var initData = getInitData();
+        google.script.run
+          .withSuccessHandler(function (res) {
+            toast('Оффер удалён');
+            card.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.95)';
+            setTimeout(function () {
+              if (card.parentNode) {
+                card.parentNode.removeChild(card);
+              }
+              if (offersData && offersData.offers) {
+                offersData.offers = offersData.offers.filter(function (o) {
+                  return o.fingerprint !== offer.fingerprint;
+                });
+                offersData.total = Math.max(0, (offersData.total || 1) - 1);
+                var summary = document.getElementById('offersSummary');
+                if (summary) {
+                  summary.textContent = 'Найдено: ' + offersData.total + ' | Стр. ' + offersData.page + ' / ' + offersData.totalPages;
+                }
+                if (offersData.offers.length === 0) {
+                  applyOfferFilters();
+                }
+              }
+            }, 250);
+          })
+          .withFailureHandler(function (err) {
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = '🗑️';
+            toast((err && err.message) || 'Ошибка при удалении оффера', true);
+          })
+          .deleteOffer(offer.fingerprint, initData);
+      };
+      actions.appendChild(deleteBtn);
+
       var bookBtn = document.createElement('button');
+      bookBtn.type = 'button';
       bookBtn.className = 'btn-book';
       bookBtn.textContent = 'Бронировать';
       bookBtn.disabled = !offer.bookingUrl;
@@ -739,10 +839,43 @@
           }
         };
       }
-      footer.appendChild(bookBtn);
+      actions.appendChild(bookBtn);
 
+      footer.appendChild(actions);
       card.appendChild(footer);
       return card;
+    }
+
+    function checkAvailability() {
+      var btn = document.getElementById('btnCheckAvail');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Проверка...';
+      }
+      var initData = getInitData();
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🔄 Проверить доступность';
+          }
+          var msg = 'Проверка доступности завершена.';
+          if (res && res.removed !== undefined) {
+            msg = res.removed > 0
+              ? 'Удалено недоступных офферов: ' + res.removed + ' (из ' + res.checked + ')'
+              : 'Все проверенные офферы (' + res.checked + ') актуальны';
+          }
+          toast(msg);
+          applyOfferFilters();
+        })
+        .withFailureHandler(function (err) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🔄 Проверить доступность';
+          }
+          toast((err && err.message) || 'Ошибка при проверке доступности', true);
+        })
+        .checkOffersAvailabilityWeb(initData);
     }
 
     function getInitData() {
@@ -776,6 +909,8 @@
       document.getElementById('btnRun').onclick = runCheck;
       var btnTriggers = document.getElementById('btnTriggers');
       if (btnTriggers) btnTriggers.onclick = installTriggers;
+      var btnCheckAvail = document.getElementById('btnCheckAvail');
+      if (btnCheckAvail) btnCheckAvail.onclick = checkAvailability;
       document.getElementById('btnAddRoute').onclick = addRoute;
       document.getElementById('btnSave').onclick = saveSettings;
       document.getElementById('btnReset').onclick = function () {

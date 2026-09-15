@@ -132,6 +132,12 @@ function setupGasContext(fetchMock) {
           return {
             getLastRow: () => s.values.length,
             getLastColumn: () => (s.values[0] ? s.values[0].length : 0),
+            deleteRow: (rowIndex) => {
+              s.values.splice(rowIndex - 1, 1);
+            },
+            deleteRows: (rowIndex, numRows) => {
+              s.values.splice(rowIndex - 1, numRows || 1);
+            },
             getRange: (row, col, numRows, numCols) => ({
               getValues: () => {
                 const nRows = numRows || 1;
@@ -152,6 +158,7 @@ function setupGasContext(fetchMock) {
                 for (let r = 0; r < vals.length; r++) {
                   const targetRow = row - 1 + r;
                   while (s.values.length <= targetRow) s.values.push([]);
+                  if (!s.values[targetRow]) s.values[targetRow] = [];
                   for (let c = 0; c < vals[r].length; c++) {
                     s.values[targetRow][col - 1 + c] = vals[r][c];
                   }
@@ -175,6 +182,12 @@ function setupGasContext(fetchMock) {
 }
 
 const testName = process.argv.slice(1).find(arg => arg !== '[eval]' && !arg.endsWith('.js') && !arg.endsWith('node'));
+
+const TEST_ARCHIVE_HEADERS = [
+  'found_at', 'source', 'offer_id', 'vehicle_id', 'vehicle', 'origin', 'origin_country',
+  'destination', 'destination_country', 'pickup_date', 'return_date', 'price', 'currency',
+  'booking_url', 'fingerprint', 'matches_filter', 'telegram_sent_at', 'raw_json'
+];
 
 if (testName === 'roadsurfer_429') {
   const { context } = setupGasContext(() => ({
@@ -730,6 +743,83 @@ if (testName === 'roadsurfer_429') {
 
   // 4. Empty or missing originId returns empty list
   assert.strictEqual(context.getRoadsurferDestinations('', [], '').length, 0);
+} else if (testName === 'webapp_delete_offer_removes_row_and_marks_dismissed') {
+  const { context, sheets, scriptProps } = setupGasContext(() => ({ getResponseCode: () => 200, getContentText: () => '{}' }));
+  scriptProps.WEBAPP_SKIP_AUTH = '1';
+  sheets.OffersArchive.values = [
+    TEST_ARCHIVE_HEADERS,
+    ['2026-09-15T00:00:00', 'roadsurfer', '101', 'v1', 'Camper', 'Berlin', 'DE', 'Rome', 'IT', '2026-10-01', '2026-10-08', 100, 'EUR', 'https://example.com', 'fp_to_delete', true, '', ''],
+    ['2026-09-15T00:00:00', 'roadsurfer', '102', 'v2', 'Camper', 'Berlin', 'DE', 'Rome', 'IT', '2026-10-01', '2026-10-08', 100, 'EUR', 'https://example.com', 'fp_to_keep', true, '', '']
+  ];
+
+  const res = context.deleteOffer('fp_to_delete', '');
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(res.deleted, true);
+  assert.strictEqual(sheets.OffersArchive.values.length, 2);
+  assert.strictEqual(sheets.OffersArchive.values[1][14], 'fp_to_keep');
+  assert.strictEqual(context.isFingerprintDismissed_('fp_to_delete'), true);
+  assert.strictEqual(context.isFingerprintDismissed_('fp_to_keep'), false);
+} else if (testName === 'check_offers_availability_removes_expired_and_missing_offers') {
+  const fetchMock = (url) => {
+    if (url.includes('rally/search')) {
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify([{ id: 102, offer_id: '102', price: 100 }])
+      };
+    }
+    if (url.includes('locations/offers')) {
+      if (url.includes('origin_reference=berlin') && url.includes('destination_reference=rome')) {
+        return {
+          getResponseCode: () => 200,
+          getContentText: () => JSON.stringify({
+            included: [{ type: 'locationsummary', id: 'rome', attributes: { offer_count: 0 } }]
+          })
+        };
+      }
+      if (url.includes('origin_reference=berlin') && url.includes('destination_reference=paris')) {
+        return {
+          getResponseCode: () => 200,
+          getContentText: () => JSON.stringify({
+            included: [{ type: 'locationsummary', id: 'paris', attributes: { offer_count: 2 } }]
+          })
+        };
+      }
+    }
+    return { getResponseCode: () => 200, getContentText: () => '{}' };
+  };
+
+  const { context, sheets } = setupGasContext(fetchMock);
+  sheets.OffersArchive.values = [
+    TEST_ARCHIVE_HEADERS,
+    ['2026-09-10T00:00:00', 'roadsurfer', '99', 'v99', 'Camper', 'Berlin', 'DE', 'Rome', 'IT', '2026-09-01', '2026-09-05', 50, 'EUR', 'https://booking.roadsurfer.com/en/rally/pick?station=6&end_station=35', 'fp_expired', true, '', ''],
+    ['2026-09-15T00:00:00', 'roadsurfer', '101', 'v1', 'Camper', 'Berlin', 'DE', 'Rome', 'IT', '2026-10-01', '2026-10-08', 100, 'EUR', 'https://booking.roadsurfer.com/en/rally/pick?station=6&end_station=35', 'fp_rs_missing', true, '', ''],
+    ['2026-09-15T00:00:00', 'roadsurfer', '102', 'v2', 'Camper', 'Berlin', 'DE', 'Rome', 'IT', '2026-10-01', '2026-10-08', 100, 'EUR', 'https://booking.roadsurfer.com/en/rally/pick?station=6&end_station=35', 'fp_rs_active', true, '', ''],
+    ['2026-09-15T00:00:00', 'movacar', 'berlin->rome@2026-10-01', '', 'Car', 'Berlin', 'DE', 'Rome', 'IT', '2026-10-01', '2026-10-08', 1, 'EUR', 'https://movacar.com/', 'fp_mv_soldout', true, '', ''],
+    ['2026-09-15T00:00:00', 'movacar', 'berlin->paris@2026-10-01', '', 'Car', 'Berlin', 'DE', 'Paris', 'FR', '2026-10-01', '2026-10-08', 1, 'EUR', 'https://movacar.com/', 'fp_mv_active', true, '', '']
+  ];
+
+  const result = context.checkOffersAvailability();
+  assert.strictEqual(result.checked, 5);
+  assert.strictEqual(result.removed, 3);
+  assert.strictEqual(sheets.OffersArchive.values.length, 3);
+  const remainingFps = sheets.OffersArchive.values.slice(1).map(r => r[14]);
+  assert.deepStrictEqual(remainingFps, ['fp_rs_active', 'fp_mv_active']);
+} else if (testName === 'check_offers_availability_retains_offers_on_network_error') {
+  const fetchMock = () => {
+    throw new Error('Internal Server Error 500');
+  };
+
+  const { context, sheets } = setupGasContext(fetchMock);
+  sheets.OffersArchive.values = [
+    TEST_ARCHIVE_HEADERS,
+    ['2026-09-15T00:00:00', 'roadsurfer', '101', 'v1', 'Camper', 'Berlin', 'DE', 'Rome', 'IT', '2026-10-01', '2026-10-08', 100, 'EUR', 'https://booking.roadsurfer.com/en/rally/pick?station=6&end_station=35', 'fp_safe', true, '', '']
+  ];
+
+  const result = context.checkOffersAvailability();
+  assert.strictEqual(result.checked, 1);
+  assert.strictEqual(result.removed, 0);
+  assert.strictEqual(sheets.OffersArchive.values.length, 2);
+  assert.strictEqual(sheets.OffersArchive.values[1][14], 'fp_safe');
 } else {
   throw new Error('Unknown test: ' + testName);
 }
@@ -777,6 +867,9 @@ def run_node_test(test_name: str):
         "freshness_no_repair_when_fresh",
         "monitor_logs_error_run_when_setup_fails",
         "roadsurfer_get_destinations_filters_valid_pairs",
+        "webapp_delete_offer_removes_row_and_marks_dismissed",
+        "check_offers_availability_removes_expired_and_missing_offers",
+        "check_offers_availability_retains_offers_on_network_error",
     ],
 )
 def test_gas_node_suite(test_name: str):
