@@ -1228,17 +1228,6 @@
         renderRoutes();
       }));
 
-      if (route.source === 'roadsurfer') {
-        var countries = document.createElement('div');
-        countries.className = 'pair';
-        countries.appendChild(fieldGroup('Страна отправления', countrySelect(route.originCountry, function (v) {
-          route.originCountry = v;
-          route.originId = '*';
-          route.originName = 'Все города';
-          renderRoutes();
-        })));
-        countries.appendChild(fieldGroup('Страна назначения', countrySelect(route.destinationCountry, function (v) {
-          route.destinationCountry = v;
       var countries = document.createElement('div');
       countries.className = 'pair';
       countries.appendChild(fieldGroup('Страна отправления', countrySelect(route.originCountry, function (v) {
