@@ -93,6 +93,9 @@ function getUiData(initData) {
     settings: {
       poll_interval_minutes: settings.poll_interval_minutes,
       window_days: settings.window_days,
+      pickup_date: settings.pickup_date || '',
+      return_date: settings.return_date || '',
+      check_neighbors: isTruthy_(settings.check_neighbors),
       timezone: settings.timezone,
       telegram_enabled: settings.telegram_enabled,
     },

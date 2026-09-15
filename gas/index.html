@@ -540,8 +540,24 @@
           <div class="seg" id="intervalSeg"></div>
         </div>
         <div class="field">
-          <span class="field-label">Окно поиска, дней</span>
-          <div class="seg" id="windowSeg"></div>
+          <span class="field-label">Дата отбытия</span>
+          <input type="date" id="pickupDate" style="width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:15px;color-scheme:dark;">
+        </div>
+        <div class="field">
+          <span class="field-label">Дата возвращения</span>
+          <input type="date" id="returnDate" style="width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:15px;color-scheme:dark;">
+        </div>
+        <div class="field" id="dateHint" style="font-size:12px;color:var(--hint);margin-top:-6px;">
+          Если даты пустые — ближайшее воскресенье + 14 дней
+        </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span>Проверять соседние даты (±2 дня)</span>
+            <span class="switch">
+              <input type="checkbox" id="checkNeighbors">
+              <span class="slider"></span>
+            </span>
+          </label>
         </div>
         <div class="field">
           <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
@@ -552,16 +568,6 @@
             </span>
           </label>
         </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Страны отправления</div>
-        <div class="chips" id="originChips"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Страны назначения</div>
-        <div class="chips" id="destChips"></div>
       </div>
 
       <div class="card">
@@ -983,7 +989,6 @@
       state = data;
       renderStatus();
       renderSettings();
-      renderChips();
       renderRoutes();
     }
 
@@ -1043,10 +1048,45 @@
       renderSeg('intervalSeg', INTERVALS,
         String(state.settings.poll_interval_minutes),
         function (v) { state.settings.poll_interval_minutes = v; });
-      renderSeg('windowSeg', WINDOWS,
-        String(state.settings.window_days),
-        function (v) { state.settings.window_days = v; });
+      var pickupEl = document.getElementById('pickupDate');
+      var returnEl = document.getElementById('returnDate');
+      var neighborsEl = document.getElementById('checkNeighbors');
+      if (pickupEl) {
+        pickupEl.value = state.settings.pickup_date || '';
+        pickupEl.onchange = function () {
+          state.settings.pickup_date = pickupEl.value;
+          updateDateHint();
+        };
+      }
+      if (returnEl) {
+        returnEl.value = state.settings.return_date || '';
+        returnEl.onchange = function () {
+          state.settings.return_date = returnEl.value;
+          updateDateHint();
+        };
+      }
+      if (neighborsEl) {
+        neighborsEl.checked = !!state.settings.check_neighbors;
+        neighborsEl.onchange = function () {
+          state.settings.check_neighbors = neighborsEl.checked;
+        };
+      }
       document.getElementById('telegramEnabled').checked = isTruthy(state.settings.telegram_enabled);
+      updateDateHint();
+    }
+
+    function updateDateHint() {
+      var hint = document.getElementById('dateHint');
+      if (!hint) return;
+      var pickup = state.settings.pickup_date;
+      var ret = state.settings.return_date;
+      if (pickup && ret) {
+        hint.textContent = 'Поиск: ' + shortDate(pickup) + ' — ' + shortDate(ret);
+      } else if (pickup) {
+        hint.textContent = 'Поиск: ' + shortDate(pickup) + ' + 14 дней';
+      } else {
+        hint.textContent = 'Если даты пустые — ближайшее воскресенье + 14 дней';
+      }
     }
 
     function renderSeg(id, values, selected, onPick) {
@@ -1066,38 +1106,7 @@
       });
     }
 
-    function renderChips() {
-      var countries = state.countries || [];
-      renderChipsIn('originChips', countries, state.filters.allowed_origin_countries || [], function (code) {
-        toggleCountry(state.filters.allowed_origin_countries, code);
-      });
-      renderChipsIn('destChips', countries, state.filters.allowed_destination_countries || [], function (code) {
-        toggleCountry(state.filters.allowed_destination_countries, code);
-      });
-    }
 
-    function renderChipsIn(id, countries, selected, onToggle) {
-      var root = document.getElementById(id);
-      root.innerHTML = '';
-      countries.forEach(function (c) {
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'chip' + (selected.indexOf(c[0]) !== -1 ? ' selected' : '');
-        btn.textContent = flagEmoji(c[0]) + ' ' + c[1];
-        btn.onclick = function () { onToggle(c[0]); };
-        root.appendChild(btn);
-      });
-    }
-
-    function toggleCountry(list, code) {
-      var idx = list.indexOf(code);
-      if (idx === -1) {
-        list.push(code);
-      } else {
-        list.splice(idx, 1);
-      }
-      renderChips();
-    }
 
     function renderRoutes() {
       var list = document.getElementById('routesList');
@@ -1147,7 +1156,16 @@
       var foot = document.createElement('div');
       foot.className = 'route-foot';
       foot.appendChild(routeDates());
-      foot.appendChild(document.createTextNode('(' + state.window.days + ' дн)'));
+
+      var daysLabel = document.createTextNode('(' + state.window.days + ' дн)');
+      foot.appendChild(daysLabel);
+
+      if (state.settings.check_neighbors) {
+        var nbSpan = document.createElement('span');
+        nbSpan.style.cssText = 'font-size:11px;color:var(--accent);margin-left:4px;';
+        nbSpan.textContent = '±2д';
+        foot.appendChild(nbSpan);
+      }
 
       var spacer = document.createElement('span');
       spacer.className = 'spacer';
@@ -1406,6 +1424,9 @@
         settings: {
           poll_interval_minutes: state.settings.poll_interval_minutes,
           window_days: state.settings.window_days,
+          pickup_date: state.settings.pickup_date || '',
+          return_date: state.settings.return_date || '',
+          check_neighbors: state.settings.check_neighbors,
           telegram_enabled: state.settings.telegram_enabled
         },
         filters: {

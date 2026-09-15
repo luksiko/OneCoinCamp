@@ -219,52 +219,64 @@ function runMonitorOnce() {
     let telegramSentCount = 0;
     let hasErrors = false;
 
-    routes.forEach(function (route) {
-      let offers = [];
-      try {
-        requestCount += 1;
-        offers = fetchOffersForRoute_(route, window, filters);
-      } catch (error) {
-        hasErrors = true;
-        logRun_(spreadsheet, {
-          startedAt: startedAt,
-          finishedAt: new Date(),
-          source: route.source,
-          requestCount: 1,
-          offersFound: 0,
-          offersFiltered: 0,
-          telegramSent: 0,
-          status: 'ERROR',
-          errorMessage: error.message || String(error),
-        });
-        return;
+    const checkNeighbors = isTruthy_(settings.check_neighbors);
+    const allWindows = [window];
+    if (checkNeighbors) {
+      var neighborWindows = buildNeighborWindows_(window, 2);
+      for (var nw = 0; nw < neighborWindows.length; nw++) {
+        allWindows.push(neighborWindows[nw]);
       }
+    }
 
-      offers.forEach(function (offer) {
-        const fingerprint = offerFingerprint_(offer);
-        const matches = offerMatchesFilter_(offer, filters, window);
-        const alreadyKnown = known.has(fingerprint) || cache.get(fingerprint) === '1' || isFingerprintDismissed_(fingerprint);
-
-        if (alreadyKnown) {
-          return;
+    routes.forEach(function (route) {
+      for (var wi = 0; wi < allWindows.length; wi++) {
+        var currentWindow = allWindows[wi];
+        let offers = [];
+        try {
+          requestCount += 1;
+          offers = fetchOffersForRoute_(route, currentWindow, filters);
+        } catch (error) {
+          hasErrors = true;
+          logRun_(spreadsheet, {
+            startedAt: startedAt,
+            finishedAt: new Date(),
+            source: route.source,
+            requestCount: 1,
+            offersFound: 0,
+            offersFiltered: 0,
+            telegramSent: 0,
+            status: 'ERROR',
+            errorMessage: error.message || String(error),
+          });
+          continue;
         }
 
-        let telegramSentAt = '';
-        if (matches && settings.telegram_enabled) {
-          try {
-            sendTelegramOffer_(secrets, offer);
-            telegramSentAt = formatIsoDate_(new Date());
-            telegramSentCount += 1;
-          } catch (error) {
+        offers.forEach(function (offer) {
+          const fingerprint = offerFingerprint_(offer);
+          const matches = offerMatchesFilter_(offer, filters, currentWindow);
+          const alreadyKnown = known.has(fingerprint) || cache.get(fingerprint) === '1' || isFingerprintDismissed_(fingerprint);
+
+          if (alreadyKnown) {
             return;
           }
-        }
 
-        known.add(fingerprint);
-        cache.put(fingerprint, '1', 21600);
-        foundOffers.push(offer);
-        rowsToAppend.push(offerToRow_(offer, fingerprint, matches, telegramSentAt));
-      });
+          let telegramSentAt = '';
+          if (matches && settings.telegram_enabled) {
+            try {
+              sendTelegramOffer_(secrets, offer);
+              telegramSentAt = formatIsoDate_(new Date());
+              telegramSentCount += 1;
+            } catch (error) {
+              return;
+            }
+          }
+
+          known.add(fingerprint);
+          cache.put(fingerprint, '1', 21600);
+          foundOffers.push(offer);
+          rowsToAppend.push(offerToRow_(offer, fingerprint, matches, telegramSentAt));
+        });
+      }
     });
 
     if (rowsToAppend.length) {

@@ -49,13 +49,43 @@ function formatIsoDate_(date) {
 function buildDateWindow_(settings, filters) {
   const timezone = settings.timezone || DEFAULT_SETTINGS.timezone;
   const windowDays = Number(filters.window_days || settings.window_days || DEFAULT_SETTINGS.window_days);
-  const start = nextSunday_(timezone);
+  const pickupDate = parseIsoDate_(settings.pickup_date);
+  const returnDate = parseIsoDate_(settings.return_date);
+
+  let start, end;
+  if (pickupDate && returnDate) {
+    start = pickupDate;
+    end = returnDate;
+  } else if (pickupDate) {
+    start = pickupDate;
+    end = addDays_(pickupDate, windowDays);
+  } else {
+    start = nextSunday_(timezone);
+    end = addDays_(start, windowDays);
+  }
+
   return {
     start: start,
-    end: addDays_(start, windowDays),
+    end: end,
     timezone: timezone,
-    windowDays: windowDays,
+    windowDays: Math.round((end.getTime() - start.getTime()) / 86400000),
   };
+}
+
+function buildNeighborWindows_(baseWindow, maxOffset) {
+  var offsets = [];
+  var offset = maxOffset || 2;
+  for (var i = -offset; i <= offset; i++) {
+    if (i === 0) continue;
+    offsets.push({
+      start: addDays_(baseWindow.start, i),
+      end: addDays_(baseWindow.end, i),
+      timezone: baseWindow.timezone,
+      windowDays: baseWindow.windowDays,
+      offset: i,
+    });
+  }
+  return offsets;
 }
 
 function offerMatchesFilter_(offer, filters, window) {
