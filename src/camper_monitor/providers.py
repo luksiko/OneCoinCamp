@@ -351,7 +351,7 @@ class ImoovaProvider:
                 continue
 
             rel_id = item.get("id") or str(uuid.uuid4())
-            booking_url = f"https://www.imoova.com/imoova/relocations/{rel_id}"
+            booking_url = f"https://www.imoova.com/relocations/deal/{rel_id}"
             vehicle_info = item.get("vehicle") or {}
             vehicle_name = vehicle_info.get("name") or item.get("name") or "Imoova vehicle"
 

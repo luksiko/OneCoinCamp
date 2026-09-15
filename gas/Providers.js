@@ -707,7 +707,7 @@ function fetchImoovaOffers_(route, window) {
     const deliv = item.deliveryCity || {};
 
     const relId = item.id || ('im_' + i);
-    const bookingUrl = 'https://www.imoova.com/imoova/relocations/' + relId;
+    const bookingUrl = 'https://www.imoova.com/relocations/deal/' + relId;
     const vehicleName = (item.vehicle && item.vehicle.name) || item.name || 'Imoova vehicle';
     const price = item.hire_unit_rate || item.retail_rate || null;
 

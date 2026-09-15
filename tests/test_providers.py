@@ -49,7 +49,7 @@ def test_imoova_search_normalizes_offer():
     assert offers[0].offer_id == "116242"
     assert offers[0].vehicle == "9+ Seater Commuter"
     assert offers[0].price == "50.0"
-    assert offers[0].booking_url == "https://www.imoova.com/imoova/relocations/116242"
+    assert offers[0].booking_url == "https://www.imoova.com/relocations/deal/116242"
 
 
 
