@@ -1239,20 +1239,27 @@
         })));
         countries.appendChild(fieldGroup('Страна назначения', countrySelect(route.destinationCountry, function (v) {
           route.destinationCountry = v;
-          route.destinationId = '*';
-          route.destinationName = 'Все города';
-          renderRoutes();
-        }, true)));
-        wrap.appendChild(countries);
+      var countries = document.createElement('div');
+      countries.className = 'pair';
+      countries.appendChild(fieldGroup('Страна отправления', countrySelect(route.originCountry, function (v) {
+        route.originCountry = v;
+        route.originId = '*';
+        route.originName = 'Все города';
+        renderRoutes();
+      })));
+      countries.appendChild(fieldGroup('Страна назначения', countrySelect(route.destinationCountry, function (v) {
+        route.destinationCountry = v;
+        route.destinationId = '*';
+        route.destinationName = 'Все города';
+        renderRoutes();
+      }, true)));
+      wrap.appendChild(countries);
 
-        var stations = document.createElement('div');
-        stations.className = 'pair';
-        stations.appendChild(fieldGroup('Город отправления', roadSurferStationSelect(route, 'origin')));
-        stations.appendChild(fieldGroup('Город назначения', roadSurferDestinationSelect(route)));
-        wrap.appendChild(stations);
-      } else {
-        appendManualRouteFields_(wrap, route);
-      }
+      var stations = document.createElement('div');
+      stations.className = 'pair';
+      stations.appendChild(fieldGroup('Город отправления', providerStationSelect(route, 'origin')));
+      stations.appendChild(fieldGroup('Город назначения', providerDestinationSelect(route)));
+      wrap.appendChild(stations);
 
       var dates = document.createElement('div');
       dates.className = 'pair';
@@ -1277,31 +1284,7 @@
       return wrap;
     }
 
-    function appendManualRouteFields_(wrap, route) {
-
-      var pair1 = document.createElement('div');
-      pair1.className = 'pair';
-      var oField = fieldGroup('Откуда (название города или *)', textInput(route.originName, function (v) { route.originName = v; }));
-      pair1.appendChild(oField);
-
-      var pair2 = document.createElement('div');
-      pair2.className = 'pair';
-      var dField = fieldGroup('Куда (название города или *)', textInput(route.destinationName, function (v) { route.destinationName = v; }));
-      pair2.appendChild(dField);
-
-      var pair3 = document.createElement('div');
-      pair3.className = 'pair';
-      var oCField = fieldGroup('Страна откуда', countrySelect(route.originCountry, function (v) { route.originCountry = v; }));
-      var dCField = fieldGroup('Страна куда', countrySelect(route.destinationCountry, function (v) { route.destinationCountry = v; }));
-      pair3.appendChild(oCField);
-      pair3.appendChild(dCField);
-
-      wrap.appendChild(pair1);
-      wrap.appendChild(pair2);
-      wrap.appendChild(pair3);
-    }
-
-    function roadSurferStationSelect(route, kind) {
+    function providerStationSelect(route, kind) {
       var idKey = kind === 'origin' ? 'originId' : 'destinationId';
       var nameKey = kind === 'origin' ? 'originName' : 'destinationName';
       var country = kind === 'origin' ? route.originCountry : route.destinationCountry;
@@ -1352,11 +1335,11 @@
         .withFailureHandler(function () {
           loading.textContent = 'Не удалось загрузить города';
         })
-        .getRoadsurferStations([country], getInitData());
+        .getProviderStations(route.source, [country], getInitData());
       return sel;
     }
 
-    function roadSurferDestinationSelect(route) {
+    function providerDestinationSelect(route) {
       var sel = document.createElement('select');
       sel.disabled = true;
       var loading = document.createElement('option');
@@ -1366,16 +1349,16 @@
         sel.appendChild(loading);
         return sel;
       }
+      var countryFilter = route.destinationCountry ? [route.destinationCountry] : [];
       loading.textContent = 'Загрузка направлений…';
       sel.appendChild(loading);
 
       var expectedOriginId = String(route.originId || '*');
-      var countryFilter = route.destinationCountry ? [route.destinationCountry] : [];
+
       google.script.run
         .withSuccessHandler(function (destinations) {
-          if (String(route.originId || '*') !== expectedOriginId) {
-            return;
-          }
+          if (String(route.originId || '*') !== expectedOriginId) return;
+
           sel.innerHTML = '';
           var wildcardOpt = document.createElement('option');
           wildcardOpt.value = '*';
@@ -1383,15 +1366,13 @@
           wildcardOpt.dataset.name = 'Все города';
           sel.appendChild(wildcardOpt);
 
-          (destinations || []).forEach(function (station) {
+          destinations.forEach(function (dest) {
             var option = document.createElement('option');
-            option.value = String(station.id);
-            option.textContent = station.name + (station.country ? ' (' + station.country + ')' : '');
-            option.dataset.name = station.name;
-            option.dataset.country = station.country || '';
+            option.value = String(dest.id);
+            option.textContent = dest.name;
+            option.dataset.name = dest.name;
             sel.appendChild(option);
           });
-
           var curVal = String(route.destinationId || '*');
           if (isWildcardStation(curVal)) {
             sel.value = '*';
@@ -1403,16 +1384,13 @@
             route.destinationId = sel.value;
             var opt = sel.options[sel.selectedIndex];
             route.destinationName = (opt && opt.dataset.name) || (sel.value === '*' ? 'Все города' : '');
-            if (opt && opt.dataset.country && (!route.destinationCountry || route.destinationCountry !== opt.dataset.country)) {
-              route.destinationCountry = opt.dataset.country;
-            }
           };
         })
         .withFailureHandler(function () {
           if (String(route.originId || '*') !== expectedOriginId) return;
           loading.textContent = 'Не удалось загрузить направления';
         })
-        .getRoadsurferDestinations(route.originId || '*', countryFilter, getInitData());
+        .getProviderDestinations(route.source, route.originId || '*', countryFilter, getInitData());
       return sel;
     }
 

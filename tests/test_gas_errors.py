@@ -726,23 +726,23 @@ if (testName === 'roadsurfer_429') {
   scriptProps.WEBAPP_SKIP_AUTH = 'true';
 
   // 1. All valid destinations for origin 6 (Berlin)
-  const allDestinations = context.getRoadsurferDestinations('6', [], '');
+  const allDestinations = context.getProviderDestinations('roadsurfer', '6', [], '');
   assert.strictEqual(allDestinations.length, 2);
   assert.deepStrictEqual(allDestinations.map(d => d.id), ['16', '35']);
   assert.deepStrictEqual(allDestinations.map(d => d.country), ['FR', 'IT']);
 
   // 2. Filtered by Italy ('IT')
-  const itDestinations = context.getRoadsurferDestinations('6', ['IT'], '');
+  const itDestinations = context.getProviderDestinations('roadsurfer', '6', ['IT'], '');
   assert.strictEqual(itDestinations.length, 1);
   assert.strictEqual(itDestinations[0].id, '35');
   assert.strictEqual(itDestinations[0].name, 'Rome Fiumicino Airport');
 
   // 3. Filtered by Spain ('ES') -> Berlin has NO returns in Spain
-  const esDestinations = context.getRoadsurferDestinations('6', ['ES'], '');
+  const esDestinations = context.getProviderDestinations('roadsurfer', '6', ['ES'], '');
   assert.strictEqual(esDestinations.length, 0);
 
   // 4. Empty or missing originId returns empty list
-  assert.strictEqual(context.getRoadsurferDestinations('', [], '').length, 0);
+  assert.strictEqual(context.getProviderDestinations('roadsurfer', '', [], '').length, 0);
 } else if (testName === 'webapp_delete_offer_removes_row_and_marks_dismissed') {
   const { context, sheets, scriptProps } = setupGasContext(() => ({ getResponseCode: () => 200, getContentText: () => '{}' }));
   scriptProps.WEBAPP_SKIP_AUTH = '1';

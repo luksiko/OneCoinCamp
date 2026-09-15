@@ -400,7 +400,8 @@ function fetchMovacarOffers_(route, window) {
 
   const included = payload.included || [];
   const destinationSummary = included.filter(function (item) {
-    return item.type === 'locationsummary' && String(item.id) === String(destLocId);
+    if (item.type !== 'locationsummary') return false;
+    return String(item.id) === String(destLocId) || (item.attributes && String(item.attributes.reference) === String(destRef));
   })[0];
 
   const offerCount =
@@ -436,4 +437,190 @@ function firstDefined_() {
     }
   }
   return undefined;
+}
+
+
+const MOVACAR_COUNTRIES = {
+  "Brüssel": "BE",
+  "Pullach": "DE",
+  "Hamburg": "DE",
+  "Kempten": "DE",
+  "Weyhe (bei Bremen)": "DE",
+  "Lille": "FR",
+  "Bergamo": "IT",
+  "Paris CDG Flughafen": "FR",
+  "Bonn": "DE",
+  "Dormagen (bei Düsseldorf)": "DE",
+  "A Coruña": "ES",
+  "Viladecans (bei Barcelona)": "ES",
+  "Kastorf (bei Lübeck)": "DE",
+  "Paris": "FR",
+  "Schüpfen": "CH",
+  "Toulouse": "FR",
+  "Bologna": "IT",
+  "Ettlingenweier": "DE",
+  "Sevilla": "ES",
+  "Saint-Alban (bei Toulouse)": "FR",
+  "Erfurt": "DE",
+  "Zürich": "CH",
+  "Freiburg im Breisgau": "DE",
+  "Jena": "DE",
+  "Maura (bei Oslo Flughafen)": "NO",
+  "Olbia": "IT",
+  "Saint-Mesmes (bei Paris)": "FR",
+  "Frankfurt am Main": "DE",
+  "Rom": "IT",
+  "Castellanza (bei Mailand)": "IT",
+  "València": "ES",
+  "Singen": "DE",
+  "Rotterdam": "NL",
+  "Sint-Pieters-Leeuw (bei Brüssel)": "BE",
+  "Korntal-Münchingen (bei Stuttgart)": "DE",
+  "Ferno": "IT",
+  "Stockholm": "SE",
+  "Venedig": "IT",
+  "Offenburg": "DE",
+  "Zamudio (near Bilbao)": "ES",
+  "Madrid": "ES",
+  "Turin": "IT",
+  "Antwerpen": "BE",
+  "Potsdam": "DE",
+  "Stuttgart": "DE",
+  "Duisburg": "DE",
+  "Alcalá de Henares": "ES",
+  "Nantes": "FR",
+  "Ingolstadt": "DE",
+  "München": "DE",
+  "Graz": "AT",
+  "Berlin": "DE",
+  "Braunschweig": "DE",
+  "Saarbrücken": "DE",
+  "London": "GB",
+  "Málaga": "ES",
+  "Cabriès (bei Marseille)": "FR",
+  "Aach (bei Konstanz)": "DE",
+  "Göteborg": "SE",
+  "Kassel": "DE",
+  "Saint-Jean-de-Gonville (bei Genf)": "FR",
+  "Leipzig": "DE",
+  "Salzgitter": "DE",
+  "Gattières (bei Nizza)": "FR",
+  "Hannover": "DE",
+  "Marburg": "DE",
+  "Florence": "IT",
+  "Lindau": "DE",
+  "Tromsø": "NO",
+  "Würzburg": "DE",
+  "Dagneux (bei Lyon)": "FR",
+  "Göttingen": "DE",
+  "Amstelveen (bei Amsterdam)": "NL",
+  "Wolfsburg": "DE",
+  "Bordeaux": "FR",
+  "Dresden": "DE",
+  "Westerland": "DE",
+  "Staffanstorp (bei Malmö)": "SE",
+  "Laatzen (bei Hannover)": "DE",
+  "Weingarten": "DE",
+  "Ihringen (bei Freiburg)": "DE",
+  "Cagliari": "IT",
+  "Pisa": "IT",
+  "Magdeburg": "DE",
+  "Bielefeld": "DE",
+  "Pforzheim": "DE",
+  "Barcelona": "ES",
+  "Eberswalde": "DE",
+  "Baden-Baden": "DE",
+  "Alacant/Alicante": "ES"
+};
+
+function getMovacarAllStations_() {
+  const url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de';
+  const payload = fetchJson_(url, {
+    headers: {
+      Accept: 'application/vnd.api+json',
+      Origin: 'https://movacar.com',
+      Referer: 'https://movacar.com/',
+      'X-Request-Id': randomRequestId_(),
+    },
+    retries: 1
+  });
+
+  const included = payload.included || [];
+  const stations = [];
+  const seen = {};
+
+  for (let i = 0; i < included.length; i++) {
+    const item = included[i];
+    if (item.type === 'locationsummary' && item.attributes) {
+      const name = item.attributes.name;
+      // Use internal reference as the ID, this makes fetchMovacarOffers_ easier!
+      const id = item.attributes.reference; 
+      if (!seen[id]) {
+        seen[id] = true;
+        stations.push({
+          id: id,
+          name: name,
+          country: MOVACAR_COUNTRIES[name] || '' // Fallback to empty if unknown
+        });
+      }
+    }
+  }
+  return stations;
+}
+
+function fetchMovacarDestinations_(originRef, filters) {
+  if (!originRef || originRef === '*' || originRef.toUpperCase() === 'ALL' || originRef.toUpperCase() === 'ANY') {
+    return getMovacarAllStations_();
+  }
+
+  const query = 'locale=de&origin_reference=' + encodeURIComponent(originRef);
+  const url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?' + query;
+  
+  let payload;
+  try {
+    payload = fetchJson_(url, {
+      headers: {
+        Accept: 'application/vnd.api+json',
+        Origin: 'https://movacar.com',
+        Referer: 'https://movacar.com/',
+        'X-Request-Id': randomRequestId_(),
+      }
+    });
+  } catch (err) {
+    return [];
+  }
+
+  const included = payload.included || [];
+  const destinations = [];
+  const seen = {};
+  
+  const allowedCountries = (filters && filters.allowed_destination_countries)
+    ? filters.allowed_destination_countries.split(',').map(function(c) { return c.trim().toUpperCase(); }).filter(Boolean)
+    : [];
+
+  for (let i = 0; i < included.length; i++) {
+    const item = included[i];
+    if (item.type === 'locationsummary' && item.attributes && item.attributes.location_type === 'destination') {
+      const name = item.attributes.name;
+      const id = item.attributes.reference;
+      const cCode = MOVACAR_COUNTRIES[name] || '';
+      
+      if (allowedCountries.length > 0 && cCode) {
+         if (allowedCountries.indexOf(cCode) === -1) {
+           continue; // Skip if country is known and not in allowed list
+         }
+      }
+      
+      if (!seen[id]) {
+        seen[id] = true;
+        destinations.push({
+          id: id,
+          name: name,
+          country: cCode
+        });
+      }
+    }
+  }
+  
+  return destinations;
 }

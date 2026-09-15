@@ -234,7 +234,7 @@ function checkProvidersHealth(initData) {
   return result;
 }
 
-function getRoadsurferStations(countryCodes, initData) {
+function getProviderStations(provider, countryCodes, initData) {
   const secrets = getScriptSecrets();
   authorizeWebAppRequest_(initData, secrets);
 
@@ -245,15 +245,15 @@ function getRoadsurferStations(countryCodes, initData) {
     return [];
   }
 
-  const stations = getRoadsurferAllStations_();
+  const stations = provider === 'movacar' ? getMovacarAllStations_() : getRoadsurferAllStations_();
   return stations.filter(function (station) {
-    return selectedCountries.indexOf(String(station.country).toUpperCase()) !== -1;
+    return !station.country || selectedCountries.indexOf(String(station.country).toUpperCase()) !== -1;
   }).sort(function (a, b) {
     return a.name.localeCompare(b.name);
   });
 }
 
-function getRoadsurferDestinations(originId, countryCodes, initData) {
+function getProviderDestinations(provider, originId, countryCodes, initData) {
   const secrets = getScriptSecrets();
   authorizeWebAppRequest_(initData, secrets);
 
@@ -267,10 +267,10 @@ function getRoadsurferDestinations(originId, countryCodes, initData) {
   }).filter(Boolean);
 
   if (cleanOriginId === '*' || cleanOriginId.toUpperCase() === 'ALL' || cleanOriginId.toUpperCase() === 'ANY') {
-    const allStations = getRoadsurferAllStations_();
+    const allStations = provider === 'movacar' ? getMovacarAllStations_() : getRoadsurferAllStations_();
     return allStations.filter(function (s) {
       if (!selectedCountries.length) return true;
-      return selectedCountries.indexOf(String(s.country).toUpperCase()) !== -1;
+      return !s.country || selectedCountries.indexOf(String(s.country).toUpperCase()) !== -1;
     }).map(function (s) {
       return {
         id: String(s.id),
@@ -282,9 +282,9 @@ function getRoadsurferDestinations(originId, countryCodes, initData) {
     });
   }
 
-  const destinations = fetchRoadsurferDestinations_(cleanOriginId, {
-    allowed_destination_countries: selectedCountries.join(','),
-  });
+  const destinations = provider === 'movacar' 
+    ? fetchMovacarDestinations_(cleanOriginId, { allowed_destination_countries: selectedCountries.join(',') })
+    : fetchRoadsurferDestinations_(cleanOriginId, { allowed_destination_countries: selectedCountries.join(',') });
 
   return destinations.map(function (d) {
     return {
