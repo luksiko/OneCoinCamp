@@ -69,6 +69,8 @@
     .banner-title { font-weight: 700; font-size: 16px; }
     .banner-sub { color: var(--subtext); font-size: 13px; margin-top: 3px; }
     .banner-sub .ok { color: var(--success); font-weight: 600; }
+    .banner.stale { border-color: var(--danger); background: rgba(255, 91, 102, 0.12); }
+    .banner.stale .banner-title { color: var(--danger); }
 
     /* Chips */
     .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -257,6 +259,185 @@
     }
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     #toast.err { color: var(--danger); }
+
+    /* Tab nav */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 12px;
+      background: var(--section);
+      padding: 4px;
+      border-radius: 12px;
+    }
+    .tab-btn {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--subtext);
+      padding: 10px;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .tab-btn.selected {
+      background: var(--card);
+      color: var(--text);
+    }
+
+    /* Offers screen */
+    .filters-bar {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .filters-bar::-webkit-scrollbar { display: none; }
+    .filter-chip {
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+      background: var(--section);
+      color: var(--text);
+      border-radius: 20px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .filter-chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--accent-text);
+    }
+
+    .offer-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .offer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .offer-route {
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .offer-route .flag { margin-right: 4px; }
+    .offer-source {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--accent);
+      background: var(--section);
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+    .offer-dates {
+      color: var(--subtext);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    .offer-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .offer-price {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--success);
+    }
+    .offer-status {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+    .offer-status.new { background: rgba(46, 166, 255, 0.2); color: var(--accent); }
+    .offer-status.sent { background: rgba(76, 217, 100, 0.15); color: var(--success); }
+
+    .btn-book {
+      background: var(--accent);
+      color: var(--accent-text);
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-book:disabled { opacity: 0.5; }
+
+    .offers-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--hint);
+    }
+    .offers-empty .icon { font-size: 48px; margin-bottom: 12px; }
+
+    .offers-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: var(--subtext);
+    }
+    .offers-pagination {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .offers-pagination button {
+      border: 1px solid var(--border);
+      background: var(--section);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .offers-pagination button:disabled { opacity: 0.4; }
+
+    .filter-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .filter-panel h4 {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--hint);
+      margin-bottom: 8px;
+    }
+    .filter-panel select, .filter-panel input {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--section);
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    .filter-row {
+      display: flex;
+      gap: 8px;
+    }
+    .filter-row > * { flex: 1; }
   
 .routes-table { width: 100%; border-collapse: collapse; font-size: 11px; }
 .routes-table th { text-align: left; padding: 6px 4px; color: var(--subtext); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
@@ -277,7 +458,13 @@
     </div>
 
     <div id="mainForm">
-      <div class="card" id="healthCard">
+      <div class="tab-nav" id="tabNav" style="display:none;">
+      <button type="button" class="tab-btn selected" id="tabSettings" onclick="switchTab('settings')">⚙️ Настройки</button>
+      <button type="button" class="tab-btn" id="tabOffers" onclick="switchTab('offers')">🎫 Офферы</button>
+    </div>
+
+    <div id="screenSettings">
+    <div class="card" id="healthCard">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <div class="card-title" style="margin-bottom:0;">🌐 Статус связи с сайтами</div>
           <button type="button" style="background:none; border:none; color:var(--accent); font-size:12px; font-weight:600; cursor:pointer;" onclick="checkHealth()">🔄 Обновить</button>
@@ -339,16 +526,223 @@
       <button type="button" class="btn btn-accent" id="btnSave">Сохранить</button>
       <button type="button" class="link-reset" id="btnReset">Сбросить несохранённые изменения</button>
     </div>
+    </div>
+
+    <div id="screenOffers" style="display:none;">
+      <div class="filters-bar" id="sourceFilters"></div>
+
+      <div class="offers-summary" id="offersSummary"></div>
+
+      <div id="offersList"></div>
+
+      <div class="offers-pagination" id="offersPagination"></div>
+    </div>
   </div>
 
   <div id="toast"></div>
 
   <script>
     var state = null;
+    var currentTab = 'settings';
+    var offersData = null;
+    var offerFilters = { source: '', sentStatus: '', page: 1 };
     var INTERVALS = [1, 5, 10, 15, 30];
     var WINDOWS = [7, 10, 14, 21, 30];
     var tg = window.Telegram && Telegram.WebApp ? Telegram.WebApp : null;
     var toastTimer = null;
+
+    function getInitData() {
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+        return window.Telegram.WebApp.initData;
+      }
+      return '';
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      var settingsBtn = document.getElementById('tabSettings');
+      var offersBtn = document.getElementById('tabOffers');
+      var screenSettings = document.getElementById('screenSettings');
+      var screenOffers = document.getElementById('screenOffers');
+      if (settingsBtn) settingsBtn.classList.toggle('selected', tab === 'settings');
+      if (offersBtn) offersBtn.classList.toggle('selected', tab === 'offers');
+      if (screenSettings) screenSettings.style.display = tab === 'settings' ? '' : 'none';
+      if (screenOffers) screenOffers.style.display = tab === 'offers' ? '' : 'none';
+      if (tab === 'offers') loadOffers();
+    }
+
+    function loadOffers() {
+      var initData = getInitData();
+      google.script.run
+        .withSuccessHandler(function (result) {
+          offersData = result;
+          renderSourceFilters();
+          renderOffers();
+        })
+        .withFailureHandler(function (err) {
+          toast((err && err.message) || 'Ошибка загрузки офферов', true);
+        })
+        .getOffers({ page: offerFilters.page, limit: 50 }, initData);
+    }
+
+    function renderSourceFilters() {
+      var container = document.getElementById('sourceFilters');
+      container.innerHTML = '';
+      var sources = ['roadsurfer', 'movacar'];
+      sources.forEach(function (src) {
+        var chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'filter-chip' + (offerFilters.source === src ? ' active' : '');
+        chip.textContent = src === 'roadsurfer' ? '🚐 Roadsurfer' : '🚗 Movacar';
+        chip.onclick = function () {
+          offerFilters.source = offerFilters.source === src ? '' : src;
+          offerFilters.page = 1;
+          applyOfferFilters();
+        };
+        container.appendChild(chip);
+      });
+      // Status filters
+      var statusChips = [
+        { value: '', label: 'Все' },
+        { value: 'new', label: 'Новые' },
+        { value: 'sent', label: 'Отправлены' }
+      ];
+      statusChips.forEach(function (s) {
+        var chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'filter-chip' + (offerFilters.sentStatus === s.value ? ' active' : '');
+        chip.textContent = s.label;
+        chip.onclick = function () {
+          offerFilters.sentStatus = s.value;
+          offerFilters.page = 1;
+          applyOfferFilters();
+        };
+        container.appendChild(chip);
+      });
+    }
+
+    function applyOfferFilters() {
+      var initData = getInitData();
+      var filter = {
+        page: offerFilters.page,
+        limit: 50
+      };
+      if (offerFilters.source) { filter.source = offerFilters.source; }
+      if (offerFilters.sentStatus) { filter.sentStatus = offerFilters.sentStatus; }
+      google.script.run
+        .withSuccessHandler(function (result) {
+          offersData = result;
+          renderSourceFilters();
+          renderOffers();
+        })
+        .withFailureHandler(function (err) {
+          toast((err && err.message) || 'Ошибка фильтрации', true);
+        })
+        .getOffers(filter, initData);
+    }
+
+    function renderOffers() {
+      var list = document.getElementById('offersList');
+      var summary = document.getElementById('offersSummary');
+      var pagination = document.getElementById('offersPagination');
+      list.innerHTML = '';
+      pagination.innerHTML = '';
+
+      if (!offersData || !offersData.offers || !offersData.offers.length) {
+        list.innerHTML = '<div class="offers-empty"><div class="icon">🎫</div><div>Офферы не найдены</div></div>';
+        summary.innerHTML = '0 офферов';
+        return;
+      }
+
+      summary.textContent = 'Найдено: ' + offersData.total + ' | Стр. ' + offersData.page + ' / ' + offersData.totalPages;
+
+      offersData.offers.forEach(function (offer) {
+        list.appendChild(buildOfferCard(offer));
+      });
+
+      // Pagination
+      if (offersData.totalPages > 1) {
+        var prev = document.createElement('button');
+        prev.textContent = '← Назад';
+        prev.disabled = offersData.page <= 1;
+        prev.onclick = function () {
+          offerFilters.page = offersData.page - 1;
+          applyOfferFilters();
+        };
+        pagination.appendChild(prev);
+
+        var next = document.createElement('button');
+        next.textContent = 'Вперёд →';
+        next.disabled = offersData.page >= offersData.totalPages;
+        next.onclick = function () {
+          offerFilters.page = offersData.page + 1;
+          applyOfferFilters();
+        };
+        pagination.appendChild(next);
+      }
+    }
+
+    function buildOfferCard(offer) {
+      var card = document.createElement('div');
+      card.className = 'offer-card';
+
+      // Header with route and source
+      var header = document.createElement('div');
+      header.className = 'offer-header';
+      var route = document.createElement('div');
+      route.className = 'offer-route';
+      route.innerHTML = '<span class="flag">' + flagEmoji(offer.originCountry) + '</span>' +
+        (offer.origin || '—') + ' → <span class="flag">' + flagEmoji(offer.destinationCountry) + '</span>' +
+        (offer.destination || '—');
+      header.appendChild(route);
+      var sourceBadge = document.createElement('span');
+      sourceBadge.className = 'offer-source';
+      sourceBadge.textContent = offer.source;
+      header.appendChild(sourceBadge);
+      card.appendChild(header);
+
+      // Dates
+      var dates = document.createElement('div');
+      dates.className = 'offer-dates';
+      dates.textContent = (offer.pickupDate ? shortDate(offer.pickupDate) : '—') + ' — ' +
+        (offer.returnDate ? shortDate(offer.returnDate) : '—');
+      if (offer.vehicle) {
+        dates.textContent += ' | ' + offer.vehicle;
+      }
+      card.appendChild(dates);
+
+      // Footer with price, status, book button
+      var footer = document.createElement('div');
+      footer.className = 'offer-footer';
+
+      var price = document.createElement('div');
+      price.className = 'offer-price';
+      price.textContent = (offer.price != null ? offer.price + ' ' + offer.currency : '—');
+      footer.appendChild(price);
+
+      var status = document.createElement('span');
+      status.className = 'offer-status ' + (offer.telegramSentAt ? 'sent' : 'new');
+      status.textContent = offer.telegramSentAt ? '✓ Отправлен' : 'Новый';
+      footer.appendChild(status);
+
+      var bookBtn = document.createElement('button');
+      bookBtn.className = 'btn-book';
+      bookBtn.textContent = 'Бронировать';
+      bookBtn.disabled = !offer.bookingUrl;
+      if (offer.bookingUrl) {
+        bookBtn.onclick = function () {
+          if (tg) {
+            tg.openLink(offer.bookingUrl);
+          } else {
+            window.open(offer.bookingUrl, '_blank');
+          }
+        };
+      }
+      footer.appendChild(bookBtn);
+
+      card.appendChild(footer);
+      return card;
+    }
 
     function getInitData() {
       if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
@@ -389,6 +783,13 @@
       document.getElementById('telegramEnabled').onchange = function () {
         state.settings.telegram_enabled = this.checked;
       };
+      // Show offers tab only in development (when skipAuth is enabled)
+      var tabNav = document.getElementById('tabNav');
+      google.script.run.withSuccessHandler(function(data) {
+        if (data && data.offersTabEnabled) {
+          tabNav.style.display = 'flex';
+        }
+      }).withFailureHandler(function() {}).getUiData(getInitData());
       load();
     }
 
@@ -456,12 +857,22 @@
       var emoji = '🟢';
       var title = 'Мониторинг активен';
       var parts = ['Триггер каждые ' + st.intervalMinutes + ' мин'];
+      var freshness = st.freshness || {};
+      var isStale = freshness.isStale === true;
+
+      if (isStale) {
+        emoji = '🔴';
+        title = freshness.ageMinutes === null
+          ? 'Триггер не выполнялся: нет данных'
+          : 'Триггер не выполнялся ' + freshness.ageMinutes + ' мин';
+        parts.push('Порог: ' + freshness.thresholdMinutes + ' мин');
+      }
 
       if (state.telegramReady === false) {
         parts.push('⚠️ Telegram не настроен');
       }
       if (lastRun) {
-        if (lastRun.status && String(lastRun.status).toLowerCase() !== 'ok') {
+        if (!isStale && lastRun.status && String(lastRun.status).toLowerCase() !== 'ok') {
           emoji = '⚠️';
           title = 'Последняя проверка с ошибкой';
           if (lastRun.error) {
@@ -483,6 +894,7 @@
         bannerSub.appendChild(span);
       });
       document.querySelector('#banner .emoji').textContent = emoji;
+      document.getElementById('banner').classList.toggle('stale', isStale);
       bannerTitle.textContent = title;
     }
 

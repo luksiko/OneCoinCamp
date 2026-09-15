@@ -493,6 +493,18 @@ if (testName === 'roadsurfer_429') {
   scriptProps.TELEGRAM_CHAT_ID = '123456789';
   const uiData = context.getUiData('');
   assert.strictEqual(uiData.settings.poll_interval_minutes, 5);
+} else if (testName === 'webapp_skip_auth_property_bypasses_gate') {
+  const { context, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+  scriptProps.WEB_APP_REQUIRE_TELEGRAM_AUTH = 'true';
+  scriptProps.WEBAPP_SKIP_AUTH = '1';
+  const uiData = context.getUiData('');
+  assert.strictEqual(uiData.settings.poll_interval_minutes, 5);
+  assert.strictEqual(uiData.offersTabEnabled, true);
+  const skipped = context.authorizeWebAppRequest_('', context.getScriptSecrets());
+  assert.strictEqual(skipped.authenticated, true);
+  assert.strictEqual(skipped.user.username, 'dev_user');
 } else if (testName === 'webapp_status_serializes_dates') {
   const { context, sheets } = setupGasContext(() => ({}));
   sheets['Runs'].values = [
@@ -616,6 +628,7 @@ def run_node_test(test_name: str):
         "webapp_signature_test_vector_2",
         "webapp_missing_init_data",
         "webapp_development_mode_allows_direct_access",
+        "webapp_skip_auth_property_bypasses_gate",
         "webapp_status_serializes_dates",
         "telegram_mini_app_menu",
         "webapp_invalid_signature",

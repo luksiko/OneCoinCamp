@@ -40,6 +40,7 @@ clasp open
 | `TELEGRAM_CHAT_ID` | chat id |
 | `SPREADSHEET_ID` | id таблицы (обычно ставится автоматически при `setupMonitor`) |
 | `WEB_APP_REQUIRE_TELEGRAM_AUTH` | `true` только для production; если не задан, dev-версия доступна по прямой ссылке |
+| `WEBAPP_SKIP_AUTH` | `1` или `true` — полностью отключает Telegram auth (dev). Значение читается как boolean |
 
 Не класть токен в Git и не вставлять в код.
 

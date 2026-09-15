@@ -32,12 +32,16 @@ function installTrigger() {
   const interval = allowed.indexOf(minutes) === -1 ? 5 : minutes;
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     const fn = trigger.getHandlerFunction();
-    if (fn === 'runMonitorOnce' || fn === 'pollOnce' || fn === 'processTelegramUpdates') {
+    if (fn === 'runMonitorOnce' || fn === 'pollOnce' || fn === 'processTelegramUpdates' || fn === 'checkMonitorFreshness') {
       ScriptApp.deleteTrigger(trigger);
     }
   });
   ScriptApp.newTrigger('runMonitorOnce').timeBased().everyMinutes(interval).create();
   ScriptApp.newTrigger('processTelegramUpdates').timeBased().everyMinutes(1).create();
+  ScriptApp.newTrigger('checkMonitorFreshness').timeBased().everyMinutes(1).create();
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty(PROPERTY_KEYS.MONITOR_FRESHNESS_INSTALLED_AT, new Date().toISOString());
+  props.deleteProperty(PROPERTY_KEYS.MONITOR_FRESHNESS_ALERT_ACTIVE);
   try {
     SpreadsheetApp.getUi().alert(
       '✅ Триггеры успешно установлены!\n\n' +
@@ -49,6 +53,66 @@ function installTrigger() {
 
 function pollOnce() {
   return runMonitorOnce();
+}
+
+function checkMonitorFreshness() {
+  const spreadsheet = ensureWorkbook_();
+  const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
+  const freshness = getMonitorFreshness_(spreadsheet, settings);
+  const props = PropertiesService.getScriptProperties();
+  const alertActive = props.getProperty(PROPERTY_KEYS.MONITOR_FRESHNESS_ALERT_ACTIVE) === '1';
+  const secrets = getScriptSecrets();
+
+  if (!settings.telegram_enabled || !secrets.telegramBotToken || !secrets.telegramChatId) {
+    return freshness;
+  }
+
+  if (freshness.isStale && !alertActive) {
+    sendTelegramMessage_(
+      secrets,
+      '🔴 <b>Триггер мониторинга не выполнялся ' + freshness.ageMinutes + ' мин.</b>\n' +
+        'Порог: ' + freshness.thresholdMinutes + ' мин. Запустите проверку вручную или проверьте триггеры.',
+    );
+    props.setProperty(PROPERTY_KEYS.MONITOR_FRESHNESS_ALERT_ACTIVE, '1');
+  } else if (!freshness.isStale && alertActive) {
+    sendTelegramMessage_(secrets, '🟢 <b>Мониторинг восстановлен.</b> Последняя проверка: ' + freshness.ageMinutes + ' мин назад.');
+    props.deleteProperty(PROPERTY_KEYS.MONITOR_FRESHNESS_ALERT_ACTIVE);
+  }
+
+  return freshness;
+}
+
+function getMonitorFreshness_(spreadsheet, settings, now) {
+  const intervalMinutes = Number(settings.poll_interval_minutes) || Number(DEFAULT_SETTINGS.poll_interval_minutes);
+  const thresholdMinutes = intervalMinutes * 2;
+  const runsSheet = spreadsheet.getSheetByName(SHEET_NAMES.RUNS);
+  let lastRunAt = null;
+
+  if (runsSheet && runsSheet.getLastRow() >= 2) {
+    const headers = runsSheet.getRange(1, 1, 1, runsSheet.getLastColumn()).getValues()[0];
+    const values = runsSheet.getRange(runsSheet.getLastRow(), 1, 1, runsSheet.getLastColumn()).getValues()[0];
+    const finishedAtIndex = headers.indexOf('finished_at');
+    const startedAtIndex = headers.indexOf('started_at');
+    lastRunAt = values[finishedAtIndex] || values[startedAtIndex] || null;
+  }
+
+  let isInstalled = true;
+  if (!lastRunAt) {
+    lastRunAt = PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.MONITOR_FRESHNESS_INSTALLED_AT) || null;
+    isInstalled = !!lastRunAt;
+  }
+
+  const lastRunDate = lastRunAt ? new Date(lastRunAt) : null;
+  const nowDate = now || new Date();
+  const ageMinutes = lastRunDate && !isNaN(lastRunDate.getTime())
+    ? Math.max(0, Math.floor((nowDate.getTime() - lastRunDate.getTime()) / 60000))
+    : null;
+
+  return {
+    ageMinutes: ageMinutes,
+    thresholdMinutes: thresholdMinutes,
+    isStale: isInstalled && (ageMinutes === null || ageMinutes > thresholdMinutes),
+  };
 }
 
 function runMonitorOnce() {

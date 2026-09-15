@@ -74,6 +74,7 @@ function getUiData(initData) {
     status: buildStatus_(spreadsheet, settings),
     telegramReady: !!(secrets.telegramBotToken && secrets.telegramChatId),
     countries: WEBAPP_COUNTRIES,
+    offersTabEnabled: !!secrets.webAppSkipAuth,
   };
 }
 
@@ -216,9 +217,11 @@ function buildStatus_(spreadsheet, settings) {
       lastRun[String(h)] = toClientValue_(values[i]);
     });
   }
+  const freshness = getMonitorFreshness_(spreadsheet, settings);
   return {
     intervalMinutes: interval,
     lastRun: lastRun,
+    freshness: freshness,
   };
 }
 
@@ -267,6 +270,11 @@ function runMonitorFromUi(initData) {
 }
 
 function authorizeWebAppRequest_(initData, secrets) {
+  // During development, allow skipping auth via Script Property WEBAPP_SKIP_AUTH=1|true
+  if (secrets.webAppSkipAuth) {
+    return { authenticated: true, user: { id: 999, first_name: 'Dev', username: 'dev_user' } };
+  }
+
   if (!initData || typeof initData !== 'string' || initData.trim() === '') {
     if (secrets.webAppRequireTelegramAuth) {
       throw new Error('Missing Telegram WebApp initData');
@@ -399,4 +407,130 @@ function getAllowedTelegramIds_(secrets) {
     .split(',')
     .map(function (s) { return s.trim().toLowerCase().replace(/^@/, ''); })
     .filter(function (s) { return s.length > 0; });
+}
+
+function getOfferSources(initData) {
+  const secrets = getScriptSecrets();
+  authorizeWebAppRequest_(initData, secrets);
+
+  const spreadsheet = getSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(SHEET_NAMES.ARCHIVE);
+  if (!sheet || sheet.getLastRow() < 2) {
+    return [];
+  }
+
+  const sourceCol = ARCHIVE_HEADERS.indexOf('source');
+  const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, ARCHIVE_HEADERS.length).getValues();
+  const sources = {};
+  values.forEach(function (row) {
+    const src = String(row[sourceCol] || '').trim();
+    if (src) { sources[src] = true; }
+  });
+  return Object.keys(sources).sort();
+}
+
+function getOffers(filter, initData) {
+  const secrets = getScriptSecrets();
+  authorizeWebAppRequest_(initData, secrets);
+
+  const spreadsheet = getSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(SHEET_NAMES.ARCHIVE);
+  if (!sheet || sheet.getLastRow() < 2) {
+    return { offers: [], total: 0, page: 1, totalPages: 0 };
+  }
+
+  const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, ARCHIVE_HEADERS.length).getValues();
+  const offers = values.map(function (row) {
+    return {
+      timestamp: row[0] ? new Date(row[0]).toISOString() : null,
+      source: String(row[1] || ''),
+      offerId: String(row[2] || ''),
+      vehicleId: String(row[3] || ''),
+      vehicle: String(row[4] || ''),
+      origin: String(row[5] || ''),
+      originCountry: String(row[6] || ''),
+      destination: String(row[7] || ''),
+      destinationCountry: String(row[8] || ''),
+      pickupDate: String(row[9] || ''),
+      returnDate: String(row[10] || ''),
+      price: row[11],
+      currency: String(row[12] || 'EUR'),
+      bookingUrl: String(row[13] || ''),
+      fingerprint: String(row[14] || ''),
+      matches: row[15] === true || row[15] === 'true',
+      telegramSentAt: row[16] ? String(row[16]) : null,
+    };
+  });
+
+  // Apply filters
+  let filtered = offers;
+  if (filter) {
+    if (filter.source) {
+      filtered = filtered.filter(function (o) { return o.source === filter.source; });
+    }
+    if (filter.origin) {
+      const originLower = filter.origin.toLowerCase();
+      filtered = filtered.filter(function (o) {
+        return o.origin.toLowerCase().includes(originLower) ||
+               o.originCountry.toLowerCase() === originLower;
+      });
+    }
+    if (filter.destination) {
+      const destLower = filter.destination.toLowerCase();
+      filtered = filtered.filter(function (o) {
+        return o.destination.toLowerCase().includes(destLower) ||
+               o.destinationCountry.toLowerCase() === destLower;
+      });
+    }
+    if (filter.dateFrom) {
+      const dateFrom = new Date(filter.dateFrom);
+      filtered = filtered.filter(function (o) {
+        if (!o.pickupDate) return true;
+        return new Date(o.pickupDate) >= dateFrom;
+      });
+    }
+    if (filter.dateTo) {
+      const dateTo = new Date(filter.dateTo);
+      filtered = filtered.filter(function (o) {
+        if (!o.pickupDate) return true;
+        return new Date(o.pickupDate) <= dateTo;
+      });
+    }
+    if (filter.priceMin != null) {
+      filtered = filtered.filter(function (o) { return o.price >= filter.priceMin; });
+    }
+    if (filter.priceMax != null) {
+      filtered = filtered.filter(function (o) { return o.price <= filter.priceMax; });
+    }
+    if (filter.sentStatus === 'new') {
+      filtered = filtered.filter(function (o) { return !o.telegramSentAt; });
+    } else if (filter.sentStatus === 'sent') {
+      filtered = filtered.filter(function (o) { return o.telegramSentAt; });
+    }
+  }
+
+  // Sort by date descending, then by price
+  filtered.sort(function (a, b) {
+    if (a.pickupDate && b.pickupDate) {
+      const dateA = new Date(a.pickupDate);
+      const dateB = new Date(b.pickupDate);
+      if (dateA.getTime() !== dateB.getTime()) {
+        return dateB.getTime() - dateA.getTime();
+      }
+    }
+    return (a.price || 0) - (b.price || 0);
+  });
+
+  // Pagination
+  const page = filter && filter.page ? Number(filter.page) : 1;
+  const limit = filter && filter.limit ? Number(filter.limit) : 50;
+  const offset = (page - 1) * limit;
+  const paged = filtered.slice(offset, offset + limit);
+
+  return {
+    offers: paged,
+    total: filtered.length,
+    page: page,
+    totalPages: Math.ceil(filtered.length / limit),
+  };
 }

@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+    <defs>
+        <!-- Background Gradient -->
+        <radialGradient id="bgGrad" cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stop-color="#1E293B"/>
+            <stop offset="60%" stop-color="#0F172A"/>
+            <stop offset="100%" stop-color="#070A12"/>
+        </radialGradient>
+
+        <!-- Golden Coin Gradient -->
+        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FDE047"/>
+            <stop offset="35%" stop-color="#EAB308"/>
+            <stop offset="70%" stop-color="#CA8A04"/>
+            <stop offset="100%" stop-color="#A16207"/>
+        </linearGradient>
+
+        <!-- Camper Body Gradient -->
+        <linearGradient id="vanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#38BDF8"/>
+            <stop offset="100%" stop-color="#0284C7"/>
+        </linearGradient>
+
+        <!-- Camper Accent Gradient -->
+        <linearGradient id="roofGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#F8FAFC"/>
+            <stop offset="100%" stop-color="#CBD5E1"/>
+        </linearGradient>
+
+        <!-- Neon Glow Filter -->
+        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="8" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+
+        <filter id="subtleGlow" x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+    </defs>
+
+    <!-- 1. Circular Avatar Base (Perfect for Telegram Avatar & App Icon) -->
+    <rect width="512" height="512" rx="256" fill="url(#bgGrad)"/>
+
+    <!-- Outer Tech Border Ring -->
+    <circle cx="256" cy="256" r="242" fill="none" stroke="#38BDF8" stroke-width="2.5" stroke-opacity="0.35" stroke-dasharray="8 6"/>
+    <circle cx="256" cy="256" r="248" fill="none" stroke="#38BDF8" stroke-width="1.5" stroke-opacity="0.2"/>
+
+    <!-- 2. The Golden "1€ Coin / Radar Sun" in the background -->
+    <g transform="translate(256, 175)">
+        <!-- Radar pulse rings -->
+        <circle cx="0" cy="0" r="105" fill="none" stroke="#EAB308" stroke-width="1.5" stroke-opacity="0.2"/>
+        <circle cx="0" cy="0" r="130" fill="none" stroke="#EAB308" stroke-width="1" stroke-opacity="0.1" stroke-dasharray="5 5"/>
+
+        <!-- Coin Glow & Base -->
+        <circle cx="0" cy="0" r="78" fill="#EAB308" fill-opacity="0.15" filter="url(#glow)"/>
+        <circle cx="0" cy="0" r="72" fill="url(#goldGrad)" stroke="#FEF08A" stroke-width="3"/>
+        <circle cx="0" cy="0" r="64" fill="none" stroke="#713F12" stroke-width="2" stroke-opacity="0.4" stroke-dasharray="3 3"/>
+
+        <!-- "1€" Emblem on the coin -->
+        <text x="-6" y="16" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="44" font-weight="900" fill="#78350F" text-anchor="middle">1€</text>
+    </g>
+
+    <!-- 3. Stylized Modern Adventure Road / Location Pin Horizon -->
+    <g>
+        <!-- Horizon light arc -->
+        <path d="M 80 340 Q 256 310 432 340" fill="none" stroke="#0284C7" stroke-width="2" stroke-opacity="0.4"/>
+        <!-- Road Perspective -->
+        <polygon points="216 325, 296 325, 360 440, 152 440" fill="#1E293B" opacity="0.85"/>
+        <polygon points="216 325, 296 325, 360 440, 152 440" fill="none" stroke="#334155" stroke-width="2"/>
+        <!-- Dashed Center Line -->
+        <line x1="256" y1="330" x2="256" y2="435" stroke="#FDE047" stroke-width="4" stroke-linecap="round" stroke-dasharray="14 12"/>
+    </g>
+
+    <!-- 4. The Campervan (Hero Icon) -->
+    <g transform="translate(141, 210)">
+        <!-- Camper Shadow -->
+        <ellipse cx="115" cy="122" rx="105" ry="12" fill="#030712" opacity="0.6" filter="url(#subtleGlow)"/>
+
+        <!-- Pop-up Roof (Active Camper Mode) -->
+        <path d="M 38 32 L 180 8 L 188 32 Z" fill="url(#roofGrad)" stroke="#94A3B8" stroke-width="2"/>
+        <!-- Canvas texture under roof -->
+        <polygon points="44 32, 178 12, 178 32" fill="#F97316" opacity="0.85"/>
+
+        <!-- Van Body Base -->
+        <!-- Front cab angle on right (heading forward/south) -->
+        <path d="M 24 32 
+             L 175 32 
+             Q 192 32 204 46 
+             L 218 68 
+             Q 226 78 226 92 
+             L 226 112 
+             Q 226 116 220 116 
+             L 194 116
+             A 22 22 0 0 0 150 116
+             L 80 116
+             A 22 22 0 0 0 36 116
+             L 16 116
+             Q 10 116 10 110
+             L 10 46
+             Q 10 32 24 32 Z"
+              fill="url(#vanGrad)"
+              stroke="#38BDF8"
+              stroke-width="3"/>
+
+        <!-- Camper Body Deco Stripe (Sunset Orange) -->
+        <path d="M 10 74 L 222 74 L 225 84 L 10 84 Z" fill="#F97316"/>
+
+        <!-- Windshield & Windows -->
+        <!-- Front Windshield -->
+        <path d="M 166 38 L 195 44 L 208 66 L 166 66 Z" fill="#0F172A" stroke="#7DD3FC" stroke-width="1.5"/>
+        <!-- Side Driver Window -->
+        <rect x="122" y="40" width="38" height="26" rx="3" fill="#0F172A" stroke="#7DD3FC" stroke-width="1.5"/>
+        <!-- Living Area Camper Window -->
+        <rect x="36" y="42" width="76" height="24" rx="4" fill="#0F172A" stroke="#7DD3FC" stroke-width="1.5"/>
+
+        <!-- Window Reflections -->
+        <line x1="172" y1="42" x2="190" y2="62" stroke="#BAE6FD" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+        <line x1="46" y1="46" x2="62" y2="62" stroke="#BAE6FD" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+
+        <!-- Headlight (Glowing Beam into night) -->
+        <path d="M 226 88 L 260 78 L 260 112 L 226 98 Z" fill="#FEF08A" opacity="0.25" filter="url(#subtleGlow)"/>
+        <ellipse cx="225" cy="92" rx="3" ry="5" fill="#FEF08A" filter="url(#subtleGlow)"/>
+        <!-- Taillight -->
+        <rect x="10" y="86" width="3" height="10" rx="1.5" fill="#EF4444" filter="url(#subtleGlow)"/>
+
+        <!-- Wheels -->
+        <!-- Back Wheel -->
+        <g transform="translate(58, 116)">
+            <circle cx="0" cy="0" r="19" fill="#0F172A" stroke="#475569" stroke-width="3"/>
+            <circle cx="0" cy="0" r="10" fill="#94A3B8"/>
+            <circle cx="0" cy="0" r="4" fill="#0F172A"/>
+        </g>
+        <!-- Front Wheel -->
+        <g transform="translate(172, 116)">
+            <circle cx="0" cy="0" r="19" fill="#0F172A" stroke="#475569" stroke-width="3"/>
+            <circle cx="0" cy="0" r="10" fill="#94A3B8"/>
+            <circle cx="0" cy="0" r="4" fill="#0F172A"/>
+        </g>
+    </g>
+
+    <!-- 5. Elegant Typography Badge at Bottom -->
+    <g transform="translate(256, 474)">
+        <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="24" font-weight="900" letter-spacing="4" fill="#F8FAFC" text-anchor="middle">ONECOINCAMP</text>
+        <text x="0" y="18" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" letter-spacing="3" fill="#38BDF8" text-anchor="middle">CAMPER MONITOR</text>
+    </g>
+</svg>
