@@ -607,6 +607,14 @@
             </span>
           </label>
         </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span>Макс. цена оффера, €</span>
+            <input type="number" id="maxPriceInput" min="0" step="1"
+              style="width:72px;text-align:right;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:var(--card);color:var(--text);font-size:15px;"
+              placeholder="1">
+          </label>
+        </div>
       </div>
 
       <div class="card">
@@ -1378,6 +1386,17 @@
         };
       }
       document.getElementById('telegramEnabled').checked = isTruthy(state.settings.telegram_enabled);
+      var maxPriceEl = document.getElementById('maxPriceInput');
+      if (maxPriceEl) {
+        var maxPrice = state.filters && state.filters.max_price != null && state.filters.max_price !== ''
+          ? state.filters.max_price
+          : '';
+        maxPriceEl.value = maxPrice;
+        maxPriceEl.oninput = function () {
+          if (!state.filters) { state.filters = {}; }
+          state.filters.max_price = this.value;
+        };
+      }
     }
 
     function renderSeg(id, values, selected, onPick) {
@@ -1692,7 +1711,8 @@
         },
         filters: {
           allowed_origin_countries: (state.filters.allowed_origin_countries || []).slice(),
-          allowed_destination_countries: (state.filters.allowed_destination_countries || []).slice()
+          allowed_destination_countries: (state.filters.allowed_destination_countries || []).slice(),
+          max_price: state.filters.max_price != null ? state.filters.max_price : ''
         },
         routes: state.routes.map(function (r) {
           var copy = {};

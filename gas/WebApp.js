@@ -143,6 +143,7 @@ function getUiData(initData) {
       allowed_destination_countries: parseCountryList_(filters.allowed_destination_countries),
       min_trip_days: filters.min_trip_days || '',
       max_trip_days: filters.max_trip_days || '',
+      max_price: filters.max_price != null ? filters.max_price : '',
     },
     routes: routes.map(function(r) {
       var w = buildDateWindow_(settings, filters, r.pickupDate || settings.pickup_date, r.returnDate || settings.return_date);

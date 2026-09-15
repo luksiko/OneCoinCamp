@@ -350,91 +350,100 @@ function fetchRoadsurferOffers_(route, window, filters) {
 function fetchMovacarOffers_(route, window) {
   let originRef = route.originId;
   let destRef = route.destinationId;
-  let destLocId = destRef;
 
-  if (!originRef || !destRef || isWildcardStation_(originRef) || isWildcardStation_(destRef)) {
-    if (!route.originName || !route.destinationName || isWildcardStation_(route.originName) || isWildcardStation_(route.destinationName)) {
+  // Backwards compatibility for old manual text inputs
+  if (!originRef || (!destRef && !isWildcardStation_(destRef))) {
+    if (route.originName && !isWildcardStation_(route.originName) && route.destinationName && !isWildcardStation_(route.destinationName)) {
+      const allLocationsUrl = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de';
+      const payloadAll = fetchJson_(allLocationsUrl, {
+        headers: { Accept: 'application/vnd.api+json', Origin: 'https://movacar.com', 'X-Request-Id': randomRequestId_() },
+        retries: 1
+      });
+      const includedAll = payloadAll.included || [];
+      const oName = String(route.originName).toLowerCase().trim();
+      const dName = String(route.destinationName).toLowerCase().trim();
+      const originLoc = includedAll.filter(function(item) { return item.type === 'locationsummary' && item.attributes && item.attributes.location_type === 'origin' && (item.attributes.name || '').toLowerCase().indexOf(oName) !== -1; })[0];
+      const destLoc = includedAll.filter(function(item) { return item.type === 'locationsummary' && item.attributes && item.attributes.location_type === 'destination' && (item.attributes.name || '').toLowerCase().indexOf(dName) !== -1; })[0];
+      if (!originLoc || !destLoc) return [];
+      originRef = originLoc.attributes.reference;
+      destRef = destLoc.attributes.reference;
+    } else {
       return [];
     }
-    const allLocationsUrl = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de';
-    const payloadAll = fetchJson_(allLocationsUrl, {
+  }
+
+  const isWildOrigin = isWildcardStation_(originRef);
+  const isWildDest = isWildcardStation_(destRef);
+
+  let originsToCheck = [];
+  if (isWildOrigin) {
+    const allStations = getMovacarAllStations_();
+    originsToCheck = allStations.filter(function (s) {
+      return !route.originCountry || String(route.originCountry).toUpperCase() === String(s.country).toUpperCase();
+    });
+  } else {
+    originsToCheck = [{ id: originRef, name: route.originName }];
+  }
+
+  const foundOffers = [];
+
+  for (let i = 0; i < originsToCheck.length; i++) {
+    const origin = originsToCheck[i];
+    let query = 'locale=de&origin_reference=' + encodeURIComponent(origin.id);
+    if (!isWildDest) {
+      query += '&destination_reference=' + encodeURIComponent(destRef);
+    }
+    const url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?' + query;
+    
+    const payload = fetchJson_(url, {
       headers: {
         Accept: 'application/vnd.api+json',
         Origin: 'https://movacar.com',
         Referer: 'https://movacar.com/',
-        'X-Request-Id': randomRequestId_(),
+        'X-Request-Id': randomRequestId_()
       },
       retries: 1
     });
-
-    const includedAll = payloadAll.included || [];
-    const oName = String(route.originName).toLowerCase().trim();
-    const dName = String(route.destinationName).toLowerCase().trim();
     
-    const originLoc = includedAll.filter(function(item) {
-      return item.type === 'locationsummary' && item.attributes && item.attributes.location_type === 'origin' &&
-             (item.attributes.name || '').toLowerCase().indexOf(oName) !== -1;
-    })[0];
-    
-    const destLoc = includedAll.filter(function(item) {
-      return item.type === 'locationsummary' && item.attributes && item.attributes.location_type === 'destination' &&
-             (item.attributes.name || '').toLowerCase().indexOf(dName) !== -1;
-    })[0];
+    const included = payload.included || [];
 
-    if (!originLoc || !destLoc) {
-      return [];
+    for (let j = 0; j < included.length; j++) {
+      const item = included[j];
+      if (item.type === 'locationsummary' && item.attributes && item.attributes.location_type === 'destination') {
+        const destReference = item.attributes.reference;
+        const destName = item.attributes.name;
+        const destCountry = MOVACAR_COUNTRIES[destName] || '';
+        const offerCount = item.attributes.offer_count || 0;
+
+        if (offerCount > 0) {
+          if (!isWildDest) {
+             if (String(destReference) !== String(destRef)) continue;
+          } else if (route.destinationCountry && destCountry) {
+             if (String(route.destinationCountry).toUpperCase() !== String(destCountry).toUpperCase()) continue;
+          }
+
+          foundOffers.push({
+            source: 'movacar',
+            offerId: String(origin.id) + '->' + String(destReference) + '@' + formatIsoDate_(window.start),
+            vehicleId: '',
+            vehicle: 'Movacar vehicle (' + offerCount + ' available)',
+            origin: origin.name,
+            originCountry: route.originCountry,
+            destination: destName,
+            destinationCountry: destCountry || route.destinationCountry,
+            pickupDate: formatIsoDate_(window.start),
+            returnDate: formatIsoDate_(window.end),
+            price: 1,
+            currency: 'EUR',
+            bookingUrl: 'https://movacar.com/',
+            rawJson: JSON.stringify(item)
+          });
+        }
+      }
     }
-
-    originRef = originLoc.attributes.reference;
-    destRef = destLoc.attributes.reference;
-    destLocId = destLoc.id;
   }
 
-  const query =
-    'locale=de&origin_reference=' +
-    encodeURIComponent(originRef) +
-    '&destination_reference=' +
-    encodeURIComponent(destRef);
-  const url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?' + query;
-  const payload = fetchJson_(url, {
-    headers: {
-      Accept: 'application/vnd.api+json',
-      Origin: 'https://movacar.com',
-      Referer: 'https://movacar.com/',
-      'X-Request-Id': randomRequestId_(),
-    },
-  });
-
-  const included = payload.included || [];
-  const destinationSummary = included.filter(function (item) {
-    if (item.type !== 'locationsummary') return false;
-    return String(item.id) === String(destLocId) || (item.attributes && String(item.attributes.reference) === String(destRef));
-  })[0];
-
-  const offerCount =
-    destinationSummary && destinationSummary.attributes ? destinationSummary.attributes.offer_count || 0 : 0;
-  if (!offerCount) {
-    return [];
-  }
-
-  return [
-    {
-      source: 'movacar',
-      offerId: String(originRef) + '->' + String(destRef) + '@' + formatIsoDate_(window.start),
-      vehicleId: '',
-      vehicle: 'Movacar vehicle (' + offerCount + ' available)',
-      origin: route.originName,
-      originCountry: route.originCountry,
-      destination: route.destinationName,
-      destinationCountry: route.destinationCountry,
-      pickupDate: formatIsoDate_(window.start),
-      returnDate: formatIsoDate_(window.end),
-      price: '',
-      currency: 'EUR',
-      bookingUrl: 'https://movacar.com/',
-      rawJson: JSON.stringify(destinationSummary || payload),
-    },
-  ];
+  return foundOffers;
 }
 
 function firstDefined_() {
