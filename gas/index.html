@@ -889,6 +889,9 @@
       } else {
         parts.push('Ещё не запускался');
       }
+      if (state.monitorError) {
+        parts.push('⚠️ ' + String(state.monitorError).slice(0, 120));
+      }
       bannerSub.innerHTML = '';
       parts.forEach(function (part, i) {
         var span = document.createElement('div');
@@ -1185,9 +1188,13 @@
       loading.textContent = 'Загрузка направлений…';
       sel.appendChild(loading);
 
+      var expectedOriginId = String(route.originId);
       var countryFilter = route.destinationCountry ? [route.destinationCountry] : [];
       google.script.run
         .withSuccessHandler(function (destinations) {
+          if (String(route.originId) !== expectedOriginId) {
+            return;
+          }
           sel.innerHTML = '';
           if (!destinations || !destinations.length) {
             var emptyOpt = document.createElement('option');
@@ -1235,6 +1242,7 @@
           };
         })
         .withFailureHandler(function () {
+          if (String(route.originId) !== expectedOriginId) return;
           loading.textContent = 'Не удалось загрузить направления';
         })
         .getRoadsurferDestinations(route.originId, countryFilter, getInitData());

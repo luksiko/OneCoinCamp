@@ -110,8 +110,24 @@ function fetchRoadsurferDestinations_(originId, filters) {
 
   const routes = Array.isArray(payload) ? payload : payload.routes || payload.data || [];
   if (Array.isArray(payload && payload.returns)) {
+    let stationMap = null;
+    try {
+      if (typeof getRoadsurferAllStations_ === 'function') {
+        const all = getRoadsurferAllStations_();
+        if (all && all.length) {
+          stationMap = {};
+          all.forEach(function (s) { stationMap[String(s.id)] = s; });
+        }
+      }
+    } catch (e) {}
+
     return payload.returns.map(function (destinationId) {
-      return { id: destinationId, name: 'Station ' + destinationId, country: '' };
+      const s = stationMap && stationMap[String(destinationId)];
+      return {
+        id: destinationId,
+        name: s ? s.name : 'Station ' + destinationId,
+        country: s ? s.country : '',
+      };
     });
   }
   return routes
