@@ -29,6 +29,9 @@ const DEFAULT_SETTINGS = {
   check_neighbors: false,
   timezone: 'Europe/Berlin',
   telegram_enabled: true,
+  silent_hours_enabled: false,
+  silent_hours_start: '23:00',
+  silent_hours_end: '07:00',
   request_timeout_seconds: 20,
 };
 
@@ -37,6 +40,7 @@ const DEFAULT_FILTERS = {
   allowed_destination_countries: 'ES,IT',
   window_start_rule: 'next_sunday',
   window_days: 14,
+  max_price: '',
 };
 
 const DEFAULT_ROUTES = [

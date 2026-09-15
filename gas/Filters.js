@@ -121,7 +121,46 @@ function offerMatchesFilter_(offer, filters, window) {
     }
   }
 
+  if (filters && filters.max_price != null && filters.max_price !== '') {
+    const maxPrice = Number(filters.max_price);
+    if (!isNaN(maxPrice) && maxPrice >= 0 && offer.price != null && offer.price !== '') {
+      if (Number(offer.price) > maxPrice) {
+        return false;
+      }
+    }
+  }
+
   return true;
+}
+
+function isSilentHoursActive_(settings, now) {
+  if (!settings || !isTruthy_(settings.silent_hours_enabled)) {
+    return false;
+  }
+  const startStr = String(settings.silent_hours_start || '23:00').trim();
+  const endStr = String(settings.silent_hours_end || '07:00').trim();
+  const startMatch = startStr.match(/^(\d{1,2}):(\d{2})$/);
+  const endMatch = endStr.match(/^(\d{1,2}):(\d{2})$/);
+  if (!startMatch || !endMatch) {
+    return false;
+  }
+  const startMinutes = Number(startMatch[1]) * 60 + Number(startMatch[2]);
+  const endMinutes = Number(endMatch[1]) * 60 + Number(endMatch[2]);
+  const timezone = settings.timezone || DEFAULT_SETTINGS.timezone;
+  const nowDate = now || new Date();
+
+  const currentHourStr = Utilities.formatDate(nowDate, timezone, 'HH');
+  const currentMinStr = Utilities.formatDate(nowDate, timezone, 'mm');
+  const currentMinutes = Number(currentHourStr) * 60 + Number(currentMinStr);
+
+  if (startMinutes === endMinutes) {
+    return false;
+  }
+  if (startMinutes < endMinutes) {
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  } else {
+    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+  }
 }
 
 function offerFingerprint_(offer) {

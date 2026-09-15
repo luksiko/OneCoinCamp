@@ -117,7 +117,12 @@ class TelegramNotifier:
         self.bot_token = bot_token
         self.chat_id = chat_id
 
-    def send_offer(self, offer: Offer) -> None:
+    def send_offer(
+        self,
+        offer: Offer,
+        route_index: int | None = None,
+        silent: bool = False,
+    ) -> None:
         source_label = "Roadsurfer Rally" if offer.source == "roadsurfer" else offer.source
         emoji = "🚐" if offer.source == "roadsurfer" else "🚗"
         vehicle_line = f"\n{emoji} Модель: {escape(offer.vehicle)}" if offer.vehicle else ""
@@ -134,9 +139,35 @@ class TelegramNotifier:
         if offer.booking_url:
             button_label = "Забронировать на Roadsurfer ➔" if offer.source == "roadsurfer" else "Открыть бронирование"
             text += f'\n<a href="{escape(offer.booking_url, quote=True)}">[ {button_label} ]</a>'
+
+        keyboard = []
+        if offer.booking_url:
+            keyboard.append([{"text": "Забронировать оффер ➔", "url": offer.booking_url}])
+        if route_index is not None:
+            raw = f"{offer.source}|{offer.origin}|{offer.destination}"
+            route_hash = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:10]
+            keyboard.append(
+                [
+                    {
+                        "text": "🚫 Отключить этот маршрут",
+                        "callback_data": f"dis_r:{route_index}:{route_hash}",
+                    }
+                ]
+            )
+
+        payload: dict = {
+            "chat_id": self.chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+        }
+        if keyboard:
+            payload["reply_markup"] = {"inline_keyboard": keyboard}
+        if silent:
+            payload["disable_notification"] = True
+
         response = self.http.post(
             f"https://api.telegram.org/bot{self.bot_token}/sendMessage",
-            {"chat_id": self.chat_id, "text": text, "parse_mode": "HTML"},
+            payload,
         )
         self.ensure_ok(response)
 

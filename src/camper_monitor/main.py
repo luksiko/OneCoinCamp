@@ -8,7 +8,13 @@ from pathlib import Path
 
 from .config import Settings, load_settings
 from .http_client import FetchError, JsonHttpClient
-from .providers import MovacarProvider, RoadsurferProvider
+from .providers import (
+    FreewayCamperProvider,
+    ImoovaProvider,
+    IndieCampersProvider,
+    MovacarProvider,
+    RoadsurferProvider,
+)
 from .state import StateStore
 from .telegram import TelegramNotifier
 
@@ -36,6 +42,9 @@ def poll_once(
     providers = {
         "roadsurfer": RoadsurferProvider(http),
         "movacar": MovacarProvider(http),
+        "indiecampers": IndieCampersProvider(http),
+        "imoova": ImoovaProvider(http),
+        "freewaycamper": FreewayCamperProvider(http),
     }
     notifier = (
         TelegramNotifier(http, settings.telegram_bot_token, settings.telegram_chat_id)
@@ -43,7 +52,7 @@ def poll_once(
         else None
     )
     found = 0
-    for route in settings.routes:
+    for route_index, route in enumerate(settings.routes):
         if not route.enabled:
             continue
         provider = providers.get(route.source)
@@ -77,7 +86,7 @@ def poll_once(
                 logger.warning("Telegram is not configured; would alert: %s", offer)
                 continue
             try:
-                notifier.send_offer(offer)
+                notifier.send_offer(offer, route_index=route_index)
             except FetchError as error:
                 logger.error("Telegram send failed: %s", error)
                 continue

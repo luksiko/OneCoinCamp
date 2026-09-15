@@ -64,7 +64,19 @@ function setupGasContext(fetchMock) {
     Utilities: {
       sleep: () => {},
       getUuid: () => 'mock-uuid',
-      formatDate: (d, tz, f) => '2026-09-15T00:00:00',
+      formatDate: (d, tz, f) => {
+        const date = (d instanceof Date) ? d : new Date(d);
+        if (f === 'HH') return String(date.getHours()).padStart(2, '0');
+        if (f === 'mm') return String(date.getMinutes()).padStart(2, '0');
+        if (f === 'u') return String(date.getDay() === 0 ? 7 : date.getDay());
+        if (f === 'yyyy-MM-dd') {
+          const y = date.getFullYear();
+          const m = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          return y + '-' + m + '-' + day;
+        }
+        return '2026-09-15T00:00:00';
+      },
       DigestAlgorithm: { SHA_256: 1 },
       Charset: { UTF_8: 1 },
       computeDigest: (algo, str, charset) => {
@@ -872,6 +884,206 @@ if (testName === 'roadsurfer_429') {
   assert.strictEqual(offers[0].destination, 'Rome');
   assert.strictEqual(offers[0].destinationCountry, 'IT');
   assert.ok(offers[0].bookingUrl.includes('station=6&end_station=35'));
+} else if (testName === 'telegram_inline_keyboard_buttons') {
+  let sentPayload = null;
+  const { context, scriptProps } = setupGasContext((url, opts) => {
+    if (url.includes('sendMessage')) {
+      sentPayload = JSON.parse(opts.payload);
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ok: true }) };
+    }
+    return { getResponseCode: () => 200, getContentText: () => '{}' };
+  });
+  scriptProps.TELEGRAM_BOT_TOKEN = 'mock-bot-token';
+  scriptProps.TELEGRAM_CHAT_ID = 'mock-chat-id';
+
+  const offer = {
+    source: 'roadsurfer',
+    origin: 'Berlin',
+    destination: 'Rome',
+    pickupDate: '2026-10-26',
+    returnDate: '2026-11-02',
+    price: 1,
+    vehicle: 'Surfer Suite',
+    bookingUrl: 'https://booking.roadsurfer.com/rally?station=6',
+  };
+  const route = {
+    source: 'roadsurfer',
+    originId: '6',
+    originName: 'Berlin',
+    destinationId: '35',
+    destinationName: 'Rome',
+  };
+
+  context.sendTelegramOffer_(context.getScriptSecrets(), offer, route, 0, {});
+  assert.ok(sentPayload);
+  assert.strictEqual(sentPayload.chat_id, 'mock-chat-id');
+  assert.ok(sentPayload.reply_markup);
+  const kb = sentPayload.reply_markup.inline_keyboard;
+  assert.strictEqual(kb.length, 2);
+  assert.strictEqual(kb[0][0].text, 'Забронировать оффер ➔');
+  assert.strictEqual(kb[0][0].url, 'https://booking.roadsurfer.com/rally?station=6');
+  assert.ok(kb[1][0].text.includes('Отключить этот маршрут'));
+  assert.ok(kb[1][0].callback_data.startsWith('dis_r:0:'));
+} else if (testName === 'telegram_callback_query_disables_route') {
+  let answered = null;
+  let editedMarkup = null;
+  const { context, sheets, scriptProps } = setupGasContext((url, opts) => {
+    if (url.includes('answerCallbackQuery')) {
+      answered = JSON.parse(opts.payload);
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ok: true }) };
+    }
+    if (url.includes('editMessageReplyMarkup')) {
+      editedMarkup = JSON.parse(opts.payload);
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ok: true }) };
+    }
+    return { getResponseCode: () => 200, getContentText: () => '{}' };
+  });
+  scriptProps.TELEGRAM_BOT_TOKEN = 'mock-bot-token';
+  scriptProps.TELEGRAM_CHAT_ID = 'mock-chat-id';
+
+  const route0 = {
+    source: 'roadsurfer',
+    originId: '6',
+    originName: 'Berlin',
+    destinationId: '35',
+    destinationName: 'Rome',
+  };
+  const hash = context.computeRouteHash_(route0);
+  assert.ok(hash && hash.length === 10);
+
+  // Initial state: route 0 is enabled
+  assert.strictEqual(sheets['Routes'].values[1][0], true);
+
+  const update = {
+    callback_query: {
+      id: 'cb_123',
+      from: { id: 123456789, username: 'testuser' },
+      message: {
+        message_id: 88,
+        chat: { id: 'mock-chat-id' },
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Забронировать оффер ➔', url: 'https://example.com' }],
+            [{ text: '🚫 Отключить этот маршрут', callback_data: 'dis_r:0:' + hash }],
+          ]
+        }
+      },
+      data: 'dis_r:0:' + hash,
+    }
+  };
+
+  context.handleTelegramUpdate_(update);
+
+  // Verify route 0 was disabled in sheet
+  assert.strictEqual(sheets['Routes'].values[1][0], false);
+  // Verify answerCallbackQuery was called
+  assert.ok(answered);
+  assert.strictEqual(answered.callback_query_id, 'cb_123');
+  assert.ok(answered.text.includes('отключен'));
+  // Verify editMessageReplyMarkup was called to update button
+  assert.ok(editedMarkup);
+  const updatedKb = editedMarkup.reply_markup.inline_keyboard;
+  assert.strictEqual(updatedKb.length, 2);
+  assert.ok(updatedKb[1][0].text.includes('Маршрут отключен'));
+} else if (testName === 'telegram_silent_hours_disable_notification') {
+  let sentPayload = null;
+  const { context, scriptProps } = setupGasContext((url, opts) => {
+    if (url.includes('sendMessage')) {
+      sentPayload = JSON.parse(opts.payload);
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ok: true }) };
+    }
+    return { getResponseCode: () => 200, getContentText: () => '{}' };
+  });
+  scriptProps.TELEGRAM_BOT_TOKEN = 'mock-bot-token';
+  scriptProps.TELEGRAM_CHAT_ID = 'mock-chat-id';
+
+  const settings = {
+    silent_hours_enabled: true,
+    silent_hours_start: '23:00',
+    silent_hours_end: '07:00',
+    timezone: 'Europe/Berlin',
+  };
+
+  // Test isSilentHoursActive_ logic directly:
+  // 23:30 -> night -> active
+  const nightTime = new Date('2026-09-15T23:30:00');
+  assert.strictEqual(context.isSilentHoursActive_(settings, nightTime), true);
+
+  // 03:15 -> early morning -> active
+  const earlyMorning = new Date('2026-09-15T03:15:00');
+  assert.strictEqual(context.isSilentHoursActive_(settings, earlyMorning), true);
+
+  // 14:00 -> afternoon -> inactive
+  const afternoon = new Date('2026-09-15T14:00:00');
+  assert.strictEqual(context.isSilentHoursActive_(settings, afternoon), false);
+
+  // Daytime window (e.g. 13:00 to 15:00)
+  const daySettings = {
+    silent_hours_enabled: true,
+    silent_hours_start: '13:00',
+    silent_hours_end: '15:00',
+    timezone: 'Europe/Berlin',
+  };
+  assert.strictEqual(context.isSilentHoursActive_(daySettings, afternoon), true);
+
+  // Test disable_notification passed to sendMessage
+  const offer = { source: 'roadsurfer', origin: 'Berlin', destination: 'Rome' };
+  context.sendTelegramOffer_(context.getScriptSecrets(), offer, null, null, {
+    silent_hours_enabled: true,
+    silent_hours_start: '00:00',
+    silent_hours_end: '23:59',
+  });
+  assert.ok(sentPayload);
+  assert.strictEqual(sentPayload.disable_notification, true);
+} else if (testName === 'telegram_digest_and_silent_commands') {
+  const sentMessages = [];
+  const { context, sheets, scriptProps } = setupGasContext((url, opts) => {
+    if (url.includes('sendMessage')) {
+      sentMessages.push(JSON.parse(opts.payload));
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ok: true }) };
+    }
+    return { getResponseCode: () => 200, getContentText: () => '{}' };
+  });
+  scriptProps.TELEGRAM_BOT_TOKEN = 'mock-bot-token';
+  scriptProps.TELEGRAM_CHAT_ID = 'mock-chat-id';
+
+  // Seed OffersArchive with a recent offer
+  const now = new Date();
+  sheets['OffersArchive'].values = [
+    TEST_ARCHIVE_HEADERS,
+    [now.toISOString(), 'roadsurfer', '101', 'v1', 'Camper', 'Berlin', 'DE', 'Rome', 'IT', '2026-10-01', '2026-10-08', 1, 'EUR', 'https://booking.roadsurfer.com', 'fp1', true, now.toISOString(), '']
+  ];
+
+  // Run /digest command
+  context.handleTelegramUpdate_({
+    message: { chat: { id: 'mock-chat-id' }, text: '/digest' }
+  });
+  assert.strictEqual(sentMessages.length, 1);
+  assert.ok(sentMessages[0].text.includes('Дневной дайджест'));
+  assert.ok(sentMessages[0].text.includes('Berlin ➔ Rome'));
+
+  // Run /silent on command
+  context.handleTelegramUpdate_({
+    message: { chat: { id: 'mock-chat-id' }, text: '/silent on' }
+  });
+  assert.strictEqual(sentMessages.length, 2);
+  assert.ok(sentMessages[1].text.includes('Тихие часы'));
+  assert.ok(sentMessages[1].text.includes('включены'));
+
+  // Run /silent off command
+  context.handleTelegramUpdate_({
+    message: { chat: { id: 'mock-chat-id' }, text: '/silent off' }
+  });
+  assert.strictEqual(sentMessages.length, 3);
+  assert.ok(sentMessages[2].text.includes('отключены'));
+} else if (testName === 'filter_max_price') {
+  const { context } = setupGasContext(() => ({}));
+  const window = { start: new Date('2026-10-01'), end: new Date('2026-10-15') };
+  const cheapOffer = { source: 'roadsurfer', price: 1, originCountry: 'DE', destinationCountry: 'IT' };
+  const expensiveOffer = { source: 'roadsurfer', price: 50, originCountry: 'DE', destinationCountry: 'IT' };
+
+  assert.strictEqual(context.offerMatchesFilter_(cheapOffer, { max_price: 10 }, window), true);
+  assert.strictEqual(context.offerMatchesFilter_(expensiveOffer, { max_price: 10 }, window), false);
 } else {
   throw new Error('Unknown test: ' + testName);
 }
@@ -923,6 +1135,11 @@ def run_node_test(test_name: str):
         "check_offers_availability_removes_expired_and_missing_offers",
         "check_offers_availability_retains_offers_on_network_error",
         "roadsurfer_country_to_country_wildcard_search",
+        "telegram_inline_keyboard_buttons",
+        "telegram_callback_query_disables_route",
+        "telegram_silent_hours_disable_notification",
+        "telegram_digest_and_silent_commands",
+        "filter_max_price",
     ],
 )
 def test_gas_node_suite(test_name: str):

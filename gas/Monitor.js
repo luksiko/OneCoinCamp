@@ -221,7 +221,7 @@ function runMonitorOnce() {
 
     const checkNeighbors = isTruthy_(settings.check_neighbors);
 
-    routes.forEach(function (route) {
+    routes.forEach(function (route, routeIndex) {
       // Build date windows per route. If route has no dates, fallback to global settings
       const pickupDate = route.pickupDate || settings.pickup_date;
       const returnDate = route.returnDate || settings.return_date;
@@ -268,7 +268,7 @@ function runMonitorOnce() {
           let telegramSentAt = '';
           if (matches && settings.telegram_enabled) {
             try {
-              sendTelegramOffer_(secrets, offer);
+              sendTelegramOffer_(secrets, offer, route, routeIndex, settings);
               telegramSentAt = formatIsoDate_(new Date());
               telegramSentCount += 1;
             } catch (error) {
