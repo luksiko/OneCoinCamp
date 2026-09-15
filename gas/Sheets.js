@@ -270,9 +270,9 @@ function saveRoutes_(spreadsheet, routes) {
       if (route.source !== 'roadsurfer') {
         return;
       }
-      if (!/^\d+$/.test(String(route.originId || '').trim()) ||
-          (String(route.destinationId || '').trim() && !/^\d+$/.test(String(route.destinationId).trim()))) {
-        throw new Error('Маршрут Roadsurfer #' + (index + 1) + ': origin_id и destination_id должны быть числовыми ID станций.');
+      if (!/^(\d+|\*|ALL|ANY)$/i.test(String(route.originId || '').trim()) ||
+          (String(route.destinationId || '').trim() && !/^(\d+|\*|ALL|ANY)$/i.test(String(route.destinationId).trim()))) {
+        throw new Error('Маршрут Roadsurfer #' + (index + 1) + ': origin_id и destination_id должны быть числовыми ID станций или символом * (Все города).');
       }
     });
   }
