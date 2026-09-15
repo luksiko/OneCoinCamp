@@ -1,0 +1,25 @@
+{
+  "poll_interval_seconds": 180,
+  "request_timeout_seconds": 20,
+  "routes": [
+    {
+      "source": "roadsurfer",
+      "origin": "Berlin",
+      "destination": "Rome Fiumicino Airport",
+      "origin_id": 6,
+      "destination_id": 35,
+      "pickup_date": "2026-10-26",
+      "return_date": "2026-11-02",
+      "enabled": true
+    },
+    {
+      "source": "movacar",
+      "origin": "Berlin",
+      "destination": "Paris",
+      "origin_id": "01JCRJ5NGV9E2YFNVSYKJR9W3J",
+      "pickup_date": "2026-10-26",
+      "return_date": "2026-11-02",
+      "enabled": false
+    }
+  ]
+}

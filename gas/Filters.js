@@ -1,0 +1,109 @@
+function parseCountryList_(value) {
+  return String(value || '')
+    .split(',')
+    .map(function (item) {
+      return item.trim().toUpperCase();
+    })
+    .filter(Boolean);
+}
+
+function nextSunday_(timezone) {
+  const now = new Date();
+  const local = new Date(Utilities.formatDate(now, timezone, "yyyy-MM-dd'T'HH:mm:ss"));
+  const day = local.getDay();
+  const add = day === 0 ? 0 : 7 - day;
+  local.setDate(local.getDate() + add);
+  local.setHours(0, 0, 0, 0);
+  return local;
+}
+
+function addDays_(date, days) {
+  const copy = new Date(date.getTime());
+  copy.setDate(copy.getDate() + days);
+  return copy;
+}
+
+function parseIsoDate_(value) {
+  if (!value) {
+    return null;
+  }
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) {
+    return null;
+  }
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+function formatIsoDate_(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return year + '-' + month + '-' + day;
+}
+
+function buildDateWindow_(settings, filters) {
+  const timezone = settings.timezone || DEFAULT_SETTINGS.timezone;
+  const windowDays = Number(filters.window_days || settings.window_days || DEFAULT_SETTINGS.window_days);
+  const start = nextSunday_(timezone);
+  return {
+    start: start,
+    end: addDays_(start, windowDays),
+    timezone: timezone,
+    windowDays: windowDays,
+  };
+}
+
+function offerMatchesFilter_(offer, filters, window) {
+  const origins = parseCountryList_(filters.allowed_origin_countries);
+  const destinations = parseCountryList_(filters.allowed_destination_countries);
+  if (origins.length && offer.originCountry && origins.indexOf(offer.originCountry.toUpperCase()) === -1) {
+    return false;
+  }
+  if (
+    destinations.length &&
+    offer.destinationCountry &&
+    destinations.indexOf(offer.destinationCountry.toUpperCase()) === -1
+  ) {
+    return false;
+  }
+
+  const pickup = parseIsoDate_(offer.pickupDate);
+  const dropoff = parseIsoDate_(offer.returnDate);
+
+  if (pickup && (pickup < window.start || pickup > window.end)) {
+    return false;
+  }
+
+  if (pickup && dropoff) {
+    const durationDays = Math.round((dropoff.getTime() - pickup.getTime()) / (1000 * 60 * 60 * 24));
+    const minDays = Number(filters.min_trip_days);
+    const maxDays = Number(filters.max_trip_days);
+    if (!isNaN(minDays) && minDays > 0 && durationDays < minDays) {
+      return false;
+    }
+    if (!isNaN(maxDays) && maxDays > 0 && durationDays > maxDays) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function offerFingerprint_(offer) {
+  const raw = [
+    offer.source || '',
+    offer.offerId || '',
+    offer.origin || '',
+    offer.destination || '',
+    offer.pickupDate || '',
+    offer.returnDate || '',
+    offer.price == null ? '' : String(offer.price),
+  ].join('|');
+  const signature = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, raw, Utilities.Charset.UTF_8);
+  return signature
+    .map(function (byte) {
+      const positive = (byte + 256) % 256;
+      return positive.toString(16).padStart(2, '0');
+    })
+    .join('');
+}

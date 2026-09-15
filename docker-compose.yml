@@ -1,0 +1,12 @@
+services:
+  camper-monitor:
+    build: .
+    restart: unless-stopped
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      LOG_LEVEL: INFO
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+    command: ["--config", "/app/config/routes.json", "--database", "/app/data/state.db"]

@@ -1,0 +1,109 @@
+const SHEET_NAMES = {
+  SETTINGS: 'Settings',
+  ROUTES: 'Routes',
+  FILTERS: 'Filters',
+  ARCHIVE: 'OffersArchive',
+  RUNS: 'Runs',
+};
+
+const PROPERTY_KEYS = {
+  TELEGRAM_BOT_TOKEN: 'TELEGRAM_BOT_TOKEN',
+  TELEGRAM_CHAT_ID: 'TELEGRAM_CHAT_ID',
+  TELEGRAM_WEBHOOK_SECRET: 'TELEGRAM_WEBHOOK_SECRET',
+  SPREADSHEET_ID: 'SPREADSHEET_ID',
+};
+
+const DEFAULT_SETTINGS = {
+  poll_interval_minutes: 5,
+  window_days: 14,
+  timezone: 'Europe/Berlin',
+  telegram_enabled: true,
+  request_timeout_seconds: 20,
+};
+
+const DEFAULT_FILTERS = {
+  allowed_origin_countries: 'DE,AT,NL,BE,FR,CH',
+  allowed_destination_countries: 'ES,IT',
+  window_start_rule: 'next_sunday',
+  window_days: 14,
+};
+
+const DEFAULT_ROUTES = [
+  {
+    enabled: true,
+    source: 'roadsurfer',
+    origin_name: 'Berlin',
+    origin_id: '6',
+    destination_name: 'Rome Fiumicino Airport',
+    destination_id: '35',
+    origin_country: 'DE',
+    destination_country: 'IT',
+  },
+  {
+    enabled: false,
+    source: 'movacar',
+    origin_name: 'Berlin',
+    origin_id: '01JCRJ5NGV9E2YFNVSYKJR9W3J',
+    destination_name: 'Rom',
+    destination_id: '01JCRAMYCK7MCQ50E59X6Q7ZDT',
+    origin_country: 'DE',
+    destination_country: 'IT',
+  },
+];
+
+const ARCHIVE_HEADERS = [
+  'found_at',
+  'source',
+  'offer_id',
+  'vehicle_id',
+  'vehicle',
+  'origin',
+  'origin_country',
+  'destination',
+  'destination_country',
+  'pickup_date',
+  'return_date',
+  'price',
+  'currency',
+  'booking_url',
+  'fingerprint',
+  'matches_filter',
+  'telegram_sent_at',
+  'raw_json',
+];
+
+const RUN_HEADERS = [
+  'started_at',
+  'finished_at',
+  'source',
+  'request_count',
+  'offers_found',
+  'archived',
+  'alerts_sent',
+  'status',
+  'error',
+];
+
+function getSpreadsheet() {
+  const props = PropertiesService.getScriptProperties();
+  const spreadsheetId = props.getProperty(PROPERTY_KEYS.SPREADSHEET_ID);
+  if (spreadsheetId) {
+    return SpreadsheetApp.openById(spreadsheetId);
+  }
+  const active = SpreadsheetApp.getActiveSpreadsheet();
+  if (active) {
+    props.setProperty(PROPERTY_KEYS.SPREADSHEET_ID, active.getId());
+    return active;
+  }
+  throw new Error('Set SPREADSHEET_ID in Script Properties or bind the script to a spreadsheet.');
+}
+
+function getScriptSecrets() {
+  const props = PropertiesService.getScriptProperties();
+  return {
+    telegramBotToken: props.getProperty(PROPERTY_KEYS.TELEGRAM_BOT_TOKEN) || '',
+    telegramChatId: props.getProperty(PROPERTY_KEYS.TELEGRAM_CHAT_ID) || '',
+    telegramWebhookSecret: props.getProperty(PROPERTY_KEYS.TELEGRAM_WEBHOOK_SECRET) || '',
+    spreadsheetId: props.getProperty(PROPERTY_KEYS.SPREADSHEET_ID) || '',
+  };
+}

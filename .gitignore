@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+data/
+config/routes.json
+.clasprc.json
+gas/.clasp.json
+node_modules/
+.DS_Store
