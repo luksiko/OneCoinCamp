@@ -681,16 +681,7 @@ function fetchIndieCampersOffers_(route, window) {
       returnDate: item.checkout_date || returnDate,
       price: price ? String(price) : null,
       vehicle: String(vehicle),
-      bookingUrl: bookingUrl,
-      fingerprint: computeFingerprint_({
-        source: 'indiecampers',
-        offerId: String(vanId),
-        origin: route.origin,
-        destination: route.destination,
-        pickupDate: item.checkin_date || pickupDate,
-        returnDate: item.checkout_date || returnDate,
-        price: price ? String(price) : ''
-      })
+      bookingUrl: bookingUrl
     });
   }
   return offers;
@@ -729,16 +720,7 @@ function fetchImoovaOffers_(route, window) {
       returnDate: item.available_to_date || (window && window.end) || '2026-09-15',
       price: price ? String(price) : null,
       vehicle: String(vehicleName),
-      bookingUrl: bookingUrl,
-      fingerprint: computeFingerprint_({
-        source: 'imoova',
-        offerId: String(relId),
-        origin: dep.name || route.origin,
-        destination: deliv.name || route.destination,
-        pickupDate: item.available_from_date || '',
-        returnDate: item.available_to_date || '',
-        price: price ? String(price) : ''
-      })
+      bookingUrl: bookingUrl
     });
   }
   return offers;
