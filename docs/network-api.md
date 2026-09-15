@@ -41,6 +41,16 @@ Referer: https://movacar.com/
 X-Request-Id: random per request
 ```
 
-Ответ содержит `included[]` с `locationsummary`: `name`, `reference`, `offer_count`, `location_type`. Для Berlin endpoint вернул Kassel, Rom, Paris, Cabriès.
+Ответ содержит `included[]` с `locationsummary`: `name`, `reference`, `offer_count`, `location_type`.
 
-Не хватает endpoint списка офферов для пары origin/destination и диапазона дат. Пока он не снят, адаптер намеренно не делает догадок и не опрашивает Movacar офферы.
+Офферы (поиск по маршруту):
+
+```text
+GET https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de&origin_reference={originReference}&destination_reference={destinationReference}
+Accept: application/vnd.api+json
+Origin: https://movacar.com
+Referer: https://movacar.com/
+X-Request-Id: random per request
+```
+
+Адаптер поддерживает поиск `locationsummary` по названию через запрос всех локаций (без параметров), если ID не передан.

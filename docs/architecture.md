@@ -12,6 +12,7 @@
 - `Filters.js`: применяет бизнес-правила к нормализованным слотам.
 - `Telegram.js`: отправляет `sendMessage` только для впервые найденных подходящих слотов.
 - `Http.js`: оборачивает `UrlFetchApp` с ретраями для 429/5xx/таймаутов.
+- `WebApp.js`: бэкенд Telegram Mini App (doPost/doGet), обрабатывающий запросы от статического фронтенда (docs/index.html).
 - `Config.js`: доступ к `SpreadsheetApp`, секретам и скриптовым свойствам; `CacheService` в `Monitor.js` ускоряет проверку недавно обработанных fingerprints; Google Sheets остаётся источником истины.
 
 ## Листы Google Sheets
@@ -22,7 +23,8 @@
 
 ### `Routes`
 
-Редактируемые направления: `enabled`, `source`, `origin_name`, `origin_id`, `destination_name`, `destination_id`, `origin_country`, `destination_country`.
+Редактируемые направления: `enabled`, `source`, `origin_name`, `origin_id`, `destination_name`, `destination_id`, `origin_country`, `destination_country`, `pickup_date`, `return_date`.
+Допускается использование `*` (wildcard) в `origin_id` и `destination_id` для поиска по всем городам или фильтрации по стране/имени.
 
 ### `Filters`
 
