@@ -606,54 +606,43 @@
 
     var google = {
       script: {
-        run: new Proxy({}, {
-          get: function(target, prop) {
-            if (prop === 'withSuccessHandler') {
-              return function(onSuccess) {
-                var caller = buildApiCaller(onSuccess, console.error);
-                caller.withFailureHandler = function(onFailure) {
-                  return buildApiCaller(onSuccess, onFailure);
-                };
-                return caller;
-              };
-            }
-            if (prop === 'withFailureHandler') {
-              return function(onFailure) {
-                var caller = buildApiCaller(null, onFailure);
-                caller.withSuccessHandler = function(onSuccess) {
-                  return buildApiCaller(onSuccess, onFailure);
-                };
-                return caller;
-              };
-            }
-            // Direct call without handlers
-            return buildApiCaller(null, console.error)[prop];
-          }
-        })
+        run: buildApiCaller(null, null)
       }
     };
 
     function buildApiCaller(onSuccess, onFailure) {
       return new Proxy({}, {
         get: function(target, method) {
-          if (method === 'withSuccessHandler' || method === 'withFailureHandler') return undefined;
+          if (method === 'withSuccessHandler') {
+            return function(newOnSuccess) {
+              return buildApiCaller(newOnSuccess, onFailure || console.error);
+            };
+          }
+          if (method === 'withFailureHandler') {
+            return function(newOnFailure) {
+              return buildApiCaller(onSuccess, newOnFailure);
+            };
+          }
+          
           return function() {
             var args = Array.prototype.slice.call(arguments);
             fetch(APPS_SCRIPT_URL + '?api=1', {
               method: 'POST',
               body: JSON.stringify({ method: method, args: args }),
-              headers: { 'Content-Type': 'text/plain;charset=utf-8' } // text/plain чтобы избежать CORS preflight OPTIONS запросов
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' }
             })
             .then(function(res) { return res.json(); })
             .then(function(data) {
               if (data.error) {
                 if (onFailure) onFailure(new Error(data.error));
+                else console.error(data.error);
               } else {
                 if (onSuccess) onSuccess(data.result);
               }
             })
             .catch(function(err) {
               if (onFailure) onFailure(err);
+              else console.error(err);
             });
           };
         }
