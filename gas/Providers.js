@@ -296,7 +296,11 @@ function fetchRoadsurferTimeframes_(originId, destinationId) {
       retries: 1,
     });
   } catch (e) {
-    return [];
+    return null;
+  }
+
+  if (!payload || (typeof payload === 'object' && !Array.isArray(payload) && !payload.timeframes && !payload.ranges && !payload.results && !payload.data)) {
+    return null;
   }
 
   const normalized = normalizeRoadsurferTimeframes_(payload);
@@ -414,25 +418,23 @@ function fetchRoadsurferOffers_(route, window, filters) {
     const pair = pairs[i];
     
     let matching = [];
-    let timeframesSuccess = false;
+    let timeframes = null;
     try {
-      const timeframes = fetchRoadsurferTimeframes_(pair.origin.id, pair.destination.id);
-      timeframesSuccess = true;
-      if (timeframes.length > 0) {
-        matching = timeframes.filter(function (timeframe) {
-          return roadsurferTimeframeInsideWindow_(timeframe, rangeStart, rangeEnd);
-        });
-      }
+      timeframes = fetchRoadsurferTimeframes_(pair.origin.id, pair.destination.id);
     } catch (e) {
       console.warn('Roadsurfer timeframes fetch failed, falling back to full range:', e.message || e);
     }
 
-    if (!timeframesSuccess) {
+    if (timeframes === null) {
       matching = [{ start: rangeStart, end: rangeEnd }];
+    } else if (timeframes.length > 0) {
+      matching = timeframes.filter(function (timeframe) {
+        return roadsurferTimeframeInsideWindow_(timeframe, rangeStart, rangeEnd);
+      });
     }
 
     for (let j = 0; j < matching.length; j += 1) {
-      const offers = fetchRoadsurferOffersForTimeframe_(pair, matching[j], route, rangeStart, rangeEnd);
+      const offers = fetchRoadsurferOffersForTimeframe_(pair, matching[j], route, rangeStart, rangeEnd, pairs.length);
       for (let k = 0; k < offers.length; k += 1) {
         allOffers.push(offers[k]);
       }
@@ -442,7 +444,7 @@ function fetchRoadsurferOffers_(route, window, filters) {
   return allOffers;
 }
 
-function fetchRoadsurferOffersForTimeframe_(pair, timeframe, route, searchRangeStart, searchRangeEnd) {
+function fetchRoadsurferOffersForTimeframe_(pair, timeframe, route, searchRangeStart, searchRangeEnd, pairsCount) {
   const origin = pair.origin;
   const destination = pair.destination;
   const rangeStart = timeframe.start;
@@ -483,6 +485,9 @@ function fetchRoadsurferOffersForTimeframe_(pair, timeframe, route, searchRangeS
         try { cache.put(cacheKey, JSON.stringify(payload), 180); } catch (e) {}
       }
     } catch (e) {
+      if (pairsCount === 1 || String(e.message || e).includes('429') || String(e.message || e).includes('500')) {
+        throw e;
+      }
       console.error('Roadsurfer search failed for ' + origin.id + ' -> ' + destination.id + ':', e.message || e);
       return [];
     }

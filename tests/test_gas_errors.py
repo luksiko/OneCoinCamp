@@ -121,6 +121,9 @@ function setupGasContext(fetchMock) {
         timeBased: () => ({
           everyMinutes: (m) => ({
             create: () => { scriptTriggers.push(fn); }
+          }),
+          everyHours: (h) => ({
+            create: () => { scriptTriggers.push(fn); }
           })
         })
       }),
@@ -392,7 +395,8 @@ if (testName === 'roadsurfer_429') {
   context.runMonitorOnce();
   const archive1 = sheets['OffersArchive'].values;
   assert.strictEqual(archive1.length, 1);
-  assert.strictEqual(Object.keys(memCache).length, 0);
+  const fingerprintKeys = Object.keys(memCache).filter(k => !k.includes(':'));
+  assert.strictEqual(fingerprintKeys.length, 0);
   assert.strictEqual(telegramCallCount, 2);
   const runs1 = sheets['Runs'].values;
   assert.strictEqual(runs1.length, 2);

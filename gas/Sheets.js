@@ -89,7 +89,9 @@ function readRoutes_(spreadsheet) {
   if (!sheet || sheet.getLastRow() < 2) {
     return [];
   }
-  const tz = (spreadsheet && spreadsheet.getSpreadsheetTimeZone) ? spreadsheet.getSpreadsheetTimeZone() : Session.getScriptTimeZone();
+  const tz = (spreadsheet && spreadsheet.getSpreadsheetTimeZone)
+    ? spreadsheet.getSpreadsheetTimeZone()
+    : (typeof Session !== 'undefined' && Session.getScriptTimeZone ? Session.getScriptTimeZone() : 'Europe/Berlin');
   const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, 10).getValues();
   return values
     .filter(function (row) {
@@ -282,7 +284,10 @@ function saveRoutes_(spreadsheet, routes) {
   sheet.getRange(2, 1, lastRow - 1, headersCount).clearContent();
   if (routes && routes.length) {
     const rows = routes.map(routeToRow_);
-    sheet.getRange(2, 9, rows.length, 2).setNumberFormat('@');
+    const dateRange = sheet.getRange(2, 9, rows.length, 2);
+    if (dateRange && typeof dateRange.setNumberFormat === 'function') {
+      dateRange.setNumberFormat('@');
+    }
     sheet.getRange(2, 1, rows.length, headersCount).setValues(rows);
   }
 }

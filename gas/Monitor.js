@@ -249,6 +249,7 @@ function runMonitorOnce() {
     const rowsToAppend = [];
     let telegramSentCount = 0;
     let hasErrors = false;
+    let lastRouteError = '';
 
     const checkNeighbors = isTruthy_(settings.check_neighbors);
 
@@ -265,6 +266,7 @@ function runMonitorOnce() {
         offers = fetchOffersForRoute_(route, effectiveWindow, filters);
       } catch (error) {
         hasErrors = true;
+        lastRouteError = error.message || String(error);
         logRun_(spreadsheet, {
           startedAt: startedAt,
           finishedAt: new Date(),
@@ -274,7 +276,7 @@ function runMonitorOnce() {
           offersFiltered: 0,
           telegramSent: 0,
           status: 'ERROR',
-          errorMessage: error.message || String(error),
+          errorMessage: lastRouteError,
         });
         return;
       }
@@ -324,6 +326,11 @@ function runMonitorOnce() {
 
     if (!hasErrors) {
       PropertiesService.getScriptProperties().deleteProperty(PROPERTY_KEYS.MONITOR_LAST_ERROR);
+    } else if (lastRouteError) {
+      PropertiesService.getScriptProperties().setProperty(
+        PROPERTY_KEYS.MONITOR_LAST_ERROR,
+        startedAt.toISOString() + ' :: ' + lastRouteError.slice(0, 500)
+      );
     }
   } catch (error) {
     const errorMessage = (error.message || String(error)).slice(0, 500);
