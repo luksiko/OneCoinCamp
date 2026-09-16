@@ -18,11 +18,12 @@ const PROPERTY_KEYS = {
   MONITOR_FRESHNESS_ALERT_ACTIVE: 'MONITOR_FRESHNESS_ALERT_ACTIVE',
   MONITOR_LAST_ERROR: 'MONITOR_LAST_ERROR',
   OFFERS_AVAILABILITY_LAST_RUN: 'OFFERS_AVAILABILITY_LAST_RUN',
+  TELEGRAM_WEBHOOK_ACTIVE: 'TELEGRAM_WEBHOOK_ACTIVE',
 };
 
 const DEFAULT_SETTINGS = {
   poll_interval_minutes: 5,
-  availability_check_interval_minutes: 15,
+  availability_check_interval_minutes: 60,
   window_days: 14,
   pickup_date: '',
   return_date: '',

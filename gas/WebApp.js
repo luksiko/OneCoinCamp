@@ -59,7 +59,9 @@ function handleApiRequest_(e) {
       'getOffers',
       'deleteOffer',
       'checkOffersAvailabilityWeb',
-      'getAnalytics'
+      'getAnalytics',
+      'registerTelegramWebhookWeb',
+      'deleteTelegramWebhookWeb'
     ];
     
     if (allowedMethods.indexOf(method) === -1) {
@@ -162,14 +164,27 @@ function getUiData(initData) {
     status: buildStatus_(spreadsheet, settings),
     monitorError: PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.MONITOR_LAST_ERROR) || '',
     telegramReady: !!(secrets.telegramBotToken && secrets.telegramChatId),
+    telegramMode: (typeof isTelegramWebhookActive_ === 'function' && isTelegramWebhookActive_()) ? 'webhook' : 'polling',
+    telegramWebhookActive: typeof isTelegramWebhookActive_ === 'function' && isTelegramWebhookActive_(),
     countries: WEBAPP_COUNTRIES,
     offersTabEnabled: true,
   };
 }
 
-function checkProvidersHealth(initData) {
+function checkProvidersHealth(initData, forceRefresh) {
   const secrets = getScriptSecrets();
   authorizeWebAppRequest_(initData, secrets);
+
+  const cache = typeof CacheService !== 'undefined' && CacheService.getScriptCache ? CacheService.getScriptCache() : null;
+  const cacheKey = 'webapp:providers-health:v1';
+  if (!forceRefresh && cache) {
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {}
+    }
+  }
 
   const result = {
     roadsurfer: { ok: false, message: 'Проверка…' },
@@ -267,7 +282,8 @@ function checkProvidersHealth(initData) {
       const tg = fetchJson_('https://api.telegram.org/bot' + secrets.telegramBotToken + '/getMe', { retries: 0 });
       const ms = new Date().getTime() - t0;
       if (tg && tg.ok && tg.result) {
-        result.telegram = { ok: true, message: 'Онлайн (@' + (tg.result.username || 'bot') + ', ' + ms + 'мс)' };
+        const modeLabel = (typeof isTelegramWebhookActive_ === 'function' && isTelegramWebhookActive_()) ? 'Webhook' : 'Polling';
+        result.telegram = { ok: true, message: 'Онлайн (@' + (tg.result.username || 'bot') + ', ' + modeLabel + ', ' + ms + 'мс)' };
       } else {
         result.telegram = { ok: false, message: 'Ошибка: ' + ((tg && tg.description) || 'не ок') };
       }
@@ -276,7 +292,31 @@ function checkProvidersHealth(initData) {
     }
   }
 
+  if (cache) {
+    try {
+      cache.put(cacheKey, JSON.stringify(result), 180);
+    } catch (e) {}
+  }
+
   return result;
+}
+
+function registerTelegramWebhookWeb(initData) {
+  const secrets = getScriptSecrets();
+  authorizeWebAppRequest_(initData, secrets);
+  if (typeof registerTelegramWebhookCore_ === 'function') {
+    return registerTelegramWebhookCore_();
+  }
+  return { ok: false, message: 'registerTelegramWebhookCore_ is not defined' };
+}
+
+function deleteTelegramWebhookWeb(initData) {
+  const secrets = getScriptSecrets();
+  authorizeWebAppRequest_(initData, secrets);
+  if (typeof deleteTelegramWebhookCore_ === 'function') {
+    return deleteTelegramWebhookCore_();
+  }
+  return { ok: false, message: 'deleteTelegramWebhookCore_ is not defined' };
 }
 
 function getProviderStations(provider, countryCodes, initData) {

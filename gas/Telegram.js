@@ -566,16 +566,38 @@ function setupTelegramMiniApp() {
   return { ok: true, webAppUrl: webAppUrl };
 }
 
-function setupTelegramWebhook() {
+function isTelegramWebhookActive_() {
+  return PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.TELEGRAM_WEBHOOK_ACTIVE) === '1';
+}
+
+function removeTelegramPollingTrigger_() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'processTelegramUpdates') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+}
+
+function ensureTelegramPollingTrigger_() {
+  let found = false;
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'processTelegramUpdates') {
+      found = true;
+    }
+  });
+  if (!found) {
+    ScriptApp.newTrigger('processTelegramUpdates').timeBased().everyMinutes(1).create();
+  }
+}
+
+function registerTelegramWebhookCore_() {
   const secrets = getScriptSecrets();
   if (!secrets.telegramBotToken) {
-    SpreadsheetApp.getUi().alert('TELEGRAM_BOT_TOKEN не задан в Script Properties');
-    return;
+    return { ok: false, message: 'TELEGRAM_BOT_TOKEN не задан в Script Properties' };
   }
   const url = ScriptApp.getService().getUrl();
   if (!url) {
-    SpreadsheetApp.getUi().alert('Сначала опубликуйте Web App (Deploy -> New deployment -> Web app)!');
-    return;
+    return { ok: false, message: 'Сначала опубликуйте Web App (Deploy -> New deployment -> Web app)!' };
   }
 
   let secret = secrets.telegramWebhookSecret;
@@ -596,31 +618,50 @@ function setupTelegramWebhook() {
       payload: JSON.stringify(payload),
     });
     if (res && res.ok) {
-      SpreadsheetApp.getUi().alert('✅ Webhook успешно установлен!');
+      PropertiesService.getScriptProperties().setProperty(PROPERTY_KEYS.TELEGRAM_WEBHOOK_ACTIVE, '1');
+      removeTelegramPollingTrigger_();
+      return { ok: true, message: 'Webhook успешно установлен! Поминутный поллинг отключен для экономии квоты.' };
     } else {
-      SpreadsheetApp.getUi().alert('❌ Ошибка установки Webhook: ' + ((res && res.description) || 'неизвестная ошибка'));
+      return { ok: false, message: 'Ошибка установки Webhook: ' + ((res && res.description) || 'неизвестная ошибка') };
     }
   } catch (error) {
-    SpreadsheetApp.getUi().alert('❌ Ошибка установки Webhook: ' + (error.message || ''));
+    return { ok: false, message: 'Ошибка установки Webhook: ' + (error.message || String(error)) };
   }
 }
 
-function deleteTelegramWebhook() {
+function deleteTelegramWebhookCore_() {
   const secrets = getScriptSecrets();
   if (!secrets.telegramBotToken) {
-    SpreadsheetApp.getUi().alert('TELEGRAM_BOT_TOKEN не задан в Script Properties');
-    return;
+    return { ok: false, message: 'TELEGRAM_BOT_TOKEN не задан в Script Properties' };
   }
   try {
     const res = fetchJson_('https://api.telegram.org/bot' + secrets.telegramBotToken + '/deleteWebhook');
     if (res && res.ok) {
-      SpreadsheetApp.getUi().alert('✅ Webhook успешно удален!');
+      PropertiesService.getScriptProperties().deleteProperty(PROPERTY_KEYS.TELEGRAM_WEBHOOK_ACTIVE);
+      ensureTelegramPollingTrigger_();
+      return { ok: true, message: 'Webhook удален. Включен фоновый поллинг Telegram.' };
     } else {
-      SpreadsheetApp.getUi().alert('❌ Ошибка удаления Webhook: ' + ((res && res.description) || 'неизвестная ошибка'));
+      return { ok: false, message: 'Ошибка удаления Webhook: ' + ((res && res.description) || 'неизвестная ошибка') };
     }
   } catch (e) {
-    SpreadsheetApp.getUi().alert('❌ Ошибка удаления Webhook: ' + (e.message || ''));
+    return { ok: false, message: 'Ошибка удаления Webhook: ' + (e.message || String(e)) };
   }
+}
+
+function setupTelegramWebhook() {
+  const res = registerTelegramWebhookCore_();
+  try {
+    SpreadsheetApp.getUi().alert((res.ok ? '✅ ' : '❌ ') + res.message);
+  } catch (e) {}
+  return res;
+}
+
+function deleteTelegramWebhook() {
+  const res = deleteTelegramWebhookCore_();
+  try {
+    SpreadsheetApp.getUi().alert((res.ok ? '✅ ' : '❌ ') + res.message);
+  } catch (e) {}
+  return res;
 }
 
 function escapeHtml_(value) {

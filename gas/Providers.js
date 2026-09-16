@@ -574,6 +574,19 @@ const MOVACAR_COUNTRIES = {
 };
 
 function getMovacarAllStations_() {
+  const cache = typeof CacheService !== 'undefined' && CacheService.getScriptCache ? CacheService.getScriptCache() : null;
+  const cacheKey = 'movacar:all-stations:v1';
+  let stations = null;
+  if (cache) {
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      try { stations = JSON.parse(cached); } catch (e) {}
+    }
+  }
+  if (stations && Array.isArray(stations) && stations.length) {
+    return stations;
+  }
+
   const url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de';
   const payload = fetchJson_(url, {
     headers: {
@@ -586,7 +599,7 @@ function getMovacarAllStations_() {
   });
 
   const included = payload.included || [];
-  const stations = [];
+  stations = [];
   const seen = {};
 
   for (let i = 0; i < included.length; i++) {
@@ -605,6 +618,11 @@ function getMovacarAllStations_() {
       }
     }
   }
+  if (cache && stations.length) {
+    try {
+      cache.put(cacheKey, JSON.stringify(stations), 21600);
+    } catch (e) {}
+  }
   return stations;
 }
 
@@ -613,56 +631,75 @@ function fetchMovacarDestinations_(originRef, filters) {
     return getMovacarAllStations_();
   }
 
-  const query = 'locale=de&origin_reference=' + encodeURIComponent(originRef);
-  const url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?' + query;
-  
-  let payload;
-  try {
-    payload = fetchJson_(url, {
-      headers: {
-        Accept: 'application/vnd.api+json',
-        Origin: 'https://movacar.com',
-        Referer: 'https://movacar.com/',
-        'X-Request-Id': randomRequestId_(),
-      }
-    });
-  } catch (err) {
-    return [];
+  const cache = typeof CacheService !== 'undefined' && CacheService.getScriptCache ? CacheService.getScriptCache() : null;
+  const cacheKey = 'movacar:destinations:v1:' + originRef;
+  let destinations = null;
+  if (cache) {
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      try { destinations = JSON.parse(cached); } catch (e) {}
+    }
   }
 
-  const included = payload.included || [];
-  const destinations = [];
-  const seen = {};
-  
+  if (!destinations) {
+    const query = 'locale=de&origin_reference=' + encodeURIComponent(originRef);
+    const url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?' + query;
+    
+    let payload;
+    try {
+      payload = fetchJson_(url, {
+        headers: {
+          Accept: 'application/vnd.api+json',
+          Origin: 'https://movacar.com',
+          Referer: 'https://movacar.com/',
+          'X-Request-Id': randomRequestId_(),
+        }
+      });
+    } catch (err) {
+      return [];
+    }
+
+    const included = payload.included || [];
+    destinations = [];
+    const seen = {};
+
+    for (let i = 0; i < included.length; i++) {
+      const item = included[i];
+      if (item.type === 'locationsummary' && item.attributes && item.attributes.location_type === 'destination') {
+        const name = item.attributes.name;
+        const id = item.attributes.reference;
+        const cCode = MOVACAR_COUNTRIES[name] || '';
+        
+        if (!seen[id]) {
+          seen[id] = true;
+          destinations.push({
+            id: id,
+            name: name,
+            country: cCode
+          });
+        }
+      }
+    }
+
+    if (cache && destinations.length) {
+      try {
+        cache.put(cacheKey, JSON.stringify(destinations), 21600);
+      } catch (e) {}
+    }
+  }
+
   const allowedCountries = (filters && filters.allowed_destination_countries)
     ? filters.allowed_destination_countries.split(',').map(function(c) { return c.trim().toUpperCase(); }).filter(Boolean)
     : [];
 
-  for (let i = 0; i < included.length; i++) {
-    const item = included[i];
-    if (item.type === 'locationsummary' && item.attributes && item.attributes.location_type === 'destination') {
-      const name = item.attributes.name;
-      const id = item.attributes.reference;
-      const cCode = MOVACAR_COUNTRIES[name] || '';
-      
-      if (allowedCountries.length > 0 && cCode) {
-         if (allowedCountries.indexOf(cCode) === -1) {
-           continue; // Skip if country is known and not in allowed list
-         }
-      }
-      
-      if (!seen[id]) {
-        seen[id] = true;
-        destinations.push({
-          id: id,
-          name: name,
-          country: cCode
-        });
-      }
-    }
+  if (!allowedCountries.length) {
+    return destinations;
   }
-  
-  return destinations;
+
+  return destinations.filter(function (d) {
+    if (!d.country) return true;
+    return allowedCountries.indexOf(d.country) !== -1;
+  });
 }
 
 // --- IndieCampers city slug → ISO2 country code ---

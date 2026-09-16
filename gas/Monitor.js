@@ -46,8 +46,9 @@ function installMonitorTriggers_(settings) {
   const minutes = Number(settings.poll_interval_minutes || DEFAULT_SETTINGS.poll_interval_minutes);
   const allowed = [1, 5, 10, 15, 30];
   const interval = allowed.indexOf(minutes) === -1 ? 5 : minutes;
-  const availMinutes = Number(settings.availability_check_interval_minutes || DEFAULT_SETTINGS.availability_check_interval_minutes || 15);
-  const availInterval = allowed.indexOf(availMinutes) === -1 ? 15 : availMinutes;
+  const availMinutes = Number(settings.availability_check_interval_minutes || DEFAULT_SETTINGS.availability_check_interval_minutes || 60);
+
+  const webhookActive = PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.TELEGRAM_WEBHOOK_ACTIVE) === '1';
 
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     const fn = trigger.getHandlerFunction();
@@ -55,10 +56,23 @@ function installMonitorTriggers_(settings) {
       ScriptApp.deleteTrigger(trigger);
     }
   });
+
   ScriptApp.newTrigger('runMonitorOnce').timeBased().everyMinutes(interval).create();
-  ScriptApp.newTrigger('processTelegramUpdates').timeBased().everyMinutes(1).create();
-  ScriptApp.newTrigger('checkMonitorFreshness').timeBased().everyMinutes(1).create();
-  ScriptApp.newTrigger('checkOffersAvailability').timeBased().everyMinutes(availInterval).create();
+
+  if (!webhookActive) {
+    ScriptApp.newTrigger('processTelegramUpdates').timeBased().everyMinutes(1).create();
+  }
+
+  ScriptApp.newTrigger('checkMonitorFreshness').timeBased().everyMinutes(10).create();
+
+  if (availMinutes >= 60) {
+    const hours = Math.min(Math.max(1, Math.floor(availMinutes / 60)), 12);
+    ScriptApp.newTrigger('checkOffersAvailability').timeBased().everyHours(hours).create();
+  } else {
+    const availInterval = allowed.indexOf(availMinutes) === -1 ? 15 : availMinutes;
+    ScriptApp.newTrigger('checkOffersAvailability').timeBased().everyMinutes(availInterval).create();
+  }
+
   return interval;
 }
 
@@ -68,8 +82,9 @@ function ensureMonitorTriggers_() {
   const minutes = Number(settings.poll_interval_minutes || DEFAULT_SETTINGS.poll_interval_minutes);
   const allowed = [1, 5, 10, 15, 30];
   const interval = allowed.indexOf(minutes) === -1 ? 5 : minutes;
-  const availMinutes = Number(settings.availability_check_interval_minutes || DEFAULT_SETTINGS.availability_check_interval_minutes || 15);
-  const availInterval = allowed.indexOf(availMinutes) === -1 ? 15 : availMinutes;
+  const availMinutes = Number(settings.availability_check_interval_minutes || DEFAULT_SETTINGS.availability_check_interval_minutes || 60);
+
+  const webhookActive = PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.TELEGRAM_WEBHOOK_ACTIVE) === '1';
 
   const existing = {};
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
@@ -80,16 +95,32 @@ function ensureMonitorTriggers_() {
     ScriptApp.newTrigger('runMonitorOnce').timeBased().everyMinutes(interval).create();
     created.push('runMonitorOnce');
   }
-  if (!existing.processTelegramUpdates) {
+
+  if (webhookActive) {
+    if (existing.processTelegramUpdates) {
+      ScriptApp.getProjectTriggers().forEach(function (trigger) {
+        if (trigger.getHandlerFunction() === 'processTelegramUpdates') {
+          ScriptApp.deleteTrigger(trigger);
+        }
+      });
+    }
+  } else if (!existing.processTelegramUpdates) {
     ScriptApp.newTrigger('processTelegramUpdates').timeBased().everyMinutes(1).create();
     created.push('processTelegramUpdates');
   }
+
   if (!existing.checkMonitorFreshness) {
-    ScriptApp.newTrigger('checkMonitorFreshness').timeBased().everyMinutes(1).create();
+    ScriptApp.newTrigger('checkMonitorFreshness').timeBased().everyMinutes(10).create();
     created.push('checkMonitorFreshness');
   }
   if (!existing.checkOffersAvailability) {
-    ScriptApp.newTrigger('checkOffersAvailability').timeBased().everyMinutes(availInterval).create();
+    if (availMinutes >= 60) {
+      const hours = Math.min(Math.max(1, Math.floor(availMinutes / 60)), 12);
+      ScriptApp.newTrigger('checkOffersAvailability').timeBased().everyHours(hours).create();
+    } else {
+      const availInterval = allowed.indexOf(availMinutes) === -1 ? 15 : availMinutes;
+      ScriptApp.newTrigger('checkOffersAvailability').timeBased().everyMinutes(availInterval).create();
+    }
     created.push('checkOffersAvailability');
   }
   return created;

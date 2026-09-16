@@ -555,7 +555,7 @@
     <div class="card" id="healthCard">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <div class="card-title" style="margin-bottom:0;">🌐 Статус связи с сайтами</div>
-          <button type="button" style="background:none; border:none; color:var(--accent); font-size:12px; font-weight:600; cursor:pointer;" onclick="checkHealth()">🔄 Обновить</button>
+          <button type="button" style="background:none; border:none; color:var(--accent); font-size:12px; font-weight:600; cursor:pointer;" onclick="checkHealth(true)">🔄 Обновить</button>
         </div>
         <div style="font-size:13px; line-height:1.6;">
           <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
@@ -606,6 +606,15 @@
               <span class="slider"></span>
             </span>
           </label>
+        </div>
+        <div class="field" id="webhookField">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <div>
+              <span style="font-weight:500;font-size:14px;">Режим Telegram бота</span>
+              <div style="font-size:11px;color:var(--hint);" id="webhookStatusDesc">Загрузка режима…</div>
+            </div>
+            <button type="button" id="btnToggleWebhook" class="btn btn-secondary" style="width:auto;padding:5px 10px;font-size:12px;margin:0;white-space:nowrap;">⚡ Включить Webhook</button>
+          </div>
         </div>
         <div class="field">
           <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
@@ -1245,6 +1254,26 @@
       document.getElementById('telegramEnabled').onchange = function () {
         state.settings.telegram_enabled = this.checked;
       };
+      var btnToggleWebhook = document.getElementById('btnToggleWebhook');
+      if (btnToggleWebhook) {
+        btnToggleWebhook.onclick = function () {
+          var isCurrentlyActive = !!(state && state.telegramWebhookActive);
+          var method = isCurrentlyActive ? 'deleteTelegramWebhookWeb' : 'registerTelegramWebhookWeb';
+          btnToggleWebhook.disabled = true;
+          btnToggleWebhook.textContent = 'Подождите…';
+          google.script.run
+            .withSuccessHandler(function (res) {
+              btnToggleWebhook.disabled = false;
+              toast(res && res.message ? res.message : 'Готово!', !(res && res.ok));
+              load();
+            })
+            .withFailureHandler(function (err) {
+              btnToggleWebhook.disabled = false;
+              var msg = (err && err.message) || String(err);
+              toast(msg, true);
+            })[method](getInitData());
+        };
+      }
       // Show offers tab only in development (when skipAuth is enabled)
       var tabNav = document.getElementById('tabNav');
       google.script.run.withSuccessHandler(function(data) {
@@ -1272,7 +1301,7 @@
       checkHealth();
     }
 
-    function checkHealth() {
+    function checkHealth(forceRefresh) {
       var initData = getInitData();
       var rs = document.getElementById('healthRs');
       var mv = document.getElementById('healthMv');
@@ -1312,11 +1341,25 @@
         .withFailureHandler(function (err) {
           if (rs) rs.textContent = '❌ Ошибка';
         })
-        .checkProvidersHealth(initData);
+        .checkProvidersHealth(initData, !!forceRefresh);
     }
 
     function render(data) {
       state = data;
+      var webhookActive = !!(data && data.telegramWebhookActive);
+      var webhookBtn = document.getElementById('btnToggleWebhook');
+      var webhookDesc = document.getElementById('webhookStatusDesc');
+      if (webhookBtn && webhookDesc) {
+        if (webhookActive) {
+          webhookDesc.textContent = '🟢 Webhook активен (поллинг отключен, квота не тратится)';
+          webhookBtn.textContent = 'Отключить Webhook';
+          webhookBtn.style.color = 'var(--danger)';
+        } else {
+          webhookDesc.textContent = '🟡 Polling (раз в 1 мин, тратит ~1440 запросов/день)';
+          webhookBtn.textContent = '⚡ Включить Webhook';
+          webhookBtn.style.color = 'var(--accent)';
+        }
+      }
       renderStatus();
       renderSettings();
       renderRoutes();
