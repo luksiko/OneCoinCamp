@@ -260,30 +260,44 @@
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     #toast.err { color: var(--danger); }
 
-    /* Tab nav */
+    /* Bottom Tab nav */
     .tab-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
       display: flex;
       gap: 4px;
-      margin-bottom: 12px;
-      background: var(--section);
-      padding: 4px;
-      border-radius: 12px;
+      background: var(--card);
+      padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+      border-top: 1px solid var(--border);
+      z-index: 100;
+      margin: 0;
+      border-radius: 0;
     }
     .tab-btn {
       flex: 1;
       border: none;
       background: transparent;
       color: var(--subtext);
-      padding: 10px;
-      border-radius: 9px;
-      font-size: 14px;
-      font-weight: 600;
+      padding: 8px 0;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 500;
       cursor: pointer;
-      transition: background 0.15s, color 0.15s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.15s;
+    }
+    .tab-btn .icon {
+      font-size: 20px;
+      margin-bottom: 2px;
     }
     .tab-btn.selected {
-      background: var(--card);
-      color: var(--text);
+      background: transparent;
+      color: var(--accent);
     }
 
     /* Offers screen */
@@ -402,13 +416,17 @@
       background: var(--section);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 6px 10px;
-      font-size: 12px;
-      font-weight: 600;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
       color: var(--accent);
       cursor: pointer;
-      white-space: nowrap;
+      flex-shrink: 0;
       transition: background 0.15s;
+      padding: 0;
     }
     .btn-check-avail:hover {
       background: rgba(46, 166, 255, 0.15);
@@ -545,13 +563,16 @@
     </div>
 
     <div id="mainForm">
-      <div class="tab-nav" id="tabNav">
-      <button type="button" class="tab-btn selected" id="tabSettings" onclick="switchTab('settings')">⚙️ Настройки</button>
-      <button type="button" class="tab-btn" id="tabOffers" onclick="switchTab('offers')">🎫 Офферы</button>
-      <button type="button" class="tab-btn" id="tabAnalytics" onclick="switchTab('analytics')">📊 Аналитика</button>
-    </div>
+      <div id="screenMain">
+        <div class="card">
+          <div class="card-title">Маршруты</div>
+          <div id="routesList"></div>
+          <button type="button" class="add-route" id="btnAddRoute">+ Добавить маршрут</button>
+        </div>
+        <button type="button" class="btn btn-secondary" id="btnRun">▶ Запустить проверку</button>
+      </div>
 
-    <div id="screenSettings">
+    <div id="screenSettings" style="display:none;">
     <div class="card" id="healthCard">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <div class="card-title" style="margin-bottom:0;">🌐 Статус связи с сайтами</div>
@@ -626,15 +647,8 @@
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">Маршруты</div>
-        <div id="routesList"></div>
-        <button type="button" class="add-route" id="btnAddRoute">+ Добавить маршрут</button>
-      </div>
-
-      <button type="button" class="btn btn-secondary" id="btnRun">▶ Запустить проверку</button>
       <button type="button" class="btn btn-secondary" id="btnTriggers" style="margin-top:8px;">🔧 Восстановить триггеры</button>
-      <button type="button" class="btn btn-accent" id="btnSave">Сохранить</button>
+      <button type="button" class="btn btn-accent" id="btnSave">Сохранить настройки</button>
       <button type="button" class="link-reset" id="btnReset">Сбросить несохранённые изменения</button>
     </div>
     </div>
@@ -642,7 +656,7 @@
     <div id="screenOffers" style="display:none;">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
         <div class="filters-bar" id="sourceFilters" style="margin-bottom:0; flex-grow:1;"></div>
-        <button type="button" class="btn-check-avail" id="btnCheckAvail" title="Проверить доступность офферов у провайдеров и удалить недоступные">🔄 Проверить доступность</button>
+        <button type="button" class="btn-check-avail" id="btnCheckAvail" title="Проверить доступность офферов у провайдеров и удалить недоступные">🔄</button>
       </div>
 
       <div class="offers-summary" id="offersSummary"></div>
@@ -696,8 +710,26 @@
     </div>
   </div>
 
-  <div id="toast"></div>
+  <div class="tab-nav" id="tabNav">
+    <button type="button" class="tab-btn selected" id="tabMain" onclick="switchTab('main')">
+      <span class="icon">🏠</span>
+      <span>Главная</span>
+    </button>
+    <button type="button" class="tab-btn" id="tabOffers" onclick="switchTab('offers')">
+      <span class="icon">🎫</span>
+      <span>Офферы</span>
+    </button>
+    <button type="button" class="tab-btn" id="tabAnalytics" onclick="switchTab('analytics')">
+      <span class="icon">📊</span>
+      <span>Аналитика</span>
+    </button>
+    <button type="button" class="tab-btn" id="tabSettings" onclick="switchTab('settings')">
+      <span class="icon">⚙️</span>
+      <span>Настройки</span>
+    </button>
+  </div>
 
+  <div id="toast"></div>
   <script>
     // --- ПОЛИФИЛЛ ДЛЯ google.script.run ---
     // ВАЖНО: ЗАМЕНИТЕ ЭТУ ССЫЛКУ НА URL ВАШЕГО РАЗВЕРНУТОГО APPS SCRIPT WEB APP!
@@ -750,7 +782,7 @@
     // --------------------------------------
 
     var state = null;
-    var currentTab = 'settings';
+    var currentTab = 'main';
     var offersData = null;
     var offerFilters = { source: '', sentStatus: '', page: 1 };
     var INTERVALS = [1, 5, 10, 15, 30];
@@ -767,18 +799,26 @@
 
     function switchTab(tab) {
       currentTab = tab;
+      var mainBtn      = document.getElementById('tabMain');
       var settingsBtn  = document.getElementById('tabSettings');
       var offersBtn    = document.getElementById('tabOffers');
       var analyticsBtn = document.getElementById('tabAnalytics');
+      
+      var screenMain      = document.getElementById('screenMain');
       var screenSettings  = document.getElementById('screenSettings');
       var screenOffers    = document.getElementById('screenOffers');
       var screenAnalytics = document.getElementById('screenAnalytics');
+      
+      if (mainBtn)      mainBtn.classList.toggle('selected',      tab === 'main');
       if (settingsBtn)  settingsBtn.classList.toggle('selected',  tab === 'settings');
       if (offersBtn)    offersBtn.classList.toggle('selected',    tab === 'offers');
       if (analyticsBtn) analyticsBtn.classList.toggle('selected', tab === 'analytics');
+      
+      if (screenMain)      screenMain.style.display      = tab === 'main'      ? '' : 'none';
       if (screenSettings)  screenSettings.style.display  = tab === 'settings'  ? '' : 'none';
       if (screenOffers)    screenOffers.style.display    = tab === 'offers'    ? '' : 'none';
       if (screenAnalytics) screenAnalytics.style.display = tab === 'analytics' ? '' : 'none';
+      
       if (tab === 'offers')    loadOffers();
       if (tab === 'analytics') loadAnalytics();
     }
@@ -1183,14 +1223,14 @@
       var btn = document.getElementById('btnCheckAvail');
       if (btn) {
         btn.disabled = true;
-        btn.textContent = '⏳ Проверка...';
+        btn.textContent = '⏳';
       }
       var initData = getInitData();
       google.script.run
         .withSuccessHandler(function (res) {
           if (btn) {
             btn.disabled = false;
-            btn.textContent = '🔄 Проверить доступность';
+            btn.textContent = '🔄';
           }
           var msg = 'Проверка доступности завершена.';
           if (res && res.removed !== undefined) {
@@ -1204,7 +1244,7 @@
         .withFailureHandler(function (err) {
           if (btn) {
             btn.disabled = false;
-            btn.textContent = '🔄 Проверить доступность';
+            btn.textContent = '🔄';
           }
           toast((err && err.message) || 'Ошибка при проверке доступности', true);
         })
@@ -1277,10 +1317,12 @@
       // Show offers tab only in development (when skipAuth is enabled)
       var tabNav = document.getElementById('tabNav');
       google.script.run.withSuccessHandler(function(data) {
-        if (data && data.offersTabEnabled) {
+        if (data && data.offersTabEnabled && tabNav) {
           tabNav.style.display = 'flex';
         }
       }).withFailureHandler(function() {}).getUiData(getInitData());
+      
+      switchTab(currentTab);
       load();
     }
 
