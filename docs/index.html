@@ -1281,11 +1281,7 @@
       if (tg && getInitData()) {
         tg.ready();
         tg.expand();
-        tg.MainButton.setText('Сохранить').onClick(function () { saveSettings(); }).show();
-        var btnSave = document.getElementById('btnSave');
-        if (btnSave) btnSave.style.display = 'none';
-        var btnSaveMain = document.getElementById('btnSaveMain');
-        if (btnSaveMain) btnSaveMain.style.display = 'none';
+        tg.MainButton.hide(); // Отключаем нативную кнопку, чтобы не ломать табы
       }
       document.getElementById('btnRun').onclick = runCheck;
       var btnTriggers = document.getElementById('btnTriggers');
