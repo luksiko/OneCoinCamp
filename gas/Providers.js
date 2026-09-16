@@ -270,22 +270,40 @@ function fetchRoadsurferTimeframes_(originId, destinationId) {
     return [];
   }
 
+  const cache = typeof CacheService !== 'undefined' && CacheService.getScriptCache ? CacheService.getScriptCache() : null;
+  const cacheKey = 'roadsurfer:timeframes:v1:' + origin + ':' + destination;
+  if (cache) {
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      try { return JSON.parse(cached); } catch (e) {}
+    }
+  }
+
   const url = 'https://booking.roadsurfer.com/api/en/rally/timeframes/' +
     encodeURIComponent(origin) + '-' + encodeURIComponent(destination);
   const referer = 'https://booking.roadsurfer.com/en/rally/pick?station=' +
     encodeURIComponent(origin) + '&end_station=' + encodeURIComponent(destination) + '&currency=EUR';
 
-  const payload = fetchJson_(url, {
-    headers: {
-      Accept: 'application/json, text/plain, */*',
-      Referer: referer,
-      'X-Requested-Alias': 'rally.timeframes',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    },
-    retries: 1,
-  });
+  let payload;
+  try {
+    payload = fetchJson_(url, {
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        Referer: referer,
+        'X-Requested-Alias': 'rally.timeframes',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      retries: 1,
+    });
+  } catch (e) {
+    return [];
+  }
 
-  return normalizeRoadsurferTimeframes_(payload);
+  const normalized = normalizeRoadsurferTimeframes_(payload);
+  if (cache && Array.isArray(normalized)) {
+    try { cache.put(cacheKey, JSON.stringify(normalized), 180); } catch (e) {}
+  }
+  return normalized;
 }
 
 function normalizeRoadsurferTimeframes_(payload) {
@@ -395,11 +413,11 @@ function fetchRoadsurferOffers_(route, window, filters) {
   for (let i = 0; i < pairs.length; i += 1) {
     const pair = pairs[i];
     
-    // Fallback if timeframes fetch fails or returns nothing: test full range
-    let matching = [{ start: rangeStart, end: rangeEnd }];
-    
+    let matching = [];
+    let timeframesSuccess = false;
     try {
       const timeframes = fetchRoadsurferTimeframes_(pair.origin.id, pair.destination.id);
+      timeframesSuccess = true;
       if (timeframes.length > 0) {
         matching = timeframes.filter(function (timeframe) {
           return roadsurferTimeframeInsideWindow_(timeframe, rangeStart, rangeEnd);
@@ -407,6 +425,10 @@ function fetchRoadsurferOffers_(route, window, filters) {
       }
     } catch (e) {
       console.warn('Roadsurfer timeframes fetch failed, falling back to full range:', e.message || e);
+    }
+
+    if (!timeframesSuccess) {
+      matching = [{ start: rangeStart, end: rangeEnd }];
     }
 
     for (let j = 0; j < matching.length; j += 1) {
@@ -437,19 +459,33 @@ function fetchRoadsurferOffersForTimeframe_(pair, timeframe, route, searchRangeS
     '&range=' + encodeURIComponent(JSON.stringify([rangeStart, rangeEnd])) +
     '&currency=EUR&models=' + encodeURIComponent('[]');
 
-  let payload;
-  try {
-    payload = fetchJson_(searchUrl, {
-      headers: {
-        Accept: 'application/json, text/plain, */*',
-        Referer: refererUrl,
-        'X-Requested-Alias': 'rally.search',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-    });
-  } catch (e) {
-    console.error('Roadsurfer search failed for ' + origin.id + ' -> ' + destination.id + ':', e.message || e);
-    return [];
+  const cache = typeof CacheService !== 'undefined' && CacheService.getScriptCache ? CacheService.getScriptCache() : null;
+  const cacheKey = 'roadsurfer:search:v1:' + origin.id + ':' + destination.id + ':' + rangeStart + ':' + rangeEnd;
+  let payload = null;
+  if (cache) {
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      try { payload = JSON.parse(cached); } catch (e) {}
+    }
+  }
+
+  if (!payload) {
+    try {
+      payload = fetchJson_(searchUrl, {
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          Referer: refererUrl,
+          'X-Requested-Alias': 'rally.search',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
+      if (cache && payload) {
+        try { cache.put(cacheKey, JSON.stringify(payload), 180); } catch (e) {}
+      }
+    } catch (e) {
+      console.error('Roadsurfer search failed for ' + origin.id + ' -> ' + destination.id + ':', e.message || e);
+      return [];
+    }
   }
 
   const items = Array.isArray(payload) ? payload : (payload && (payload.results || payload.data)) || [];
@@ -547,19 +583,33 @@ function fetchMovacarOffers_(route, window) {
     }
     const url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/offers?locale=en&origin=' + encodeURIComponent(origin.id) + (isWildDest ? '' : '&destination=' + encodeURIComponent(destRef));
     
-    let payload;
-    try {
-      payload = fetchJson_(url, {
-        headers: {
-          Accept: 'application/vnd.api+json',
-          Origin: 'https://movacar.com',
-          Referer: 'https://movacar.com/',
-          'X-Request-Id': randomRequestId_()
-        },
-        retries: 1
-      });
-    } catch (e) {
-      continue;
+    const cache = typeof CacheService !== 'undefined' && CacheService.getScriptCache ? CacheService.getScriptCache() : null;
+    const cacheKey = 'movacar:offers:v1:' + origin.id + ':' + (isWildDest ? 'all' : destRef);
+    let payload = null;
+    if (cache) {
+      const cached = cache.get(cacheKey);
+      if (cached) {
+        try { payload = JSON.parse(cached); } catch (e) {}
+      }
+    }
+
+    if (!payload) {
+      try {
+        payload = fetchJson_(url, {
+          headers: {
+            Accept: 'application/vnd.api+json',
+            Origin: 'https://movacar.com',
+            Referer: 'https://movacar.com/',
+            'X-Request-Id': randomRequestId_()
+          },
+          retries: 1
+        });
+        if (cache && payload && (payload.data || payload.included)) {
+          try { cache.put(cacheKey, JSON.stringify(payload), 180); } catch (e) {}
+        }
+      } catch (e) {
+        continue;
+      }
     }
     
     const included = payload.included || [];
@@ -1046,15 +1096,34 @@ function fetchImoovaOffers_(route, window) {
     gqlFilter = ', whereDepartureCity: {column: SLUG, operator: EQ, value: "' + slug + '"}';
   }
 
-  const res = fetchJson_('https://api.imoova.com/graphql', {
-    method: 'post',
-    contentType: 'application/json',
-    payload: JSON.stringify({
-      query: 'query GetRelocations { relocations(first: 100' + gqlFilter + ') { data { id name available_from_date available_to_date hire_unit_rate retail_rate currency vehicle { name } departureCity { id name slug } deliveryCity { id name slug } } } }',
-      operationName: 'GetRelocations'
-    }),
-    headers: { Origin: 'https://www.imoova.com' }
-  });
+  const cache = typeof CacheService !== 'undefined' && CacheService.getScriptCache ? CacheService.getScriptCache() : null;
+  const cacheKey = 'imoova:offers:v1:' + (gqlFilter ? Utilities.base64Encode(gqlFilter) : 'all');
+  let res = null;
+  if (cache) {
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      try { res = JSON.parse(cached); } catch (e) {}
+    }
+  }
+
+  if (!res) {
+    try {
+      res = fetchJson_('https://api.imoova.com/graphql', {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({
+          query: 'query GetRelocations { relocations(first: 100' + gqlFilter + ') { data { id name available_from_date available_to_date hire_unit_rate retail_rate currency vehicle { name } departureCity { id name slug } deliveryCity { id name slug } } } }',
+          operationName: 'GetRelocations'
+        }),
+        headers: { Origin: 'https://www.imoova.com' }
+      });
+      if (cache && res && res.data) {
+        try { cache.put(cacheKey, JSON.stringify(res), 180); } catch (e) {}
+      }
+    } catch (e) {
+      return [];
+    }
+  }
 
   const items = (res && res.data && res.data.relocations && Array.isArray(res.data.relocations.data)) ? res.data.relocations.data : [];
   const offers = [];

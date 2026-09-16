@@ -88,6 +88,19 @@ function buildNeighborWindows_(baseWindow, maxOffset) {
   return offsets;
 }
 
+function buildEffectiveWindow_(baseWindow, checkNeighbors) {
+  if (!checkNeighbors || !baseWindow) {
+    return baseWindow;
+  }
+  return {
+    start: addDays_(baseWindow.start, -2),
+    end: addDays_(baseWindow.end, 2),
+    timezone: baseWindow.timezone,
+    windowDays: baseWindow.windowDays,
+    checkNeighbors: true,
+  };
+}
+
 function offerMatchesFilter_(offer, filters, window) {
   const origins = parseCountryList_(filters.allowed_origin_countries);
   const destinations = parseCountryList_(filters.allowed_destination_countries);

@@ -255,64 +255,54 @@ function runMonitorOnce() {
     routes.forEach(function (route, routeIndex) {
       // Build date windows per route. If route has no dates, fallback to global settings
       const pickupDate = route.pickupDate || settings.pickup_date;
-      const returnDate = route.returnDate || settings.return_date;
       const routeWindow = buildDateWindow_(settings, filters, pickupDate, returnDate);
-      const allWindows = [routeWindow];
-      
-      if (checkNeighbors) {
-        var neighborWindows = buildNeighborWindows_(routeWindow, 2);
-        for (var nw = 0; nw < neighborWindows.length; nw++) {
-          allWindows.push(neighborWindows[nw]);
-        }
+      const effectiveWindow = buildEffectiveWindow_(routeWindow, checkNeighbors);
+
+      let offers = [];
+      try {
+        requestCount += 1;
+        offers = fetchOffersForRoute_(route, effectiveWindow, filters);
+      } catch (error) {
+        hasErrors = true;
+        logRun_(spreadsheet, {
+          startedAt: startedAt,
+          finishedAt: new Date(),
+          source: route.source,
+          requestCount: 1,
+          offersFound: 0,
+          offersFiltered: 0,
+          telegramSent: 0,
+          status: 'ERROR',
+          errorMessage: error.message || String(error),
+        });
+        return;
       }
-      for (var wi = 0; wi < allWindows.length; wi++) {
-        var currentWindow = allWindows[wi];
-        let offers = [];
-        try {
-          requestCount += 1;
-          offers = fetchOffersForRoute_(route, currentWindow, filters);
-        } catch (error) {
-          hasErrors = true;
-          logRun_(spreadsheet, {
-            startedAt: startedAt,
-            finishedAt: new Date(),
-            source: route.source,
-            requestCount: 1,
-            offersFound: 0,
-            offersFiltered: 0,
-            telegramSent: 0,
-            status: 'ERROR',
-            errorMessage: error.message || String(error),
-          });
-          continue;
+
+      offers.forEach(function (offer) {
+        const fingerprint = offerFingerprint_(offer);
+        const matches = offerMatchesFilter_(offer, filters, effectiveWindow);
+        const alreadyKnown = known.has(fingerprint) || cache.get(fingerprint) === '1' || isFingerprintDismissed_(fingerprint);
+
+        if (alreadyKnown) {
+          return;
         }
 
-        offers.forEach(function (offer) {
-          const fingerprint = offerFingerprint_(offer);
-          const matches = offerMatchesFilter_(offer, filters, currentWindow);
-          const alreadyKnown = known.has(fingerprint) || cache.get(fingerprint) === '1' || isFingerprintDismissed_(fingerprint);
-
-          if (alreadyKnown) {
+        let telegramSentAt = '';
+        if (matches && settings.telegram_enabled) {
+          try {
+            sendTelegramOffer_(secrets, offer, route, routeIndex, settings);
+            telegramSentAt = formatIsoDate_(new Date());
+            telegramSentCount += 1;
+          } catch (error) {
             return;
           }
+        }
 
-          let telegramSentAt = '';
-          if (matches && settings.telegram_enabled) {
-            try {
-              sendTelegramOffer_(secrets, offer, route, routeIndex, settings);
-              telegramSentAt = formatIsoDate_(new Date());
-              telegramSentCount += 1;
-            } catch (error) {
-              return;
-            }
-          }
-
-          known.add(fingerprint);
-          cache.put(fingerprint, '1', 21600);
-          foundOffers.push(offer);
-          rowsToAppend.push(offerToRow_(offer, fingerprint, matches, telegramSentAt));
-        });
-      }
+        known.add(fingerprint);
+        cache.put(fingerprint, '1', 21600);
+        foundOffers.push(offer);
+        rowsToAppend.push(offerToRow_(offer, fingerprint, matches, telegramSentAt));
+      });
     });
 
     if (rowsToAppend.length) {
