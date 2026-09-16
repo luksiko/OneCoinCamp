@@ -321,6 +321,10 @@ function runMonitorOnce() {
       status: hasErrors ? 'PARTIAL' : 'OK',
       errorMessage: '',
     });
+
+    if (!hasErrors) {
+      PropertiesService.getScriptProperties().deleteProperty(PROPERTY_KEYS.MONITOR_LAST_ERROR);
+    }
   } catch (error) {
     const errorMessage = (error.message || String(error)).slice(0, 500);
     const props = PropertiesService.getScriptProperties();

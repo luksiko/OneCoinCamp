@@ -584,23 +584,23 @@
           <button type="button" style="background:none; border:none; color:var(--accent); font-size:12px; font-weight:600; cursor:pointer;" onclick="checkHealth(true)">🔄 Обновить</button>
         </div>
         <div style="font-size:13px; line-height:1.6;">
-          <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+          <div id="healthRowRs" style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
             <span>🚐 Roadsurfer Rally</span>
             <span id="healthRs" style="color:var(--hint);">Проверка…</span>
           </div>
-          <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+          <div id="healthRowMv" style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
             <span>🚗 Movacar API</span>
             <span id="healthMv" style="color:var(--hint);">Проверка…</span>
           </div>
-          <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+          <div id="healthRowIc" style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
             <span>⛺ Indie Campers</span>
             <span id="healthIc" style="color:var(--hint);">Проверка…</span>
           </div>
-          <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+          <div id="healthRowIm" style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
             <span>🌐 Imoova</span>
             <span id="healthIm" style="color:var(--hint);">Проверка…</span>
           </div>
-          <div style="display:flex; justify-content:space-between; padding:4px 0;">
+          <div id="healthRowTg" style="display:flex; justify-content:space-between; padding:4px 0;">
             <span>🤖 Telegram Bot</span>
             <span id="healthTg" style="color:var(--hint);">Проверка…</span>
           </div>
@@ -1382,6 +1382,7 @@
           var form = document.getElementById('mainForm');
           if (form) form.style.display = 'block';
           render(data);
+          checkHealth();
         })
         .withFailureHandler(function (err) {
           var msg = (err && err.message) || err || 'Ошибка загрузки';
@@ -1389,38 +1390,59 @@
           toast(msg, true);
         })
         .getUiData(initData);
-      checkHealth();
+    }
+
+    function isProvActive(p) {
+      if (!state || !state.settings) return true;
+      var val = state.settings['provider_' + p + '_enabled'];
+      return val !== undefined ? isTruthy(val) : true;
+    }
+
+    function updateHealthVisibility() {
+      var map = {
+        roadsurfer: 'healthRowRs',
+        movacar: 'healthRowMv',
+        indiecampers: 'healthRowIc',
+        imoova: 'healthRowIm'
+      };
+      Object.keys(map).forEach(function (p) {
+        var row = document.getElementById(map[p]);
+        if (row) {
+          row.style.display = isProvActive(p) ? 'flex' : 'none';
+        }
+      });
     }
 
     function checkHealth(forceRefresh) {
+      updateHealthVisibility();
       var initData = getInitData();
       var rs = document.getElementById('healthRs');
       var mv = document.getElementById('healthMv');
       var ic = document.getElementById('healthIc');
       var im = document.getElementById('healthIm');
       var tg = document.getElementById('healthTg');
-      if (rs) { rs.textContent = '⏳ Проверка…'; rs.style.color = 'var(--hint)'; }
-      if (mv) { mv.textContent = '⏳ Проверка…'; mv.style.color = 'var(--hint)'; }
-      if (ic) { ic.textContent = '⏳ Проверка…'; ic.style.color = 'var(--hint)'; }
-      if (im) { im.textContent = '⏳ Проверка…'; im.style.color = 'var(--hint)'; }
+      if (rs && isProvActive('roadsurfer')) { rs.textContent = '⏳ Проверка…'; rs.style.color = 'var(--hint)'; }
+      if (mv && isProvActive('movacar')) { mv.textContent = '⏳ Проверка…'; mv.style.color = 'var(--hint)'; }
+      if (ic && isProvActive('indiecampers')) { ic.textContent = '⏳ Проверка…'; ic.style.color = 'var(--hint)'; }
+      if (im && isProvActive('imoova')) { im.textContent = '⏳ Проверка…'; im.style.color = 'var(--hint)'; }
       if (tg) { tg.textContent = '⏳ Проверка…'; tg.style.color = 'var(--hint)'; }
 
       google.script.run
         .withSuccessHandler(function (h) {
           if (!h) return;
-          if (rs && h.roadsurfer) {
+          if (rs && h.roadsurfer && isProvActive('roadsurfer')) {
             rs.textContent = (h.roadsurfer.ok ? '🟢 ' : '🔴 ') + h.roadsurfer.message;
             rs.style.color = h.roadsurfer.ok ? 'var(--success)' : 'var(--danger)';
           }
-          if (mv && h.movacar) {
+          if (mv && h.movacar && isProvActive('movacar')) {
             mv.textContent = (h.movacar.ok ? '🟢 ' : '🔴 ') + h.movacar.message;
             mv.style.color = h.movacar.ok ? 'var(--success)' : 'var(--danger)';
           }
-          if (ic && h.indiecampers) {
+          if (ic && h.indiecampers && isProvActive('indiecampers')) {
             ic.textContent = (h.indiecampers.ok ? '🟢 ' : '🔴 ') + h.indiecampers.message;
             ic.style.color = h.indiecampers.ok ? 'var(--success)' : 'var(--danger)';
           }
-          if (im && h.imoova) {
+          if (im && h.imoova && isProvActive('imoova')) {
             im.textContent = (h.imoova.ok ? '🟢 ' : '🔴 ') + h.imoova.message;
             im.style.color = h.imoova.ok ? 'var(--success)' : 'var(--danger)';
           }
@@ -1545,9 +1567,11 @@
           el.onchange = function () {
             state.settings[p.key] = el.checked;
             renderRoutes();
+            updateHealthVisibility();
           };
         }
       });
+      updateHealthVisibility();
     }
 
     function renderSeg(id, values, selected, onPick) {
