@@ -21,6 +21,13 @@ const PROPERTY_KEYS = {
   TELEGRAM_WEBHOOK_ACTIVE: 'TELEGRAM_WEBHOOK_ACTIVE',
 };
 
+const SUPPORTED_PROVIDERS = [
+  { id: 'roadsurfer', name: 'Roadsurfer Rally', icon: '🚐' },
+  { id: 'movacar', name: 'Movacar', icon: '🚗' },
+  { id: 'indiecampers', name: 'Indie Campers', icon: '⛺' },
+  { id: 'imoova', name: 'Imoova', icon: '🌐' },
+];
+
 const DEFAULT_SETTINGS = {
   poll_interval_minutes: 5,
   availability_check_interval_minutes: 60,
@@ -34,7 +41,26 @@ const DEFAULT_SETTINGS = {
   silent_hours_start: '23:00',
   silent_hours_end: '07:00',
   request_timeout_seconds: 20,
+  provider_roadsurfer_enabled: true,
+  provider_movacar_enabled: true,
+  provider_indiecampers_enabled: true,
+  provider_imoova_enabled: true,
 };
+
+function isProviderEnabled_(source, settings) {
+  if (!settings) {
+    return true;
+  }
+  const key = 'provider_' + String(source || '').toLowerCase().trim() + '_enabled';
+  if (settings[key] !== undefined && settings[key] !== '') {
+    if (typeof settings[key] === 'boolean') {
+      return settings[key];
+    }
+    const normalized = String(settings[key]).trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes';
+  }
+  return true;
+}
 
 const DEFAULT_FILTERS = {
   allowed_origin_countries: 'DE,AT,NL,BE,FR,CH',

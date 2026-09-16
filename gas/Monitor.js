@@ -241,7 +241,7 @@ function runMonitorOnce() {
     const secrets = getScriptSecrets();
 
     const routes = readRoutes_(spreadsheet).filter(function (route) {
-      return route.enabled;
+      return route.enabled && isProviderEnabled_(route.source, settings);
     });
     const known = readArchiveFingerprints_(spreadsheet);
     const cache = CacheService.getScriptCache();
@@ -255,6 +255,7 @@ function runMonitorOnce() {
     routes.forEach(function (route, routeIndex) {
       // Build date windows per route. If route has no dates, fallback to global settings
       const pickupDate = route.pickupDate || settings.pickup_date;
+      const returnDate = route.returnDate || settings.return_date;
       const routeWindow = buildDateWindow_(settings, filters, pickupDate, returnDate);
       const effectiveWindow = buildEffectiveWindow_(routeWindow, checkNeighbors);
 
@@ -411,6 +412,7 @@ function checkOffersAvailability() {
 
   try {
     spreadsheet = ensureWorkbook_();
+    const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
     const sheet = spreadsheet.getSheetByName(SHEET_NAMES.ARCHIVE);
     if (!sheet || sheet.getLastRow() < 2) {
       return { checked: 0, removed: 0 };
@@ -445,6 +447,10 @@ function checkOffersAvailability() {
 
       if (pickupDate && pickupDate < todayStr) {
         toRemoveFingerprints.add(fp);
+        continue;
+      }
+
+      if (!isProviderEnabled_(source, settings)) {
         continue;
       }
 

@@ -191,7 +191,7 @@ def test_poll_once_multiple_routes_with_first_failed_and_second_successful(tmp_p
     def mock_get(url, headers=None):
         if "roadsurfer" in url:
             raise FetchError("Connection timeout")
-        return {"data": [{"id": "201", "attributes": {"price": 1, "name": "Movacar Van"}}]}
+        return {"data": [{"id": "201", "type": "offer", "attributes": {"price": 1, "name": "Movacar Van"}}]}
 
     mock_client.get.side_effect = mock_get
 

@@ -62,6 +62,8 @@ def poll_once(
     for route_index, route in enumerate(settings.routes):
         if not route.enabled:
             continue
+        if settings.enabled_providers is not None and route.source.lower() not in settings.enabled_providers:
+            continue
         provider = providers.get(route.source)
         if provider is None:
             logger.error("Unknown provider: %s", route.source)

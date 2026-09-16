@@ -652,6 +652,49 @@
         </div>
       </div>
 
+      <div class="card" id="cardCompanies">
+        <div class="card-title">🏢 Компании в мониторинге</div>
+        <div style="font-size:12px;color:var(--hint);margin-bottom:10px;">
+          Отключенные компании не опрашиваются при мониторинге
+        </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span>🚐 Roadsurfer Rally</span>
+            <span class="switch">
+              <input type="checkbox" id="providerRoadsurfer">
+              <span class="slider"></span>
+            </span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span>🚗 Movacar</span>
+            <span class="switch">
+              <input type="checkbox" id="providerMovacar">
+              <span class="slider"></span>
+            </span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span>⛺ Indie Campers</span>
+            <span class="switch">
+              <input type="checkbox" id="providerIndiecampers">
+              <span class="slider"></span>
+            </span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span>🌐 Imoova</span>
+            <span class="switch">
+              <input type="checkbox" id="providerImoova">
+              <span class="slider"></span>
+            </span>
+          </label>
+        </div>
+      </div>
+
       <button type="button" class="btn btn-secondary" id="btnTriggers" style="margin-top:8px;">🔧 Восстановить триггеры</button>
       <button type="button" class="btn btn-accent" id="btnSave">Сохранить настройки</button>
       <button type="button" class="link-reset" id="btnReset">Сбросить несохранённые изменения</button>
@@ -1488,6 +1531,23 @@
           state.filters.max_price = this.value;
         };
       }
+      var providers = [
+        { id: 'providerRoadsurfer', key: 'provider_roadsurfer_enabled' },
+        { id: 'providerMovacar', key: 'provider_movacar_enabled' },
+        { id: 'providerIndiecampers', key: 'provider_indiecampers_enabled' },
+        { id: 'providerImoova', key: 'provider_imoova_enabled' }
+      ];
+      providers.forEach(function (p) {
+        var el = document.getElementById(p.id);
+        if (el) {
+          var val = state.settings[p.key];
+          el.checked = val !== undefined ? isTruthy(val) : true;
+          el.onchange = function () {
+            state.settings[p.key] = el.checked;
+            renderRoutes();
+          };
+        }
+      });
     }
 
     function renderSeg(id, values, selected, onPick) {
@@ -1544,6 +1604,15 @@
       badge.textContent = route.source;
       head.appendChild(badge);
 
+      var provKey = 'provider_' + String(route.source || '').toLowerCase().trim() + '_enabled';
+      var isProvEnabled = state.settings[provKey] !== undefined ? isTruthy(state.settings[provKey]) : true;
+      if (!isProvEnabled) {
+        var offBadge = document.createElement('span');
+        offBadge.style.cssText = 'font-size:11px;color:#f87171;background:rgba(239,68,68,0.15);padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:500;';
+        offBadge.textContent = 'компания отключена';
+        head.appendChild(offBadge);
+      }
+
       var edit = document.createElement('button');
       edit.type = 'button';
       edit.className = 'delete-link';
@@ -1582,7 +1651,7 @@
       chk.checked = isTruthy(route.enabled);
       chk.onchange = function () {
         route.enabled = chk.checked;
-        if (chk.checked) { card.classList.remove('off'); } else { card.classList.add('off'); }
+        if (chk.checked && isProvEnabled) { card.classList.remove('off'); } else { card.classList.add('off'); }
       };
       var slider = document.createElement('span');
       slider.className = 'slider';
@@ -1602,7 +1671,7 @@
       foot.appendChild(del);
 
       card.appendChild(foot);
-      if (!isTruthy(route.enabled)) { card.classList.add('off'); }
+      if (!isTruthy(route.enabled) || !isProvEnabled) { card.classList.add('off'); }
       return card;
     }
 
@@ -1798,7 +1867,11 @@
           poll_interval_minutes: state.settings.poll_interval_minutes,
           window_days: state.settings.window_days,
           check_neighbors: state.settings.check_neighbors,
-          telegram_enabled: state.settings.telegram_enabled
+          telegram_enabled: state.settings.telegram_enabled,
+          provider_roadsurfer_enabled: state.settings.provider_roadsurfer_enabled !== undefined ? state.settings.provider_roadsurfer_enabled : true,
+          provider_movacar_enabled: state.settings.provider_movacar_enabled !== undefined ? state.settings.provider_movacar_enabled : true,
+          provider_indiecampers_enabled: state.settings.provider_indiecampers_enabled !== undefined ? state.settings.provider_indiecampers_enabled : true,
+          provider_imoova_enabled: state.settings.provider_imoova_enabled !== undefined ? state.settings.provider_imoova_enabled : true
         },
         filters: {
           allowed_origin_countries: (state.filters.allowed_origin_countries || []).slice(),

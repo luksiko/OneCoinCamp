@@ -139,6 +139,10 @@ function getUiData(initData) {
       check_neighbors: isTruthy_(settings.check_neighbors),
       timezone: settings.timezone,
       telegram_enabled: settings.telegram_enabled,
+      provider_roadsurfer_enabled: isProviderEnabled_('roadsurfer', settings),
+      provider_movacar_enabled: isProviderEnabled_('movacar', settings),
+      provider_indiecampers_enabled: isProviderEnabled_('indiecampers', settings),
+      provider_imoova_enabled: isProviderEnabled_('imoova', settings),
     },
     filters: {
       allowed_origin_countries: parseCountryList_(filters.allowed_origin_countries),
@@ -175,6 +179,9 @@ function checkProvidersHealth(initData, forceRefresh) {
   const secrets = getScriptSecrets();
   authorizeWebAppRequest_(initData, secrets);
 
+  const spreadsheet = getSpreadsheet();
+  const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
+
   const cache = typeof CacheService !== 'undefined' && CacheService.getScriptCache ? CacheService.getScriptCache() : null;
   const cacheKey = 'webapp:providers-health:v1';
   if (!forceRefresh && cache) {
@@ -195,84 +202,100 @@ function checkProvidersHealth(initData, forceRefresh) {
   };
 
   // 1. Roadsurfer
-  try {
-    const t0 = new Date().getTime();
-    const rs = fetchJson_('https://booking.roadsurfer.com/api/en/rally/stations/6', {
-      headers: {
-        Accept: 'application/json, text/plain, */*',
-        'X-Requested-Alias': 'rally.fetchRoutes',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-      retries: 0,
-    });
-    const ms = new Date().getTime() - t0;
-    const routesCount = rs && Array.isArray(rs.returns)
-      ? rs.returns.length
-      : (rs && rs.routes ? rs.routes.length : (Array.isArray(rs) ? rs.length : 0));
-    result.roadsurfer = { ok: true, message: 'Онлайн (' + routesCount + ' направлений, ' + ms + 'мс)' };
-  } catch (e) {
-    result.roadsurfer = { ok: false, message: 'Ошибка: ' + (e.message || String(e)).slice(0, 50) };
-  }
-
-  // 2. Movacar
-  try {
-    const t0 = new Date().getTime();
-    const mv = fetchJson_(
-      'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de&origin_reference=01JCRJ5NGV9E2YFNVSYKJR9W3J',
-      {
+  if (!isProviderEnabled_('roadsurfer', settings)) {
+    result.roadsurfer = { ok: false, message: 'Отключен в настройках', disabled: true };
+  } else {
+    try {
+      const t0 = new Date().getTime();
+      const rs = fetchJson_('https://booking.roadsurfer.com/api/en/rally/stations/6', {
         headers: {
-          Accept: 'application/vnd.api+json',
+          Accept: 'application/json, text/plain, */*',
+          'X-Requested-Alias': 'rally.fetchRoutes',
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         },
         retries: 0,
-      }
-    );
-    const ms = new Date().getTime() - t0;
-    const offersCount = mv && Array.isArray(mv.data) ? mv.data.length : 0;
-    result.movacar = { ok: true, message: 'Онлайн (' + offersCount + ' слотов, ' + ms + 'мс)' };
-  } catch (e) {
-    result.movacar = { ok: false, message: 'Ошибка: ' + (e.message || String(e)).slice(0, 50) };
+      });
+      const ms = new Date().getTime() - t0;
+      const routesCount = rs && Array.isArray(rs.returns)
+        ? rs.returns.length
+        : (rs && rs.routes ? rs.routes.length : (Array.isArray(rs) ? rs.length : 0));
+      result.roadsurfer = { ok: true, message: 'Онлайн (' + routesCount + ' направлений, ' + ms + 'мс)' };
+    } catch (e) {
+      result.roadsurfer = { ok: false, message: 'Ошибка: ' + (e.message || String(e)).slice(0, 50) };
+    }
+  }
+
+  // 2. Movacar
+  if (!isProviderEnabled_('movacar', settings)) {
+    result.movacar = { ok: false, message: 'Отключен в настройках', disabled: true };
+  } else {
+    try {
+      const t0 = new Date().getTime();
+      const mv = fetchJson_(
+        'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de&origin_reference=01JCRJ5NGV9E2YFNVSYKJR9W3J',
+        {
+          headers: {
+            Accept: 'application/vnd.api+json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+          retries: 0,
+        }
+      );
+      const ms = new Date().getTime() - t0;
+      const offersCount = mv && Array.isArray(mv.data) ? mv.data.length : 0;
+      result.movacar = { ok: true, message: 'Онлайн (' + offersCount + ' слотов, ' + ms + 'мс)' };
+    } catch (e) {
+      result.movacar = { ok: false, message: 'Ошибка: ' + (e.message || String(e)).slice(0, 50) };
+    }
   }
 
   // 3. Indie Campers
-  try {
-    const t0 = new Date().getTime();
-    const ic = fetchJson_('https://edge.indiecampers.com/api/v3/availability', {
-      method: 'post',
-      contentType: 'application/json',
-      payload: JSON.stringify({
-        booking: { checkin_city: 'lisbon', checkout_city: 'porto', checkin_datetime: '2026-09-27T16:30:00+00:00', checkout_datetime: '2026-10-07T11:00:00+00:00', locale: 'en', legacy_search: false, van_category: '', limit: 20, offset: 0, only_marketplace: false },
-        filters: {},
-        meta: { current_route: 'rent-an-rv-search' }
-      }),
-      headers: { Origin: 'https://indiecampers.com' },
-      retries: 0
-    });
-    const ms = new Date().getTime() - t0;
-    const count = ic && ic.data && Array.isArray(ic.data.availability) ? ic.data.availability.length : 0;
-    result.indiecampers = { ok: true, message: 'Онлайн (' + count + ' слотов, ' + ms + 'мс)' };
-  } catch (e) {
-    result.indiecampers = { ok: false, message: 'Ошибка: ' + (e.message || String(e)).slice(0, 50) };
+  if (!isProviderEnabled_('indiecampers', settings)) {
+    result.indiecampers = { ok: false, message: 'Отключен в настройках', disabled: true };
+  } else {
+    try {
+      const t0 = new Date().getTime();
+      const ic = fetchJson_('https://edge.indiecampers.com/api/v3/availability', {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({
+          booking: { checkin_city: 'lisbon', checkout_city: 'porto', checkin_datetime: '2026-09-27T16:30:00+00:00', checkout_datetime: '2026-10-07T11:00:00+00:00', locale: 'en', legacy_search: false, van_category: '', limit: 20, offset: 0, only_marketplace: false },
+          filters: {},
+          meta: { current_route: 'rent-an-rv-search' }
+        }),
+        headers: { Origin: 'https://indiecampers.com' },
+        retries: 0
+      });
+      const ms = new Date().getTime() - t0;
+      const count = ic && ic.data && Array.isArray(ic.data.availability) ? ic.data.availability.length : 0;
+      result.indiecampers = { ok: true, message: 'Онлайн (' + count + ' слотов, ' + ms + 'мс)' };
+    } catch (e) {
+      result.indiecampers = { ok: false, message: 'Ошибка: ' + (e.message || String(e)).slice(0, 50) };
+    }
   }
 
   // 4. Imoova
-  try {
-    const t0 = new Date().getTime();
-    const im = fetchJson_('https://api.imoova.com/graphql', {
-      method: 'post',
-      contentType: 'application/json',
-      payload: JSON.stringify({
-        query: 'query GetRelocations { relocations(first: 100) { data { id } } }',
-        operationName: 'GetRelocations'
-      }),
-      headers: { Origin: 'https://www.imoova.com' },
-      retries: 0
-    });
-    const ms = new Date().getTime() - t0;
-    const count = im && im.data && im.data.relocations && Array.isArray(im.data.relocations.data) ? im.data.relocations.data.length : 0;
-    result.imoova = { ok: true, message: 'Онлайн (' + count + ' слотов, ' + ms + 'мс)' };
-  } catch (e) {
-    result.imoova = { ok: false, message: 'Ошибка: ' + (e.message || String(e)).slice(0, 50) };
+  if (!isProviderEnabled_('imoova', settings)) {
+    result.imoova = { ok: false, message: 'Отключен в настройках', disabled: true };
+  } else {
+    try {
+      const t0 = new Date().getTime();
+      const im = fetchJson_('https://api.imoova.com/graphql', {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({
+          query: 'query GetRelocations { relocations(first: 100) { data { id } } }',
+          operationName: 'GetRelocations'
+        }),
+        headers: { Origin: 'https://www.imoova.com' },
+        retries: 0
+      });
+      const ms = new Date().getTime() - t0;
+      const count = im && im.data && im.data.relocations && Array.isArray(im.data.relocations.data) ? im.data.relocations.data.length : 0;
+      result.imoova = { ok: true, message: 'Онлайн (' + count + ' слотов, ' + ms + 'мс)' };
+    } catch (e) {
+      result.imoova = { ok: false, message: 'Ошибка: ' + (e.message || String(e)).slice(0, 50) };
+    }
   }
 
   // 5. Telegram
