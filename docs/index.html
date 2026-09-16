@@ -1921,12 +1921,7 @@
         .withSuccessHandler(function (result) {
           toast('Сохранено ✓');
           if (result && result.settings) {
-            state.settings = result.settings;
-            if (result.filters) state.filters = result.filters;
-            if (result.routes) state.routes = result.routes;
-            applySettings();
-            renderRoutes();
-            updateHealthVisibility();
+            render(result);
           } else {
             setTimeout(load, 600);
           }
