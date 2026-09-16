@@ -608,6 +608,10 @@ function fetchMovacarOffers_(route, window) {
           try { cache.put(cacheKey, JSON.stringify(payload), 180); } catch (e) {}
         }
       } catch (e) {
+        if (originsToCheck.length === 1) {
+          throw e;
+        }
+        console.warn('Movacar offers fetch failed for ' + origin.id + ':', e.message || e);
         continue;
       }
     }

@@ -172,6 +172,7 @@ function getUiData(initData) {
     telegramWebhookActive: typeof isTelegramWebhookActive_ === 'function' && isTelegramWebhookActive_(),
     countries: WEBAPP_COUNTRIES,
     offersTabEnabled: true,
+    supportedProviders: (typeof SUPPORTED_PROVIDERS !== 'undefined') ? SUPPORTED_PROVIDERS : [],
   };
 }
 
@@ -469,10 +470,13 @@ function saveUiData(payload, initData) {
 
   const spreadsheet = getSpreadsheet();
   if (payload.settings) {
-    writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, payload.settings);
+    const currentSettings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
+    const mergedSettings = Object.assign({}, currentSettings, payload.settings);
+    writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, mergedSettings);
   }
   if (payload.filters) {
-    const filters = Object.assign({}, payload.filters);
+    const currentFilters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
+    const filters = Object.assign({}, currentFilters, payload.filters);
     if (Array.isArray(filters.allowed_origin_countries)) {
       filters.allowed_origin_countries = filters.allowed_origin_countries.join(',');
     }
@@ -484,6 +488,12 @@ function saveUiData(payload, initData) {
   if (Array.isArray(payload.routes)) {
     saveRoutes_(spreadsheet, payload.routes);
   }
+  try {
+    const cache = typeof CacheService !== 'undefined' && CacheService.getScriptCache ? CacheService.getScriptCache() : null;
+    if (cache) {
+      cache.remove('webapp:providers-health:v1');
+    }
+  } catch (e) {}
   return getUiData(rawInitData);
 }
 
