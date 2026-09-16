@@ -393,53 +393,77 @@ function fetchMovacarOffers_(route, window) {
     if (!isWildDest) {
       query += '&destination_reference=' + encodeURIComponent(destRef);
     }
-    const url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?' + query;
+    const url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/offers?locale=en&origin=' + encodeURIComponent(origin.id) + (isWildDest ? '' : '&destination=' + encodeURIComponent(destRef));
     
-    const payload = fetchJson_(url, {
-      headers: {
-        Accept: 'application/vnd.api+json',
-        Origin: 'https://movacar.com',
-        Referer: 'https://movacar.com/',
-        'X-Request-Id': randomRequestId_()
-      },
-      retries: 1
-    });
+    let payload;
+    try {
+      payload = fetchJson_(url, {
+        headers: {
+          Accept: 'application/vnd.api+json',
+          Origin: 'https://movacar.com',
+          Referer: 'https://movacar.com/',
+          'X-Request-Id': randomRequestId_()
+        },
+        retries: 1
+      });
+    } catch (e) {
+      continue;
+    }
     
     const included = payload.included || [];
-
+    const stations = {};
+    const prices = {};
     for (let j = 0; j < included.length; j++) {
-      const item = included[j];
-      if (item.type === 'locationsummary' && item.attributes && item.attributes.location_type === 'destination') {
-        const destReference = item.attributes.reference;
-        const destName = item.attributes.name;
-        const destCountry = MOVACAR_COUNTRIES[destName] || '';
-        const offerCount = item.attributes.offer_count || 0;
-
-        if (offerCount > 0) {
-          if (!isWildDest) {
-             if (String(destReference) !== String(destRef)) continue;
-          } else if (route.destinationCountry && destCountry) {
-             if (String(route.destinationCountry).toUpperCase() !== String(destCountry).toUpperCase()) continue;
-          }
-
-          foundOffers.push({
-            source: 'movacar',
-            offerId: String(origin.id) + '->' + String(destReference) + '@' + formatIsoDate_(window.start),
-            vehicleId: '',
-            vehicle: 'Movacar vehicle (' + offerCount + ' available)',
-            origin: origin.name,
-            originCountry: route.originCountry,
-            destination: destName,
-            destinationCountry: destCountry || route.destinationCountry,
-            pickupDate: formatIsoDate_(window.start),
-            returnDate: formatIsoDate_(window.end),
-            price: 1,
-            currency: 'EUR',
-            bookingUrl: 'https://movacar.com/',
-            rawJson: JSON.stringify(item)
-          });
-        }
+      if (included[j].type === 'station') {
+        stations[included[j].id] = included[j].attributes;
+      } else if (included[j].type === 'monetary_amount') {
+        prices[included[j].id] = included[j].attributes;
       }
+    }
+
+    const data = payload.data || [];
+    for (let j = 0; j < data.length; j++) {
+      const item = data[j];
+      if (item.type !== 'offer') continue;
+      
+      const attrs = item.attributes || {};
+      const rels = item.relationships || {};
+      
+      const destData = (rels.destination && rels.destination.data) || {};
+      const destStation = stations[destData.id] || {};
+      const destName = destStation.city || destStation.alternative_city || 'Unknown';
+      const destCountry = MOVACAR_COUNTRIES[destName] || '';
+      const destReference = destStation.reference || destRef;
+
+      if (isWildDest && route.destinationCountry && destCountry) {
+        if (String(route.destinationCountry).toUpperCase() !== String(destCountry).toUpperCase()) continue;
+      }
+      
+      const priceData = (rels.base_price && rels.base_price.data) || {};
+      const priceInfo = prices[priceData.id];
+      const priceVal = priceInfo ? (priceInfo.amount_minor_units / 100) : 1;
+      
+      let vName = attrs.make || attrs.model || attrs.vehicle_category_name || 'Movacar vehicle';
+      if (attrs.model && attrs.model !== vName) vName += ' ' + attrs.model;
+      
+      const pDateStr = attrs.start_date || formatIsoDate_(window.start);
+      const rDateStr = attrs.end_date || formatIsoDate_(window.end);
+      const oId = attrs.offer_id || item.id;
+      
+      foundOffers.push({
+        source: 'movacar',
+        offerId: String(oId),
+        vehicleId: '',
+        vehicle: String(vName).trim(),
+        origin: origin.name,
+        originCountry: route.originCountry,
+        destination: destName,
+        destinationCountry: destCountry || route.destinationCountry,
+        pickupDate: pDateStr.split('T')[0],
+        returnDate: rDateStr.split('T')[0],
+        price: priceVal,
+        bookingUrl: 'https://movacar.com/'
+      });
     }
   }
 

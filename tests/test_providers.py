@@ -139,7 +139,7 @@ def test_roadsurfer_search_normalizes_offer():
 
 
 def test_movacar_offer_without_booking_url_normalizes():
-    http = FakeHttp({"data": [{"id": "123", "attributes": {"price": 100, "name": "VW Crafter"}}]})
+    http = FakeHttp({"data": [{"type": "offer", "id": "123", "attributes": {"vehicle_category_name": "VW Crafter"}}], "included": [{"type": "monetary_amount", "id": "price1", "attributes": {"amount_minor_units": 10000}}]})
     provider = MovacarProvider(http)
     route = Route(
         source="movacar",
@@ -155,7 +155,7 @@ def test_movacar_offer_without_booking_url_normalizes():
 
     assert len(offers) == 1
     assert offers[0].offer_id == "123"
-    assert offers[0].booking_url is None
+    assert offers[0].booking_url == "https://movacar.com/"
 
 
 @pytest.mark.parametrize("error_msg", ["GET url failed with HTTP 429", "GET url failed with HTTP 500", "GET url failed: Invalid JSON"])
