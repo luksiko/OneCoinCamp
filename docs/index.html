@@ -1886,6 +1886,15 @@
 
     function saveSettings() {
       var initData = getInitData();
+      var pRs = document.getElementById('providerRoadsurfer');
+      var pMv = document.getElementById('providerMovacar');
+      var pIc = document.getElementById('providerIndiecampers');
+      var pIm = document.getElementById('providerImoova');
+      if (pRs) { state.settings.provider_roadsurfer_enabled = pRs.checked; }
+      if (pMv) { state.settings.provider_movacar_enabled = pMv.checked; }
+      if (pIc) { state.settings.provider_indiecampers_enabled = pIc.checked; }
+      if (pIm) { state.settings.provider_imoova_enabled = pIm.checked; }
+
       var payload = {
         settings: {
           poll_interval_minutes: state.settings.poll_interval_minutes,
@@ -1909,7 +1918,19 @@
         })
       };
       google.script.run
-        .withSuccessHandler(function () { toast('Сохранено ✓'); setTimeout(load, 600); })
+        .withSuccessHandler(function (result) {
+          toast('Сохранено ✓');
+          if (result && result.settings) {
+            state.settings = result.settings;
+            if (result.filters) state.filters = result.filters;
+            if (result.routes) state.routes = result.routes;
+            applySettings();
+            renderRoutes();
+            updateHealthVisibility();
+          } else {
+            setTimeout(load, 600);
+          }
+        })
         .withFailureHandler(function (err) { toast((err && err.message) || 'Ошибка сохранения', true); })
         .saveUiData(payload, initData);
     }
