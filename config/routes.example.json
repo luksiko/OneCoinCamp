@@ -1,6 +1,7 @@
 {
   "poll_interval_seconds": 180,
   "request_timeout_seconds": 20,
+  "max_price_eur": 1.0,
   "routes": [
     {
       "source": "roadsurfer",

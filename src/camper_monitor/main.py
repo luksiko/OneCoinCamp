@@ -21,7 +21,7 @@ from .telegram import TelegramNotifier
 logger = logging.getLogger(__name__)
 
 
-def filter_offers(offers, min_trip_days=None, max_trip_days=None):
+def filter_offers(offers, min_trip_days=None, max_trip_days=None, max_price_eur=None):
     result = []
     for offer in offers:
         duration = offer.duration_days
@@ -29,6 +29,13 @@ def filter_offers(offers, min_trip_days=None, max_trip_days=None):
             continue
         if max_trip_days is not None and duration > max_trip_days:
             continue
+        if max_price_eur is not None and offer.price is not None:
+            try:
+                price_val = float(offer.price)
+                if price_val > max_price_eur:
+                    continue
+            except (ValueError, TypeError):
+                pass  # if price cannot be parsed, let it through
         result.append(offer)
     return result
 
@@ -76,6 +83,7 @@ def poll_once(
             offers,
             min_trip_days=settings.min_trip_days,
             max_trip_days=settings.max_trip_days,
+            max_price_eur=settings.max_price_eur,
         )
         sent = 0
         for offer in filtered:
@@ -134,6 +142,8 @@ def format_status(settings: Settings, state: StateStore) -> str:
         lines.append(
             f"  Длительность: {settings.min_trip_days or 0}-{settings.max_trip_days or '∞'} дней"
         )
+    if settings.max_price_eur is not None:
+        lines.append(f"  Макс. цена: {settings.max_price_eur} €")
     lines.append("")
     lines.append("Команды: /check — запустить опрос сейчас")
     return "\n".join(lines)

@@ -18,6 +18,7 @@ class Settings:
     allowed_destination_countries: tuple[str, ...]
     min_trip_days: int | None
     max_trip_days: int | None
+    max_price_eur: float | None
 
 
 def _parse_countries(value) -> tuple[str, ...]:
@@ -57,4 +58,5 @@ def load_settings(path: Path, bot_token: str | None, chat_id: str | None) -> Set
         ),
         min_trip_days=data.get("min_trip_days"),
         max_trip_days=data.get("max_trip_days"),
+        max_price_eur=float(data["max_price_eur"]) if data.get("max_price_eur") is not None else 1.0,
     )
