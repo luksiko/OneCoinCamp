@@ -295,6 +295,11 @@ function getProviderStations(provider, countryCodes, initData) {
     stations = getMovacarAllStations_();
   } else if (provider === 'roadsurfer') {
     stations = getRoadsurferAllStations_();
+  } else if (provider === 'indiecampers') {
+    stations = getIndieCampersAllStations_();
+  } else if (provider === 'imoova') {
+    // Imoova has no city listing API - return wildcard only
+    return [{ id: '*', name: '✨ Все города / Любой', country: '' }];
   } else {
     stations = [{ id: '*', name: '✨ Все города / Любой', country: '' }];
   }
@@ -320,24 +325,33 @@ function getProviderDestinations(provider, originId, countryCodes, initData) {
   }).filter(Boolean);
 
   if (cleanOriginId === '*' || cleanOriginId.toUpperCase() === 'ALL' || cleanOriginId.toUpperCase() === 'ANY') {
-    const allStations = provider === 'movacar' ? getMovacarAllStations_() : getRoadsurferAllStations_();
+    let allStations = [];
+    if (provider === 'movacar') allStations = getMovacarAllStations_();
+    else if (provider === 'indiecampers') allStations = getIndieCampersAllStations_();
+    else if (provider === 'imoova') return [{ id: '*', name: '✨ Все города / Любой', country: '' }];
+    else allStations = getRoadsurferAllStations_();
+
     return allStations.filter(function (s) {
       if (!selectedCountries.length) return true;
       return !s.country || selectedCountries.indexOf(String(s.country).toUpperCase()) !== -1;
     }).map(function (s) {
-      return {
-        id: String(s.id),
-        name: s.name,
-        country: s.country,
-      };
-    }).sort(function (a, b) {
-      return a.name.localeCompare(b.name);
-    });
+      return { id: String(s.id), name: s.name, country: s.country };
+    }).sort(function (a, b) { return a.name.localeCompare(b.name); });
   }
 
-  const destinations = provider === 'movacar' 
-    ? fetchMovacarDestinations_(cleanOriginId, { allowed_destination_countries: selectedCountries.join(',') })
-    : fetchRoadsurferDestinations_(cleanOriginId, { allowed_destination_countries: selectedCountries.join(',') });
+  let destinations = [];
+  if (provider === 'movacar') {
+    destinations = fetchMovacarDestinations_(cleanOriginId, { allowed_destination_countries: selectedCountries.join(',') });
+  } else if (provider === 'indiecampers') {
+    destinations = getIndieCampersAllStations_().filter(function(s) {
+      return s.id !== cleanOriginId &&
+        (!selectedCountries.length || selectedCountries.indexOf(s.country) !== -1);
+    });
+  } else if (provider === 'imoova') {
+    return [{ id: '*', name: '✨ Все города / Любой', country: '' }];
+  } else {
+    destinations = fetchRoadsurferDestinations_(cleanOriginId, { allowed_destination_countries: selectedCountries.join(',') });
+  }
 
   return destinations.map(function (d) {
     return {

@@ -641,67 +641,203 @@ function fetchMovacarDestinations_(originRef, filters) {
   return destinations;
 }
 
+// --- IndieCampers city slug → ISO2 country code ---
+// Source: https://indiecampers.com/discover/en-us/sitemap.xml (European cities)
+const INDIECAMPERS_CITIES = {
+  'berlin': 'DE', 'hamburg': 'DE', 'munich': 'DE', 'frankfurt': 'DE',
+  'cologne': 'DE', 'dusseldorf': 'DE', 'stuttgart': 'DE', 'dresden': 'DE',
+  'hanover': 'DE', 'nuremberg': 'DE', 'leipzig': 'DE', 'bremen': 'DE',
+  'paris': 'FR', 'lyon': 'FR', 'marseille': 'FR', 'bordeaux': 'FR',
+  'toulouse': 'FR', 'nice': 'FR', 'nantes': 'FR', 'strasbourg': 'FR',
+  'madrid': 'ES', 'barcelona': 'ES', 'seville': 'ES', 'valencia': 'ES',
+  'bilbao': 'ES', 'malaga': 'ES', 'granada': 'ES', 'zaragoza': 'ES',
+  'rome': 'IT', 'milan': 'IT', 'naples': 'IT', 'florence': 'IT',
+  'venice': 'IT', 'turin': 'IT', 'bologna': 'IT', 'palermo': 'IT',
+  'lisbon': 'PT', 'porto': 'PT', 'faro': 'PT', 'braga': 'PT',
+  'amsterdam': 'NL', 'rotterdam': 'NL', 'the-hague': 'NL', 'utrecht': 'NL',
+  'brussels': 'BE', 'antwerp': 'BE', 'ghent': 'BE', 'bruges': 'BE',
+  'vienna': 'AT', 'salzburg': 'AT', 'graz': 'AT', 'innsbruck': 'AT',
+  'zurich': 'CH', 'geneva': 'CH', 'bern': 'CH', 'basel': 'CH',
+  'london': 'GB', 'edinburgh': 'GB', 'manchester': 'GB', 'bristol': 'GB',
+  'oslo': 'NO', 'bergen': 'NO', 'stavanger': 'NO', 'trondheim': 'NO',
+  'stockholm': 'SE', 'gothenburg': 'SE', 'malmo': 'SE', 'Uppsala': 'SE',
+  'copenhagen': 'DK', 'aarhus': 'DK', 'odense': 'DK',
+  'helsinki': 'FI', 'tampere': 'FI', 'turku': 'FI',
+  'dublin': 'IE', 'cork': 'IE', 'galway': 'IE',
+  'reykjavik': 'IS', 'akureyri': 'IS',
+  'warsaw': 'PL', 'krakow': 'PL', 'gdansk': 'PL', 'wroclaw': 'PL',
+  'prague': 'CZ', 'brno': 'CZ', 'ostrava': 'CZ',
+  'budapest': 'HU', 'debrecen': 'HU',
+  'zagreb': 'HR', 'split': 'HR', 'dubrovnik': 'HR',
+  'athens': 'GR', 'thessaloniki': 'GR', 'heraklion': 'GR',
+};
+
+function getIndieCampersAllStations_() {
+  const stations = [];
+  const seen = {};
+  for (const slug in INDIECAMPERS_CITIES) {
+    const country = INDIECAMPERS_CITIES[slug];
+    const name = slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' ');
+    if (!seen[slug]) {
+      seen[slug] = true;
+      stations.push({ id: slug, name: name, country: country });
+    }
+  }
+  return stations;
+}
+
 function fetchIndieCampersOffers_(route, window) {
-  const origin = String(route.origin_id || route.origin || '').toLowerCase();
-  const destination = String(route.destination_id || route.destination || '').toLowerCase();
   const pickupDate = (window && window.start) ? window.start : '2026-09-27';
   const returnDate = (window && window.end) ? window.end : '2026-10-07';
 
-  const payload = {
-    booking: {
-      checkin_city: origin === '*' ? 'lisbon' : origin,
-      checkout_city: destination === '*' ? 'porto' : destination,
-      checkin_datetime: pickupDate + 'T16:30:00+00:00',
-      checkout_datetime: returnDate + 'T11:00:00+00:00',
-      locale: 'en',
-      legacy_search: false,
-      van_category: '',
-      limit: 50,
-      offset: 0,
-      only_marketplace: false,
-    },
-    filters: {},
-    meta: { current_route: 'rent-an-rv-search' }
-  };
+  const isWildOrigin = isWildcardStation_(route.originId);
+  const isWildDest = isWildcardStation_(route.destinationId);
 
-  const res = fetchJson_('https://edge.indiecampers.com/api/v3/availability', {
-    method: 'post',
-    contentType: 'application/json',
-    payload: JSON.stringify(payload),
-    headers: { Origin: 'https://indiecampers.com' }
-  });
-
-  const items = (res && res.data && Array.isArray(res.data.availability)) ? res.data.availability : [];
-  const offers = [];
-  const bookingUrl = 'https://indiecampers.com/rent-an-rv/search?from=' + origin + '&to=' + destination + '&start=' + pickupDate + '&end=' + returnDate;
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    if (item.available === false) continue;
-    const vanId = item.van_id || item.van_category || ('ic_' + i);
-    const price = item.total_cost || item.daily_cost || null;
-    const vehicle = item.manufacturer_name || item.van_category || 'Indie Camper';
-    offers.push({
-      source: 'indiecampers',
-      offerId: String(vanId),
-      origin: route.origin_name || route.origin || 'IndieCampers Origin',
-      destination: route.destination_name || route.destination || 'IndieCampers Dest',
-      pickupDate: item.checkin_date || pickupDate,
-      returnDate: item.checkout_date || returnDate,
-      price: price ? String(price) : null,
-      vehicle: String(vehicle),
-      bookingUrl: bookingUrl
+  let origins;
+  if (isWildOrigin) {
+    const all = getIndieCampersAllStations_();
+    origins = all.filter(function(s) {
+      return !route.originCountry || String(route.originCountry).toUpperCase() === s.country;
     });
+  } else {
+    const slug = String(route.originId || route.originName || '').toLowerCase().trim();
+    origins = [{ id: slug, name: route.originName || slug, country: INDIECAMPERS_CITIES[slug] || '' }];
   }
-  return offers;
+
+  let destSlug = null;
+  let destName = null;
+  if (!isWildDest) {
+    destSlug = String(route.destinationId || route.destinationName || '').toLowerCase().trim();
+    destName = route.destinationName || destSlug;
+  }
+
+  const allOffers = [];
+
+  for (let oi = 0; oi < origins.length; oi++) {
+    const orig = origins[oi];
+    const checkinCity = orig.id;
+
+    const destCandidates = isWildDest ? getIndieCampersAllStations_().filter(function(s) {
+      return s.id !== checkinCity &&
+        (!route.destinationCountry || String(route.destinationCountry).toUpperCase() === s.country);
+    }) : [{ id: destSlug, name: destName }];
+
+    for (let di = 0; di < destCandidates.length; di++) {
+      const dest = destCandidates[di];
+      const payload = {
+        booking: {
+          checkin_city: checkinCity,
+          checkout_city: dest.id,
+          checkin_datetime: pickupDate + 'T16:30:00+00:00',
+          checkout_datetime: returnDate + 'T11:00:00+00:00',
+          locale: 'en',
+          legacy_search: false,
+          van_category: '',
+          limit: 50,
+          offset: 0,
+          only_marketplace: false,
+        },
+        filters: {},
+        meta: { current_route: 'rent-an-rv-search' }
+      };
+
+      const res = fetchJson_('https://edge.indiecampers.com/api/v3/availability', {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify(payload),
+        headers: { Origin: 'https://indiecampers.com' }
+      });
+
+      const items = (res && res.data && Array.isArray(res.data.availability)) ? res.data.availability : [];
+      const bookingUrl = 'https://indiecampers.com/rent-an-rv/search?from=' + checkinCity + '&to=' + dest.id + '&start=' + pickupDate + '&end=' + returnDate;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.available === false) continue;
+        const vanId = item.van_id || item.van_category || ('ic_' + i);
+        const price = item.total_cost || item.daily_cost || null;
+        const vehicle = item.manufacturer_name || item.van_category || 'Indie Camper';
+        allOffers.push({
+          source: 'indiecampers',
+          offerId: String(vanId) + '_' + checkinCity + '_' + dest.id,
+          origin: orig.name,
+          originCountry: orig.country || route.originCountry || '',
+          destination: dest.name,
+          destinationCountry: dest.country || route.destinationCountry || '',
+          pickupDate: item.checkin_date || pickupDate,
+          returnDate: item.checkout_date || returnDate,
+          price: price ? String(price) : null,
+          vehicle: String(vehicle),
+          bookingUrl: bookingUrl
+        });
+      }
+
+      // Stop after first origin-dest pair with results if it's a wildcard scan
+      // (to avoid 10k requests — IndieCampers is city-pair-only)
+      if (isWildOrigin && isWildDest && allOffers.length > 0) {
+        return allOffers;
+      }
+    }
+  }
+
+  return allOffers;
 }
 
+// --- Imoova city name → ISO2 country code ---
+const IMOOVA_COUNTRIES = {
+  'Berlin': 'DE', 'Munich': 'DE', 'Hamburg': 'DE', 'Frankfurt': 'DE',
+  'Cologne': 'DE', 'Stuttgart': 'DE', 'Dusseldorf': 'DE', 'Dresden': 'DE',
+  'Hannover': 'DE', 'Leipzig': 'DE', 'Nuremberg': 'DE',
+  'Paris': 'FR', 'Lyon': 'FR', 'Marseille': 'FR', 'Bordeaux': 'FR',
+  'Toulouse': 'FR', 'Nice': 'FR', 'Nantes': 'FR', 'Strasbourg': 'FR',
+  'Madrid': 'ES', 'Barcelona': 'ES', 'Seville': 'ES', 'Valencia': 'ES',
+  'Bilbao': 'ES', 'Malaga': 'ES', 'Granada': 'ES', 'Zaragoza': 'ES',
+  'Rome': 'IT', 'Milan': 'IT', 'Naples': 'IT', 'Florence': 'IT',
+  'Venice': 'IT', 'Turin': 'IT', 'Bologna': 'IT', 'Palermo': 'IT',
+  'Lisbon': 'PT', 'Porto': 'PT', 'Faro': 'PT',
+  'Amsterdam': 'NL', 'Rotterdam': 'NL', 'Utrecht': 'NL',
+  'Brussels': 'BE', 'Antwerp': 'BE', 'Ghent': 'BE',
+  'Vienna': 'AT', 'Salzburg': 'AT', 'Graz': 'AT', 'Innsbruck': 'AT',
+  'Zurich': 'CH', 'Geneva': 'CH', 'Bern': 'CH', 'Basel': 'CH',
+  'London': 'GB', 'Edinburgh': 'GB', 'Manchester': 'GB', 'Bristol': 'GB',
+  'Oslo': 'NO', 'Bergen': 'NO', 'Stavanger': 'NO',
+  'Stockholm': 'SE', 'Gothenburg': 'SE', 'Malmo': 'SE',
+  'Copenhagen': 'DK', 'Aarhus': 'DK',
+  'Helsinki': 'FI', 'Tampere': 'FI',
+  'Dublin': 'IE', 'Cork': 'IE',
+  'Reykjavik': 'IS',
+  'Warsaw': 'PL', 'Krakow': 'PL', 'Gdansk': 'PL',
+  'Prague': 'CZ', 'Brno': 'CZ',
+  'Budapest': 'HU',
+  'Zagreb': 'HR', 'Split': 'HR', 'Dubrovnik': 'HR',
+  'Athens': 'GR', 'Thessaloniki': 'GR',
+  // Australia
+  'Melbourne': 'AU', 'Sydney': 'AU', 'Brisbane': 'AU', 'Perth': 'AU',
+  'Adelaide': 'AU', 'Cairns': 'AU', 'Darwin': 'AU', 'Broome': 'AU',
+  // New Zealand
+  'Auckland': 'NZ', 'Christchurch': 'NZ', 'Wellington': 'NZ', 'Queenstown': 'NZ',
+  // Canada
+  'Vancouver': 'CA', 'Toronto': 'CA', 'Calgary': 'CA', 'Edmonton': 'CA',
+  'Montreal': 'CA', 'Ottawa': 'CA',
+};
+
 function fetchImoovaOffers_(route, window) {
+  const isWildOrigin = isWildcardStation_(route.originId);
+  const isWildDest = isWildcardStation_(route.destinationId);
+  const originCountry = (route.originCountry || '').toUpperCase();
+  const destCountry = (route.destinationCountry || '').toUpperCase();
+
+  let gqlFilter = '';
+  if (!isWildOrigin && (route.originId || route.originName)) {
+    const slug = String(route.originId || route.originName || '').toLowerCase().trim();
+    gqlFilter = ', whereDepartureCity: {column: SLUG, operator: EQ, value: "' + slug + '"}';
+  }
+
   const res = fetchJson_('https://api.imoova.com/graphql', {
     method: 'post',
     contentType: 'application/json',
     payload: JSON.stringify({
-      query: 'query GetRelocations { relocations(first: 100) { data { id reference name type available_from_date available_to_date hire_unit_rate retail_rate currency vehicle { name } departureCity { id name slug } deliveryCity { id name slug } } } }',
+      query: 'query GetRelocations { relocations(first: 100' + gqlFilter + ') { data { id name available_from_date available_to_date hire_unit_rate retail_rate currency vehicle { name } departureCity { id name slug } deliveryCity { id name slug } } } }',
       operationName: 'GetRelocations'
     }),
     headers: { Origin: 'https://www.imoova.com' }
@@ -715,6 +851,19 @@ function fetchImoovaOffers_(route, window) {
     const dep = item.departureCity || {};
     const deliv = item.deliveryCity || {};
 
+    const depCountry = IMOOVA_COUNTRIES[dep.name] || '';
+    const delivCountry = IMOOVA_COUNTRIES[deliv.name] || '';
+
+    // Apply country filters
+    if (originCountry && depCountry && depCountry !== originCountry) continue;
+    if (destCountry && delivCountry && delivCountry !== destCountry) continue;
+
+    // Apply destination city filter if not wildcard
+    if (!isWildDest && (route.destinationId || route.destinationName)) {
+      const wantedDest = String(route.destinationId || route.destinationName || '').toLowerCase().trim();
+      if (deliv.slug !== wantedDest && deliv.name.toLowerCase() !== wantedDest) continue;
+    }
+
     const relId = item.id || ('im_' + i);
     const bookingUrl = 'https://www.imoova.com/relocations/deal/' + relId;
     const vehicleName = (item.vehicle && item.vehicle.name) || item.name || 'Imoova vehicle';
@@ -723,10 +872,12 @@ function fetchImoovaOffers_(route, window) {
     offers.push({
       source: 'imoova',
       offerId: String(relId),
-      origin: dep.name || route.origin || 'Imoova Origin',
-      destination: deliv.name || route.destination || 'Imoova Dest',
-      pickupDate: item.available_from_date || (window && window.start) || '2026-09-01',
-      returnDate: item.available_to_date || (window && window.end) || '2026-09-15',
+      origin: dep.name || '',
+      originCountry: depCountry || originCountry,
+      destination: deliv.name || '',
+      destinationCountry: delivCountry || destCountry,
+      pickupDate: item.available_from_date || (window && window.start) || '',
+      returnDate: item.available_to_date || (window && window.end) || '',
       price: price ? String(price) : null,
       vehicle: String(vehicleName),
       bookingUrl: bookingUrl
