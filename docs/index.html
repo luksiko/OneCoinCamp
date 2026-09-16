@@ -554,25 +554,30 @@
 <body>
   <div class="container">
 
-    <div class="banner" id="banner">
-      <div class="emoji">🟢</div>
-      <div>
-        <div class="banner-title" id="bannerTitle">Загрузка…</div>
-        <div class="banner-sub" id="bannerSub"></div>
-      </div>
-    </div>
-
     <div id="mainForm">
       <div id="screenMain">
+        <!-- Компактный статус -->
+        <div class="banner" id="banner" style="align-items: center; padding: 10px 14px;">
+          <div class="emoji">🟢</div>
+          <div class="banner-title" id="bannerTitle" style="font-size: 15px;">Загрузка…</div>
+        </div>
+
         <div class="card">
           <div class="card-title">Маршруты</div>
           <div id="routesList"></div>
           <button type="button" class="add-route" id="btnAddRoute">+ Добавить маршрут</button>
         </div>
+        <button type="button" class="btn btn-accent" id="btnSaveMain" style="margin-bottom: 8px;">💾 Сохранить изменения</button>
         <button type="button" class="btn btn-secondary" id="btnRun">▶ Запустить проверку</button>
       </div>
 
     <div id="screenSettings" style="display:none;">
+      <!-- Подробный статус скрипта -->
+      <div class="card" id="detailedStatusCard">
+        <div class="card-title" style="margin-bottom:6px;">Информация о проверках</div>
+        <div id="bannerSub" class="banner-sub" style="margin-top:0;"></div>
+      </div>
+
     <div class="card" id="healthCard">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <div class="card-title" style="margin-bottom:0;">🌐 Статус связи с сайтами</div>
@@ -1277,7 +1282,10 @@
         tg.ready();
         tg.expand();
         tg.MainButton.setText('Сохранить').onClick(function () { saveSettings(); }).show();
-        document.getElementById('btnSave').style.display = 'none';
+        var btnSave = document.getElementById('btnSave');
+        if (btnSave) btnSave.style.display = 'none';
+        var btnSaveMain = document.getElementById('btnSaveMain');
+        if (btnSaveMain) btnSaveMain.style.display = 'none';
       }
       document.getElementById('btnRun').onclick = runCheck;
       var btnTriggers = document.getElementById('btnTriggers');
@@ -1286,6 +1294,8 @@
       if (btnCheckAvail) btnCheckAvail.onclick = checkAvailability;
       document.getElementById('btnAddRoute').onclick = addRoute;
       document.getElementById('btnSave').onclick = saveSettings;
+      var btnSaveMain = document.getElementById('btnSaveMain');
+      if (btnSaveMain) btnSaveMain.onclick = saveSettings;
       document.getElementById('btnReset').onclick = function () {
         if (window.confirm('Отменить все несохранённые изменения?')) {
           load();
