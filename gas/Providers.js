@@ -102,7 +102,9 @@ function fetchRoadsurferDestinations_(originId, filters) {
     }
 
     if (cache && returnIds.length) {
-      cache.put(cacheKey, JSON.stringify(returnIds), 21600);
+      // Route availability changes much more often than the station directory.
+      // Keep destination discovery fresh enough to notice new Rally routes.
+      cache.put(cacheKey, JSON.stringify(returnIds), 900);
     }
   }
 
@@ -191,56 +193,180 @@ function resolveRoadsurferPairs_(route, filters) {
     return pairs;
   }
 
-  // Country mode: resolve all origin stations in country
-  const allStations = getRoadsurferAllStations_();
-  const stationMap = {};
-  allStations.forEach(function (s) {
-    stationMap[String(s.id)] = s;
-  });
+  return resolveRoadsurferPairsBatched_(route, filters);
+}
 
-  const targetOriginCountry = (route.originCountry || '').toUpperCase().trim();
-  const originStations = allStations.filter(function (s) {
-    if (!targetOriginCountry) return true;
-    return String(s.country).toUpperCase().trim() === targetOriginCountry;
-  });
+function resolveRoadsurferPairsBatched_(route, filters) {
+  const isWildDest = isWildcardStation_(route.destinationId);
 
-  if (!originStations.length) {
-    return [];
-  }
-
-  const targetDestCountry = (route.destinationCountry || '').toUpperCase().trim();
+  const targetOriginCountry = String(route.originCountry || '').trim().toUpperCase();
+  const targetDestCountry = String(route.destinationCountry || '').trim().toUpperCase();
   const allowedDestCountries = targetDestCountry
     ? [targetDestCountry]
     : (filters && filters.allowed_destination_countries ? parseCountryList_(filters.allowed_destination_countries) : []);
 
+  const allStations = getRoadsurferAllStations_();
+  const originStations = allStations.filter(function (station) {
+    return !targetOriginCountry || String(station.country || '').trim().toUpperCase() === targetOriginCountry;
+  });
+  if (!originStations.length) return [];
+
+  const batchSize = roadsurferRadarBatchSize_(filters);
+  const cursorKey = roadsurferRadarCursorKey_(route, filters);
+  const props = typeof PropertiesService !== 'undefined' && PropertiesService.getScriptProperties
+    ? PropertiesService.getScriptProperties()
+    : null;
+  let cursor = 0;
+  if (props) {
+    const rawCursor = Number(props.getProperty(cursorKey));
+    if (isFinite(rawCursor) && rawCursor >= 0) cursor = Math.floor(rawCursor);
+  }
+  cursor = cursor % originStations.length;
+
+  const selectedOrigins = originStations.slice(cursor, Math.min(cursor + batchSize, originStations.length));
+  const nextCursor = cursor + selectedOrigins.length >= originStations.length ? 0 : cursor + selectedOrigins.length;
+  if (props) props.setProperty(cursorKey, String(nextCursor));
+
   const specificDestId = !isWildDest && route.destinationId && isRoadsurferStationId_(route.destinationId)
     ? String(route.destinationId)
     : null;
-
   const pairs = [];
-  for (let i = 0; i < originStations.length; i++) {
-    const orig = originStations[i];
-    const dests = fetchRoadsurferDestinations_(orig.id, filters);
-    for (let j = 0; j < dests.length; j++) {
-      const dest = dests[j];
-      if (specificDestId && String(dest.id) !== specificDestId) {
-        continue;
-      }
-      const destCountry = (dest.country || '').toUpperCase().trim();
-      if (targetDestCountry && destCountry && destCountry !== targetDestCountry) {
-        continue;
-      }
-      if (!targetDestCountry && allowedDestCountries.length && destCountry && allowedDestCountries.indexOf(destCountry) === -1) {
-        continue;
-      }
-      pairs.push({
-        origin: orig,
-        destination: dest,
-      });
+
+  for (let i = 0; i < selectedOrigins.length; i += 1) {
+    const origin = selectedOrigins[i];
+    const destinations = fetchRoadsurferDestinations_(origin.id, filters);
+    for (let j = 0; j < destinations.length; j += 1) {
+      const destination = destinations[j];
+      if (specificDestId && String(destination.id) !== specificDestId) continue;
+
+      const destinationCountry = String(destination.country || '').trim().toUpperCase();
+      if (targetDestCountry && destinationCountry && destinationCountry !== targetDestCountry) continue;
+      if (!targetDestCountry && allowedDestCountries.length && destinationCountry && allowedDestCountries.indexOf(destinationCountry) === -1) continue;
+
+      pairs.push({ origin: origin, destination: destination });
     }
   }
 
   return pairs;
+}
+
+function roadsurferRadarBatchSize_(filters) {
+  const raw = Number(filters && filters.roadsurfer_origins_per_run);
+  if (!isFinite(raw) || raw <= 0) return 5;
+  return Math.max(1, Math.min(10, Math.floor(raw)));
+}
+
+function roadsurferRadarCursorKey_(route, filters) {
+  const originCountry = String(route.originCountry || 'ANY').trim().toUpperCase() || 'ANY';
+  const destinationCountry = String(route.destinationCountry || '').trim().toUpperCase();
+  const destinationFilter = destinationCountry || String((filters && filters.allowed_destination_countries) || 'ANY').trim().toUpperCase();
+  return 'ROADSURFER_RADAR_CURSOR:' + originCountry + ':' + destinationFilter.replace(/[^A-Z0-9,_-]/g, '');
+}
+
+function fetchRoadsurferTimeframes_(originId, destinationId) {
+  const origin = String(originId || '').trim();
+  const destination = String(destinationId || '').trim();
+  if (!isRoadsurferStationId_(origin) || !isRoadsurferStationId_(destination)) {
+    return [];
+  }
+
+  const url = 'https://booking.roadsurfer.com/api/en/rally/timeframes/' +
+    encodeURIComponent(origin) + '-' + encodeURIComponent(destination);
+  const referer = 'https://booking.roadsurfer.com/en/rally/pick?station=' +
+    encodeURIComponent(origin) + '&end_station=' + encodeURIComponent(destination) + '&currency=EUR';
+
+  const payload = fetchJson_(url, {
+    headers: {
+      Accept: 'application/json, text/plain, */*',
+      Referer: referer,
+      'X-Requested-Alias': 'rally.timeframes',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+    retries: 1,
+  });
+
+  return normalizeRoadsurferTimeframes_(payload);
+}
+
+function normalizeRoadsurferTimeframes_(payload) {
+  let items = [];
+  if (Array.isArray(payload)) {
+    items = payload;
+  } else if (payload && Array.isArray(payload.timeframes)) {
+    items = payload.timeframes;
+  } else if (payload && Array.isArray(payload.ranges)) {
+    items = payload.ranges;
+  } else if (payload && Array.isArray(payload.results)) {
+    items = payload.results;
+  } else if (payload && Array.isArray(payload.data)) {
+    items = payload.data;
+  } else if (payload && payload.data && Array.isArray(payload.data.timeframes)) {
+    items = payload.data.timeframes;
+  }
+
+  const normalized = [];
+  const seen = {};
+
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i];
+    let start = null;
+    let end = null;
+
+    if (Array.isArray(item) && item.length >= 2) {
+      start = item[0];
+      end = item[1];
+    } else if (typeof item === 'string') {
+      const parts = item.split('/');
+      if (parts.length === 2) {
+        start = parts[0];
+        end = parts[1];
+      }
+    } else if (item && typeof item === 'object') {
+      const source = item.attributes && typeof item.attributes === 'object'
+        ? Object.assign({}, item.attributes, item)
+        : item;
+      if (Array.isArray(source.range) && source.range.length >= 2) {
+        start = source.range[0];
+        end = source.range[1];
+      } else {
+        start = firstDefined_(source.start, source.start_date, source.startDate, source.pickup_date, source.pickupDate, source.from, source.departure_date, source.departureDate);
+        end = firstDefined_(source.end, source.end_date, source.endDate, source.return_date, source.returnDate, source.to, source.arrival_date, source.arrivalDate);
+      }
+    }
+
+    start = roadsurferIsoDate_(start);
+    end = roadsurferIsoDate_(end);
+    if (!start || !end || start > end) continue;
+
+    const key = start + '|' + end;
+    if (seen[key]) continue;
+    seen[key] = true;
+    normalized.push({ start: start, end: end });
+  }
+
+  if (items.length && !normalized.length) {
+    throw new Error('Roadsurfer timeframes payload format is not supported');
+  }
+
+  normalized.sort(function (a, b) {
+    if (a.start === b.start) return a.end < b.end ? -1 : (a.end > b.end ? 1 : 0);
+    return a.start < b.start ? -1 : 1;
+  });
+  return normalized;
+}
+
+function roadsurferIsoDate_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return formatIsoDate_(value);
+  }
+  const raw = String(value == null ? '' : value).trim();
+  const match = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : '';
+}
+
+function roadsurferTimeframeInsideWindow_(timeframe, rangeStart, rangeEnd) {
+  if (!timeframe || !timeframe.start || !timeframe.end) return false;
+  return timeframe.start >= rangeStart && timeframe.end <= rangeEnd;
 }
 
 function fetchRoadsurferOffers_(route, window, filters) {
@@ -266,85 +392,111 @@ function fetchRoadsurferOffers_(route, window, filters) {
   const rangeEnd = formatIsoDate_(window.end);
   const allOffers = [];
 
-  for (let i = 0; i < pairs.length; i++) {
+  for (let i = 0; i < pairs.length; i += 1) {
     const pair = pairs[i];
-    const orig = pair.origin;
-    const dest = pair.destination;
-
-    const refererUrl =
-      'https://booking.roadsurfer.com/en/rally/pick?station=' +
-      encodeURIComponent(orig.id) +
-      '&end_station=' +
-      encodeURIComponent(dest.id) +
-      '&pickup_date=' +
-      rangeStart +
-      '&return_date=' +
-      rangeEnd +
-      '&currency=EUR';
-    const searchUrl =
-      'https://booking.roadsurfer.com/api/en/rally/search?stations=' +
-      encodeURIComponent('[[' + orig.id + ',' + dest.id + ']]') +
-      '&range=' +
-      encodeURIComponent(JSON.stringify([rangeStart, rangeEnd])) +
-      '&currency=EUR&models=' +
-      encodeURIComponent('[]');
-
-    const payload = fetchJson_(searchUrl, {
-      headers: {
-        Accept: 'application/json, text/plain, */*',
-        Referer: refererUrl,
-        'X-Requested-Alias': 'rally.search',
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-    });
-
-    const items = Array.isArray(payload) ? payload : (payload && (payload.results || payload.data)) || [];
-    for (let j = 0; j < items.length; j++) {
-      const item = items[j];
-      if (item.available === false) {
-        continue;
+    
+    // Fallback if timeframes fetch fails or returns nothing: test full range
+    let matching = [{ start: rangeStart, end: rangeEnd }];
+    
+    try {
+      const timeframes = fetchRoadsurferTimeframes_(pair.origin.id, pair.destination.id);
+      if (timeframes.length > 0) {
+        matching = timeframes.filter(function (timeframe) {
+          return roadsurferTimeframeInsideWindow_(timeframe, rangeStart, rangeEnd);
+        });
       }
-      const model = item.model || {};
-      const price = firstDefined_(item.price, item.total_price, item.totalPrice, item.amount);
-      const vehicle = item.name || model.name || '';
-      const destName = dest.name || route.destinationName || ('Station ' + dest.id);
-      const origName = orig.name || route.originName || ('Station ' + orig.id);
+    } catch (e) {
+      console.warn('Roadsurfer timeframes fetch failed, falling back to full range:', e.message || e);
+    }
 
-      const itemPickupDate = firstDefined_(item.pickup_date, item.pickupDate, rangeStart);
-      const itemReturnDate = firstDefined_(item.return_date, item.returnDate, rangeEnd);
-
-      const itemBookingUrl =
-        'https://booking.roadsurfer.com/en/rally/pick?station=' +
-        encodeURIComponent(orig.id) +
-        '&end_station=' +
-        encodeURIComponent(dest.id) +
-        '&pickup_date=' +
-        itemPickupDate +
-        '&return_date=' +
-        itemReturnDate +
-        '&currency=EUR';
-
-      allOffers.push({
-        source: 'roadsurfer',
-        offerId: String(firstDefined_(item.id, item.offer_id, Utilities.getUuid())),
-        vehicleId: String(firstDefined_(item.vehicle_id, model.id, '')),
-        vehicle: vehicle,
-        origin: origName,
-        originCountry: orig.country || route.originCountry || '',
-        destination: destName,
-        destinationCountry: dest.country || route.destinationCountry || '',
-        pickupDate: itemPickupDate,
-        returnDate: itemReturnDate,
-        price: price == null ? '' : Number(price),
-        currency: 'EUR',
-        bookingUrl: itemBookingUrl,
-        rawJson: JSON.stringify(item),
-      });
+    for (let j = 0; j < matching.length; j += 1) {
+      const offers = fetchRoadsurferOffersForTimeframe_(pair, matching[j], route, rangeStart, rangeEnd);
+      for (let k = 0; k < offers.length; k += 1) {
+        allOffers.push(offers[k]);
+      }
     }
   }
 
   return allOffers;
+}
+
+function fetchRoadsurferOffersForTimeframe_(pair, timeframe, route, searchRangeStart, searchRangeEnd) {
+  const origin = pair.origin;
+  const destination = pair.destination;
+  const rangeStart = timeframe.start;
+  const rangeEnd = timeframe.end;
+
+  const refererUrl = 'https://booking.roadsurfer.com/en/rally/pick?station=' +
+    encodeURIComponent(origin.id) +
+    '&end_station=' + encodeURIComponent(destination.id) +
+    '&pickup_date=' + rangeStart +
+    '&return_date=' + rangeEnd +
+    '&currency=EUR';
+  const searchUrl = 'https://booking.roadsurfer.com/api/en/rally/search?stations=' +
+    encodeURIComponent('[[' + origin.id + ',' + destination.id + ']]') +
+    '&range=' + encodeURIComponent(JSON.stringify([rangeStart, rangeEnd])) +
+    '&currency=EUR&models=' + encodeURIComponent('[]');
+
+  let payload;
+  try {
+    payload = fetchJson_(searchUrl, {
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        Referer: refererUrl,
+        'X-Requested-Alias': 'rally.search',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+  } catch (e) {
+    console.error('Roadsurfer search failed for ' + origin.id + ' -> ' + destination.id + ':', e.message || e);
+    return [];
+  }
+
+  const items = Array.isArray(payload) ? payload : (payload && (payload.results || payload.data)) || [];
+  const offers = [];
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i];
+    if (!item || item.available === false) continue;
+
+    const model = item.model || {};
+    const price = firstDefined_(item.price, item.total_price, item.totalPrice, item.amount);
+    
+    // Fix: the user requested to parse roadsurferIsoDate_ but fallback to searchRange if empty, not the exact timeframe start
+    const pickupDate = roadsurferIsoDate_(firstDefined_(item.pickup_date, item.pickupDate, rangeStart)) || rangeStart;
+    const returnDate = roadsurferIsoDate_(firstDefined_(item.return_date, item.returnDate, rangeEnd)) || rangeEnd;
+    
+    // Check if the actual offer falls into user's overall search window
+    if (pickupDate < searchRangeStart || returnDate > searchRangeEnd) {
+      continue;
+    }
+
+    const originName = origin.name || route.originName || ('Station ' + origin.id);
+    const destinationName = destination.name || route.destinationName || ('Station ' + destination.id);
+    const bookingUrl = 'https://booking.roadsurfer.com/en/rally/pick?station=' +
+      encodeURIComponent(origin.id) +
+      '&end_station=' + encodeURIComponent(destination.id) +
+      '&pickup_date=' + pickupDate +
+      '&return_date=' + returnDate +
+      '&currency=EUR';
+
+    offers.push({
+      source: 'roadsurfer',
+      offerId: String(firstDefined_(item.id, item.offer_id, Utilities.getUuid())),
+      vehicleId: String(firstDefined_(item.vehicle_id, model.id, '')),
+      vehicle: item.name || model.name || '',
+      origin: originName,
+      originCountry: origin.country || route.originCountry || '',
+      destination: destinationName,
+      destinationCountry: destination.country || route.destinationCountry || '',
+      pickupDate: pickupDate,
+      returnDate: returnDate,
+      price: price == null ? '' : Number(price),
+      currency: String(firstDefined_(item.currency, 'EUR')),
+      bookingUrl: bookingUrl,
+      rawJson: JSON.stringify(item),
+    });
+  }
+  return offers;
 }
 
 function fetchMovacarOffers_(route, window) {

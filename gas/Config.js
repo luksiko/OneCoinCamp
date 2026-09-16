@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS = {
 const DEFAULT_FILTERS = {
   allowed_origin_countries: 'DE,AT,NL,BE,FR,CH',
   allowed_destination_countries: 'ES,IT',
+  roadsurfer_origins_per_run: 5,
   window_start_rule: 'next_sunday',
   window_days: 14,
   max_price: '',
