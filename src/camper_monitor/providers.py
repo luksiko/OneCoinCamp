@@ -178,8 +178,30 @@ class MovacarProvider:
             
             dest_station_id = rels.get("destination", {}).get("data", {}).get("id")
             dest_station = stations.get(dest_station_id, {})
-            dest_name = dest_station.get("city") or dest_station.get("alternative_city") or "Unknown"
-            
+            dest_name = dest_station.get("city") or dest_station.get("alternative_city") or (route.destination if route.destination and route.destination != "*" else "Unknown")
+            dest_ref = dest_station.get("reference") or (route.destination_id if route.destination_id and route.destination_id != "*" else None)
+
+            origin_station_id = rels.get("origin", {}).get("data", {}).get("id")
+            origin_station = stations.get(origin_station_id, {})
+            origin_name = origin_station.get("city") or origin_station.get("alternative_city") or route.origin
+            origin_ref = origin_station.get("reference") or route.origin_id
+
+            booking_params = {}
+            if origin_name:
+                booking_params["origin"] = origin_name
+            if origin_ref:
+                booking_params["oid"] = origin_ref
+            if dest_name and dest_name != "Unknown":
+                booking_params["destination"] = dest_name
+            if dest_ref:
+                booking_params["did"] = dest_ref
+
+            booking_url = (
+                f"https://www.movacar.com/offers?{urllib.parse.urlencode(booking_params)}"
+                if booking_params
+                else "https://www.movacar.com/offers"
+            )
+
             price_id = rels.get("base_price", {}).get("data", {}).get("id")
             price_info = prices.get(price_id, {})
             price_val = price_info.get("amount_minor_units", 100) / 100.0
@@ -203,9 +225,9 @@ class MovacarProvider:
                     price=str(price_val),
                     pickup_date=start_date,
                     return_date=end_date,
-                    origin=route.origin,
+                    origin=origin_name,
                     destination=dest_name,
-                    booking_url="https://movacar.com/",
+                    booking_url=booking_url,
                 )
             )
 

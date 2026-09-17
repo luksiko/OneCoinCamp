@@ -155,7 +155,7 @@ def test_movacar_offer_without_booking_url_normalizes():
 
     assert len(offers) == 1
     assert offers[0].offer_id == "123"
-    assert offers[0].booking_url == "https://movacar.com/"
+    assert offers[0].booking_url == "https://www.movacar.com/offers?origin=Berlin&oid=abc&destination=Paris&did=def"
 
 
 @pytest.mark.parametrize("error_msg", ["GET url failed with HTTP 429", "GET url failed with HTTP 500", "GET url failed: Invalid JSON"])

@@ -660,20 +660,35 @@ function fetchMovacarOffers_(route, window) {
       const pDateStr = attrs.start_date || formatIsoDate_(window.start);
       const rDateStr = attrs.end_date || formatIsoDate_(window.end);
       const oId = attrs.offer_id || item.id;
-      
+
+      const originData = (rels.origin && rels.origin.data) || {};
+      const originStation = stations[originData.id] || {};
+      const originCity = originStation.city || originStation.alternative_city || origin.name;
+      const originReference = originStation.reference || origin.id;
+
+      const bookingParams = [];
+      if (originCity) bookingParams.push('origin=' + encodeURIComponent(originCity));
+      if (originReference && !isWildcardStation_(originReference)) bookingParams.push('oid=' + encodeURIComponent(originReference));
+      if (destName && destName !== 'Unknown') bookingParams.push('destination=' + encodeURIComponent(destName));
+      if (destReference && !isWildcardStation_(destReference)) bookingParams.push('did=' + encodeURIComponent(destReference));
+
+      const movacarUrl = bookingParams.length > 0
+        ? 'https://www.movacar.com/offers?' + bookingParams.join('&')
+        : 'https://www.movacar.com/offers';
+
       foundOffers.push({
         source: 'movacar',
         offerId: String(oId),
         vehicleId: '',
         vehicle: String(vName).trim(),
-        origin: origin.name,
+        origin: originCity,
         originCountry: route.originCountry,
         destination: destName,
         destinationCountry: destCountry || route.destinationCountry,
         pickupDate: pDateStr.split('T')[0],
         returnDate: rDateStr.split('T')[0],
         price: priceVal,
-        bookingUrl: 'https://movacar.com/'
+        bookingUrl: movacarUrl
       });
     }
   }
