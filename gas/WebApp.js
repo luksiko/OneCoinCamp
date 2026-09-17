@@ -136,14 +136,12 @@ function getUiData(initData) {
   
   if (userId) {
     upsertUser(userId, auth.chat ? auth.chat.id : userId, { username: auth.user.username || '' });
-    const userFilters = getUserFilters(userId);
-    if (userFilters) {
-      filters.allowed_origin_countries = userFilters.allowed_origin_countries || '';
-      filters.allowed_destination_countries = userFilters.allowed_destination_countries || '';
-      filters.min_trip_days = userFilters.min_duration_days || '';
-      filters.max_trip_days = userFilters.max_duration_days || '';
-      filters.max_price = userFilters.price_max || '';
-    }
+    const userFilters = getUserFilters(userId) || {};
+    filters.allowed_origin_countries = userFilters.allowed_origin_countries || '';
+    filters.allowed_destination_countries = userFilters.allowed_destination_countries || '';
+    filters.min_trip_days = userFilters.min_duration_days || '';
+    filters.max_trip_days = userFilters.max_duration_days || '';
+    filters.max_price = userFilters.price_max || '';
     routes = getUserRoutes(userId) || [];
   }
   selfHealMonitorFromWebApp_(spreadsheet, settings);
@@ -636,16 +634,14 @@ function validateTelegramWebAppData_(initData, secrets, nowSeconds) {
   }
 
   const allowedList = getAllowedTelegramIds_(secrets);
-  if (allowedList.length === 0) {
-    throw new Error('Access denied: No authorized Telegram users or chats configured.');
-  }
-
+  
   const userId = user && user.id != null ? String(user.id) : null;
   const username = user && user.username ? String(user.username).toLowerCase().replace(/^@/, '') : null;
   const chatId = chat && chat.id != null ? String(chat.id) : null;
 
-  const isAllowed = allowedList.some(function (allowed) {
-    return (userId && userId === allowed) ||
+  const isAllowed = allowedList.length === 0 || allowedList.some(function (allowed) {
+    return allowed === '*' ||
+           (userId && userId === allowed) ||
            (username && username === allowed) ||
            (chatId && chatId === allowed);
   });
