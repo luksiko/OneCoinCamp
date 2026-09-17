@@ -396,6 +396,40 @@
       font-weight: 600;
     }
 
+    .offers-date-divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 16px 0 10px;
+      position: relative;
+    }
+    .offers-date-divider:first-child {
+      margin-top: 4px;
+    }
+    .offers-date-divider::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 1px;
+      background: var(--border);
+      z-index: 1;
+    }
+    .offers-date-divider span {
+      position: relative;
+      z-index: 2;
+      background: var(--section);
+      border: 1px solid var(--border);
+      color: var(--subtext);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      padding: 3px 12px;
+      border-radius: 999px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    }
+
     .offer-card {
       background: var(--card);
       border: 1px solid var(--border);
@@ -1403,7 +1437,16 @@
         return;
       }
 
+      var lastDateGroup = null;
       offersData.offers.forEach(function (offer) {
+        var groupKey = getOfferDateGroupKey(offer.timestamp);
+        if (groupKey && groupKey !== lastDateGroup) {
+          lastDateGroup = groupKey;
+          var divider = document.createElement('div');
+          divider.className = 'offers-date-divider';
+          divider.innerHTML = '<span>' + escHtml(groupKey) + '</span>';
+          list.appendChild(divider);
+        }
         list.appendChild(buildOfferCard(offer));
       });
 
@@ -2486,19 +2529,38 @@
     }
 
     var MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+    var MONTHS_FULL = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 
     function parseDateFlexible(val) {
       if (!val) return null;
       if (val instanceof Date && !isNaN(val.getTime())) return val;
       var s = String(val).trim();
       if (!s) return null;
-      var isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (isoMatch) {
-        return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+      var dateOnlyMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateOnlyMatch) {
+        return new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]));
       }
       var d = new Date(s);
       if (!isNaN(d.getTime())) return d;
       return null;
+    }
+
+    function getOfferDateGroupKey(iso) {
+      if (!iso) return '';
+      var d = parseDateFlexible(iso);
+      if (!d) return '';
+      var now = new Date();
+      var isToday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+      if (isToday) {
+        return 'Сегодня, ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()];
+      }
+      var yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      var isYesterday = d.getFullYear() === yesterday.getFullYear() && d.getMonth() === yesterday.getMonth() && d.getDate() === yesterday.getDate();
+      if (isYesterday) {
+        return 'Вчера, ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()];
+      }
+      var curYear = now.getFullYear();
+      return d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
     }
 
     function formatCompactDate(d) {
@@ -2544,21 +2606,16 @@
       var pad = function(n) { return n < 10 ? '0' + n : String(n); };
       var timeStr = pad(d.getHours()) + ':' + pad(d.getMinutes());
 
-      var isToday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
-      if (isToday) {
-        if (diffSec < 60) return 'добавлен только что';
-        if (diffSec < 3600) return 'добавлен ' + Math.max(1, Math.floor(diffSec / 60)) + ' мин назад';
-        return 'добавлен сегодня в ' + timeStr;
+      if (diffSec >= 0 && diffSec < 60) return 'добавлен только что';
+      if (diffSec >= 60 && diffSec < 3600) {
+        var mins = Math.floor(diffSec / 60);
+        return 'добавлен в ' + timeStr + ' (' + mins + ' мин назад)';
       }
-
-      var yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      if (d.getFullYear() === yesterday.getFullYear() && d.getMonth() === yesterday.getMonth() && d.getDate() === yesterday.getDate()) {
-        return 'добавлен вчера в ' + timeStr;
+      if (diffSec >= 3600 && diffSec < 86400) {
+        var hours = Math.floor(diffSec / 3600);
+        return 'добавлен в ' + timeStr + ' (' + hours + ' ч назад)';
       }
-
-      var curYear = now.getFullYear();
-      return 'добавлен ' + d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()] + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '') + ' в ' + timeStr;
+      return 'добавлен в ' + timeStr;
     }
 
     function shortDate(iso) {
