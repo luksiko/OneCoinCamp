@@ -346,27 +346,18 @@ function upsertUser(telegramId, chatId, extra) {
 }
 
 function getUserRoutes(telegramId) {
-  var cache = CacheService.getScriptCache();
-  var key = 'routes_' + telegramId;
-  var cached = cache.get(key);
-  if (cached) {
-    try { return JSON.parse(cached); } catch(e) {}
-  }
   var routes = firestoreList('users/' + telegramId + '/routes') || [];
   
-  // Автоматическая дедупликация и очистка лишних дубликатов из Firestore
+  // Автоматическая дедупликация и удаление лишних дубликатов из базы Firestore
   var seen = {};
   var uniqueRoutes = [];
   routes.forEach(function (r) {
-    var sig = [
-      r.source || '',
-      r.origin_name || r.originName || '',
-      r.origin_id || r.originId || '',
-      r.origin_country || r.originCountry || '',
-      r.destination_name || r.destinationName || '',
-      r.destination_id || r.destinationId || '',
-      r.destination_country || r.destinationCountry || ''
-    ].join('|').toLowerCase();
+    var src = String(r.source || 'roadsurfer').toLowerCase().trim();
+    var oCountry = String(r.origin_country || r.originCountry || 'DE').toUpperCase().trim();
+    var dCountry = String(r.destination_country || r.destinationCountry || '').toUpperCase().trim();
+    var oCity = String(r.origin_name || r.originName || r.origin_id || r.originId || '*').toLowerCase().trim();
+    var dCity = String(r.destination_name || r.destinationName || r.destination_id || r.destinationId || '*').toLowerCase().trim();
+    var sig = src + '|' + oCountry + '|' + oCity + '|' + dCountry + '|' + dCity;
 
     if (!seen[sig]) {
       seen[sig] = true;
@@ -378,7 +369,6 @@ function getUserRoutes(telegramId) {
     }
   });
 
-  cache.put(key, JSON.stringify(uniqueRoutes), 240);
   return uniqueRoutes;
 }
 

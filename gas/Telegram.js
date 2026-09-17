@@ -559,12 +559,13 @@ function handleTelegramUpdate_(update) {
     sendTelegramMessage_(secrets, '⏳ Запуск сканирования...', chatId);
     runMonitorOnce();
     sendTelegramMessage_(secrets, '✅ Сканирование завершено.', chatId);
-  } else if (command === '/routes') {
-    let routes = (typeof getUserRoutes === 'function' ? getUserRoutes(userId) : null);
-    if (!routes || routes.length === 0) {
-      const spreadsheet = ensureWorkbook_();
-      routes = readRoutes_(spreadsheet);
+  } else if (command === '/clear_routes' || command === '/reset_routes') {
+    if (typeof deleteAllUserRoutes === 'function') {
+      deleteAllUserRoutes(userId);
     }
+    sendTelegramMessage_(secrets, '🗑️ Все маршруты очищены. Теперь откройте Mini App и нажмите «Сохранить».', chatId);
+  } else if (command === '/routes') {
+    const routes = (typeof getUserRoutes === 'function' ? getUserRoutes(userId) : []) || [];
     let lines = ['🚗 <b>Отслеживаемые маршруты:</b>\n'];
     routes.forEach(function (r) {
       const statusIcon = r.enabled ? '✅' : '⬜';
@@ -573,10 +574,10 @@ function handleTelegramUpdate_(update) {
       const origFlag = origCountry ? flagEmoji_(origCountry) + ' ' : '';
       const destFlag = destCountry ? flagEmoji_(destCountry) + ' ' : '';
       const origCity = r.origin_name || r.originName || (r.origin_id === '*' || r.originId === '*' ? 'Все города' : (r.origin_id || r.originId || 'Все города'));
-      const destCity = r.destination_name || r.destinationName || (r.destination_id === '*' || r.destinationId === '*' ? 'Все города' : (r.destination_id || r.destinationId || 'все доступные'));
+      const destCity = r.destination_name || r.destinationName || (r.destination_id === '*' || r.destinationId === '*' ? 'Все города' : (r.destination_id || r.destinationId || 'Все города'));
       lines.push(statusIcon + ' <b>' + (r.source || 'маршрут').toUpperCase() + '</b>: ' + origFlag + origCity + ' ➔ ' + destFlag + destCity);
     });
-    if (routes.length === 0) lines.push('Нет маршрутов.');
+    if (routes.length === 0) lines.push('Нет маршрутов. Настройте их в Mini App и нажмите «Сохранить».');
     sendTelegramMessage_(secrets, lines.join('\n'), chatId);
   } else {
     // Пользователь написал произвольный текст, а не команду
