@@ -31,6 +31,12 @@ class StateStore:
             )
             """
         )
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_sent_alerts_sent ON sent_alerts(sent_at)"
+        )
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_poll_runs_started ON poll_runs(started_at)"
+        )
         self.connection.commit()
         self._last_run_start: str | None = None
         self._last_run_end: str | None = None

@@ -170,35 +170,29 @@ function deleteArchiveRowsByFingerprints_(spreadsheet, fingerprintsSet) {
     return 0;
   }
 
-  const fpCol = ARCHIVE_HEADERS.indexOf('fingerprint');
-  const totalDataRows = sheet.getLastRow() - 1;
-  const values = sheet.getRange(2, 1, totalDataRows, ARCHIVE_HEADERS.length).getValues();
-  const remainingRows = [];
-  let deletedCount = 0;
+  const fpCol = ARCHIVE_HEADERS.indexOf('fingerprint') + 1; // 1-indexed for getRange
+  const lastRow = sheet.getLastRow();
+  const totalDataRows = lastRow - 1;
+  const fpValues = sheet.getRange(2, fpCol, totalDataRows, 1).getValues();
 
-  for (let i = 0; i < values.length; i++) {
-    const row = values[i];
-    const fp = String(row[fpCol] || '').trim();
-    if (fingerprintsSet.has(fp)) {
-      deletedCount++;
-    } else {
-      remainingRows.push(row);
+  // Collect row indices to delete (1-indexed sheet rows), process bottom-to-top
+  // to avoid row-index shifting after each deletion.
+  const rowsToDelete = [];
+  for (let i = 0; i < fpValues.length; i++) {
+    const fp = String(fpValues[i][0] || '').trim();
+    if (fp && fingerprintsSet.has(fp)) {
+      rowsToDelete.push(i + 2); // +2: 1-indexed + header row offset
     }
   }
 
-  if (deletedCount > 0) {
-    if (remainingRows.length > 0) {
-      sheet.getRange(2, 1, remainingRows.length, ARCHIVE_HEADERS.length).setValues(remainingRows);
-      if (sheet.getLastRow() > remainingRows.length + 1) {
-        sheet.deleteRows(remainingRows.length + 2, sheet.getLastRow() - (remainingRows.length + 1));
-      }
-    } else {
-      sheet.deleteRows(2, totalDataRows);
-    }
+  // Delete from bottom to top so row indices remain valid
+  for (let r = rowsToDelete.length - 1; r >= 0; r--) {
+    sheet.deleteRow(rowsToDelete[r]);
   }
 
-  return deletedCount;
+  return rowsToDelete.length;
 }
+
 
 function deleteArchiveRowByFingerprint_(spreadsheet, fingerprint) {
   if (!fingerprint) return false;

@@ -127,24 +127,47 @@ function handleTelegramWebhook(e) {
       return HtmlService.createHtmlOutput('ok');
     }
     const update = JSON.parse(e.postData.contents);
-    
-    // DEBUG LOGGING
-    try {
-      firestoreAdd('webhook_logs', { timestamp: new Date().toISOString(), update: update });
-    } catch(logErr) {}
+
+    // DEBUG LOGGING — disable in production by setting WEBHOOK_DEBUG=false in script properties
+    const debugEnabled = PropertiesService.getScriptProperties().getProperty('WEBHOOK_DEBUG') === 'true';
+    if (debugEnabled) {
+      try {
+        firestoreAdd('webhook_logs', { timestamp: new Date().toISOString(), update: update });
+      } catch (logErr) {}
+    }
 
     handleTelegramUpdate_(update);
   } catch (error) {
     try {
+      // Always log errors (but consider using a TTL cleanup job — see cleanupWebhookLogs_)
       firestoreAdd('webhook_logs', { timestamp: new Date().toISOString(), error: error.message || String(error), stack: error.stack });
-    } catch(e) {}
+    } catch (e) {}
     try {
       const secrets = getScriptSecrets();
       sendTelegramMessage_(secrets, '⚠️ <b>Критическая ошибка вебхука</b>\n\n<code>' + (error.message || String(error)) + '</code>\n\n' + (error.stack || ''), secrets.telegramChatId);
-    } catch(e) {}
+    } catch (e) {}
   }
   return HtmlService.createHtmlOutput('ok');
 }
+
+/**
+ * Schedule this function to run daily to purge webhook_logs older than 7 days.
+ * Set it as a time-driven trigger in Apps Script triggers panel.
+ */
+function cleanupWebhookLogs_() {
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  try {
+    const docs = firestoreQuery('webhook_logs', [{ field: 'timestamp', op: '<', value: cutoff }]);
+    if (docs && docs.length) {
+      docs.forEach(function (doc) {
+        try { firestoreDelete('webhook_logs/' + doc.id); } catch (e) {}
+      });
+    }
+  } catch (e) {
+    // Fail silently — cleanup is best-effort
+  }
+}
+
 
 function answerTelegramCallbackQuery_(secrets, callbackQueryId, text, showAlert) {
   if (!secrets.telegramBotToken || !callbackQueryId) return;
@@ -502,9 +525,13 @@ function handleTelegramUpdate_(update) {
     let lines = ['🚗 <b>Отслеживаемые маршруты:</b>\n'];
     routes.forEach(function (r) {
       const statusIcon = r.enabled ? '✅' : '⬜';
-      const orig = r.origin_name || r.originName || (r.origin_id === '*' || r.originId === '*' ? 'Все города' : (r.origin_id || r.originId || 'Все города'));
-      const dest = r.destination_name || r.destinationName || (r.destination_id === '*' || r.destinationId === '*' ? 'Все города' : (r.destination_id || r.destinationId || 'все доступные'));
-      lines.push(statusIcon + ' <b>' + (r.source || 'маршрут') + '</b>: ' + orig + ' ➔ ' + dest);
+      const origCountry = r.origin_country || r.originCountry || '';
+      const destCountry = r.destination_country || r.destinationCountry || '';
+      const origFlag = origCountry ? flagEmoji_(origCountry) + ' ' : '';
+      const destFlag = destCountry ? flagEmoji_(destCountry) + ' ' : '';
+      const origCity = r.origin_name || r.originName || (r.origin_id === '*' || r.originId === '*' ? 'Все города' : (r.origin_id || r.originId || 'Все города'));
+      const destCity = r.destination_name || r.destinationName || (r.destination_id === '*' || r.destinationId === '*' ? 'Все города' : (r.destination_id || r.destinationId || 'все доступные'));
+      lines.push(statusIcon + ' <b>' + (r.source || 'маршрут').toUpperCase() + '</b>: ' + origFlag + origCity + ' ➔ ' + destFlag + destCity);
     });
     if (routes.length === 0) lines.push('Нет маршрутов.');
     sendTelegramMessage_(secrets, lines.join('\n'), chatId);
@@ -746,5 +773,12 @@ function escapeHtml_(value) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function flagEmoji_(code) {
+  if (!code || typeof code !== 'string' || code.length !== 2) return '';
+  code = code.toUpperCase();
+  var offset = 127397;
+  return String.fromCodePoint(code.charCodeAt(0) + offset) + String.fromCodePoint(code.charCodeAt(1) + offset);
 }
 

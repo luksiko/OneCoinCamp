@@ -353,53 +353,6 @@ function getUserRoutes(telegramId) {
     try { return JSON.parse(cached); } catch(e) {}
   }
   var routes = firestoreList('users/' + telegramId + '/routes');
-  if ((!routes || routes.length === 0) && String(telegramId) !== '999') {
-    // 1. Попытка миграции из users/999/routes (если ранее работало под skipAuth)
-    try {
-      var devRoutes = firestoreList('users/999/routes');
-      if (devRoutes && devRoutes.length > 0) {
-        devRoutes.forEach(function (r) {
-          var copy = Object.assign({}, r);
-          delete copy._id;
-          addUserRoute(telegramId, copy);
-        });
-        routes = firestoreList('users/' + telegramId + '/routes');
-      }
-    } catch (e) {}
-
-    // 2. Если в 999 тоже пусто, мигрируем из таблицы Google Sheets (вкладка Routes)
-    if (!routes || routes.length === 0) {
-      try {
-        var spreadsheet = getSpreadsheet();
-        var sheetRoutes = readRoutes_(spreadsheet);
-        if (sheetRoutes && sheetRoutes.length > 0) {
-          sheetRoutes.forEach(function (r) {
-            addUserRoute(telegramId, {
-              source: r.source || '',
-              originName: r.originName || '',
-              origin_name: r.originName || '',
-              originId: r.originId || '*',
-              origin_id: r.originId || '*',
-              destinationName: r.destinationName || '',
-              destination_name: r.destinationName || '',
-              destinationId: r.destinationId || '*',
-              destination_id: r.destinationId || '*',
-              originCountry: r.originCountry || '',
-              origin_country: r.originCountry || '',
-              destinationCountry: r.destinationCountry || '',
-              destination_country: r.destinationCountry || '',
-              pickupDate: r.pickupDate || '',
-              pickup_date: r.pickupDate || '',
-              returnDate: r.returnDate || '',
-              return_date: r.returnDate || '',
-              enabled: r.enabled !== false
-            });
-          });
-          routes = firestoreList('users/' + telegramId + '/routes');
-        }
-      } catch (e) {}
-    }
-  }
   cache.put(key, JSON.stringify(routes || []), 240);
   return routes || [];
 }
@@ -407,6 +360,15 @@ function getUserRoutes(telegramId) {
 function clearUserCache(telegramId) {
   var cache = CacheService.getScriptCache();
   cache.removeAll(['routes_' + telegramId, 'filters_' + telegramId]);
+}
+
+function deleteAllUserRoutes(telegramId) {
+  clearUserCache(telegramId);
+  var routes = firestoreList('users/' + telegramId + '/routes');
+  routes.forEach(function(r) {
+    firestoreDelete('users/' + telegramId + '/routes/' + r._id);
+  });
+  return routes.length;
 }
 
 function addUserRoute(telegramId, route) {
@@ -431,15 +393,6 @@ function getUserFilters(telegramId) {
     try { return JSON.parse(cached); } catch(e) {}
   }
   var filters = firestoreGet('users/' + telegramId + '/settings/filters');
-  if ((!filters || Object.keys(filters).length === 0) && String(telegramId) !== '999') {
-    try {
-      var devFilters = firestoreGet('users/999/settings/filters');
-      if (devFilters && Object.keys(devFilters).length > 0) {
-        setUserFilters(telegramId, devFilters);
-        filters = devFilters;
-      }
-    } catch (e) {}
-  }
   cache.put(key, JSON.stringify(filters || {}), 240);
   return filters;
 }

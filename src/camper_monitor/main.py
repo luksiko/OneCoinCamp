@@ -25,10 +25,11 @@ def filter_offers(offers, min_trip_days=None, max_trip_days=None, max_price_eur=
     result = []
     for offer in offers:
         duration = offer.duration_days
-        if min_trip_days is not None and duration < min_trip_days:
-            continue
-        if max_trip_days is not None and duration > max_trip_days:
-            continue
+        if duration is not None:
+            if min_trip_days is not None and duration < min_trip_days:
+                continue
+            if max_trip_days is not None and duration > max_trip_days:
+                continue
         if max_price_eur is not None and offer.price is not None:
             try:
                 price_val = float(offer.price)

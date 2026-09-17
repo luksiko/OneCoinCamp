@@ -126,8 +126,7 @@ class MovacarProvider:
         self.http = http
 
     def fetch_destinations(self, origin_reference: str):
-        import uuid, urllib.parse
-        query = urllib.parse.urlencode({"locale": "de", "origin_reference": origin_reference})
+        query = urlencode({"locale": "de", "origin_reference": origin_reference})
         payload = self.http.get(
             f"{self.base_url}/v1/locations/offers?{query}",
             headers={
@@ -139,17 +138,15 @@ class MovacarProvider:
         )
         return payload.get("included", [])
 
-    def fetch_offers(self, route, allowed_destination_countries = None):
-        import uuid, urllib.parse
-        
+    def fetch_offers(self, route, allowed_destination_countries=None):
         if route.origin_id is None:
             raise ValueError("Movacar routes require origin_id")
-            
+
         query_params = {"locale": "en", "origin": route.origin_id}
         if route.destination_id and route.destination_id != "*":
             query_params["destination"] = route.destination_id
-            
-        query = urllib.parse.urlencode(query_params)
+
+        query = urlencode(query_params)
         payload = self.http.get(
             f"{self.base_url}/v1/offers?{query}",
             headers={
@@ -172,18 +169,31 @@ class MovacarProvider:
         for item in payload.get("data", []):
             if item.get("type") != "offer":
                 continue
-                
+
             attrs = item.get("attributes", {})
             rels = item.get("relationships", {})
-            
-            dest_station_id = rels.get("destination", {}).get("data", {}).get("id")
-            dest_station = stations.get(dest_station_id, {})
-            dest_name = dest_station.get("city") or dest_station.get("alternative_city") or (route.destination if route.destination and route.destination != "*" else "Unknown")
-            dest_ref = dest_station.get("reference") or (route.destination_id if route.destination_id and route.destination_id != "*" else None)
 
-            origin_station_id = rels.get("origin", {}).get("data", {}).get("id")
+            # Fix HIGH: use (x or {}) to guard against explicit null in JSON
+            dest_station_id = (rels.get("destination") or {}).get("data") or {}
+            dest_station_id = dest_station_id.get("id")
+            dest_station = stations.get(dest_station_id, {})
+            dest_name = (
+                dest_station.get("city")
+                or dest_station.get("alternative_city")
+                or (route.destination if route.destination and route.destination != "*" else "Unknown")
+            )
+            dest_ref = dest_station.get("reference") or (
+                route.destination_id if route.destination_id and route.destination_id != "*" else None
+            )
+
+            origin_station_id = (rels.get("origin") or {}).get("data") or {}
+            origin_station_id = origin_station_id.get("id")
             origin_station = stations.get(origin_station_id, {})
-            origin_name = origin_station.get("city") or origin_station.get("alternative_city") or route.origin
+            origin_name = (
+                origin_station.get("city")
+                or origin_station.get("alternative_city")
+                or route.origin
+            )
             origin_ref = origin_station.get("reference") or route.origin_id
 
             booking_params = {}
@@ -197,26 +207,32 @@ class MovacarProvider:
                 booking_params["did"] = dest_ref
 
             booking_url = (
-                f"https://www.movacar.com/offers?{urllib.parse.urlencode(booking_params)}"
+                f"https://www.movacar.com/offers?{urlencode(booking_params)}"
                 if booking_params
                 else "https://www.movacar.com/offers"
             )
 
-            price_id = rels.get("base_price", {}).get("data", {}).get("id")
+            price_id = (rels.get("base_price") or {}).get("data") or {}
+            price_id = price_id.get("id")
             price_info = prices.get(price_id, {})
             price_val = price_info.get("amount_minor_units", 100) / 100.0
 
-            v_make = attrs.get("make") or attrs.get("model") or attrs.get("vehicle_category_name") or "Movacar vehicle"
+            v_make = (
+                attrs.get("make")
+                or attrs.get("model")
+                or attrs.get("vehicle_category_name")
+                or "Movacar vehicle"
+            )
             if attrs.get("model") and attrs.get("model") != v_make:
                 v_make += f" {attrs.get('model')}"
-                
+
             start_date = attrs.get("start_date") or ""
             end_date = attrs.get("end_date") or ""
             start_date = start_date.split("T")[0] if start_date else route.pickup_date
             end_date = end_date.split("T")[0] if end_date else route.return_date
-            
+
             offer_id = attrs.get("offer_id") or item.get("id")
-            
+
             offers.append(
                 Offer(
                     offer_id=str(offer_id),
@@ -232,6 +248,7 @@ class MovacarProvider:
             )
 
         return offers
+
 class IndieCampersProvider:
     base_url = "https://edge.indiecampers.com"
 

@@ -135,15 +135,36 @@ function getUiData(initData) {
   let filters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
   let routes = readRoutes_(spreadsheet);
   
-  if (userId) {
-    upsertUser(userId, auth.chat ? auth.chat.id : userId, { username: auth.user.username || '' });
-    const userFilters = getUserFilters(userId) || {};
-    filters.allowed_origin_countries = userFilters.allowed_origin_countries || '';
-    filters.allowed_destination_countries = userFilters.allowed_destination_countries || '';
-    filters.min_trip_days = userFilters.min_duration_days || '';
-    filters.max_trip_days = userFilters.max_duration_days || '';
-    filters.max_price = userFilters.price_max || '';
-    routes = getUserRoutes(userId) || [];
+  if (userId && typeof upsertUser === 'function') {
+    try {
+      upsertUser(userId, auth.chat ? auth.chat.id : userId, { username: (auth.user && auth.user.username) || '' });
+    } catch (e) {}
+    try {
+      const userFilters = (typeof getUserFilters === 'function') ? getUserFilters(userId) : null;
+      if (userFilters && Object.keys(userFilters).length > 0) {
+        if (userFilters.allowed_origin_countries !== undefined && userFilters.allowed_origin_countries !== null && userFilters.allowed_origin_countries !== '') {
+          filters.allowed_origin_countries = userFilters.allowed_origin_countries;
+        }
+        if (userFilters.allowed_destination_countries !== undefined && userFilters.allowed_destination_countries !== null && userFilters.allowed_destination_countries !== '') {
+          filters.allowed_destination_countries = userFilters.allowed_destination_countries;
+        }
+        if (userFilters.min_duration_days !== undefined && userFilters.min_duration_days !== null && userFilters.min_duration_days !== '') {
+          filters.min_trip_days = userFilters.min_duration_days;
+        }
+        if (userFilters.max_duration_days !== undefined && userFilters.max_duration_days !== null && userFilters.max_duration_days !== '') {
+          filters.max_trip_days = userFilters.max_duration_days;
+        }
+        if (userFilters.price_max !== undefined && userFilters.price_max !== null && userFilters.price_max !== '') {
+          filters.max_price = userFilters.price_max;
+        }
+      }
+    } catch (e) {}
+    try {
+      const uRoutes = (typeof getUserRoutes === 'function') ? getUserRoutes(userId) : null;
+      if (uRoutes && uRoutes.length > 0) {
+        routes = uRoutes;
+      }
+    } catch (e) {}
   }
   selfHealMonitorFromWebApp_(spreadsheet, settings);
   const dateWindow = buildDateWindow_(settings, filters, settings.pickup_date, settings.return_date);
@@ -499,32 +520,46 @@ function saveUiData(payload, initData) {
     writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, mergedSettings);
   }
   if (payload.filters) {
-    if (userId) {
-       const f = payload.filters;
-       const current = getUserFilters(userId) || {};
-       const toSave = {
-         allowed_origin_countries: Array.isArray(f.allowed_origin_countries) ? f.allowed_origin_countries : (f.allowed_origin_countries ? String(f.allowed_origin_countries).split(',').map(function(s) { return s.trim().toUpperCase(); }) : []),
-         allowed_destination_countries: Array.isArray(f.allowed_destination_countries) ? f.allowed_destination_countries : (f.allowed_destination_countries ? String(f.allowed_destination_countries).split(',').map(function(s) { return s.trim().toUpperCase(); }) : []),
-         min_duration_days: f.min_trip_days ? Number(f.min_trip_days) : null,
-         max_duration_days: f.max_trip_days ? Number(f.max_trip_days) : null,
-         price_max: f.max_price != null && f.max_price !== '' ? Number(f.max_price) : null,
-         window_days: current.window_days || Number(DEFAULT_SETTINGS.window_days) || 14,
-         window_start_rule: current.window_start_rule || 'today',
-       };
-       if (current.silent_hours) toSave.silent_hours = current.silent_hours;
-       setUserFilters(userId, toSave);
+    if (userId && typeof setUserFilters === 'function') {
+      try {
+        const f = payload.filters;
+        const current = (typeof getUserFilters === 'function' ? getUserFilters(userId) : {}) || {};
+        const toSave = {
+          allowed_origin_countries: Array.isArray(f.allowed_origin_countries) ? f.allowed_origin_countries : (f.allowed_origin_countries ? String(f.allowed_origin_countries).split(',').map(function(s) { return s.trim().toUpperCase(); }) : []),
+          allowed_destination_countries: Array.isArray(f.allowed_destination_countries) ? f.allowed_destination_countries : (f.allowed_destination_countries ? String(f.allowed_destination_countries).split(',').map(function(s) { return s.trim().toUpperCase(); }) : []),
+          min_duration_days: f.min_trip_days ? Number(f.min_trip_days) : null,
+          max_duration_days: f.max_trip_days ? Number(f.max_trip_days) : null,
+          price_max: f.max_price != null && f.max_price !== '' ? Number(f.max_price) : null,
+          window_days: current.window_days || Number(DEFAULT_SETTINGS.window_days) || 14,
+          window_start_rule: current.window_start_rule || 'today',
+        };
+        if (current.silent_hours) toSave.silent_hours = current.silent_hours;
+        setUserFilters(userId, toSave);
+      } catch (e) {}
+    }
+    if (isAdmin || !userId || typeof setUserFilters !== 'function') {
+      const currentFilters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
+      const mergedFilters = Object.assign({}, currentFilters, payload.filters);
+      writeKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, mergedFilters);
     }
   }
   if (Array.isArray(payload.routes)) {
-    if (userId) {
-      if (typeof clearUserCache === 'function') clearUserCache(userId);
-      const oldRoutes = getUserRoutes(userId) || [];
-      oldRoutes.forEach(function(r) { firestoreDelete('users/' + userId + '/routes/' + r._id); });
-      payload.routes.forEach(function(r) { 
-         delete r._id; 
-         delete r.window;
-         addUserRoute(userId, r); 
-      });
+    if (userId && typeof addUserRoute === 'function') {
+      try {
+        if (typeof clearUserCache === 'function') clearUserCache(userId);
+        const oldRoutes = (typeof getUserRoutes === 'function' ? getUserRoutes(userId) : []) || [];
+        if (typeof firestoreDelete === 'function') {
+          oldRoutes.forEach(function(r) { if (r && r._id) firestoreDelete('users/' + userId + '/routes/' + r._id); });
+        }
+        payload.routes.forEach(function(r) { 
+          delete r._id; 
+          delete r.window;
+          addUserRoute(userId, r); 
+        });
+      } catch (e) {}
+    }
+    if (isAdmin || !userId || typeof addUserRoute !== 'function') {
+      writeRoutes_(spreadsheet, payload.routes);
     }
   }
   try {

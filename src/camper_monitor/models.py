@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
+from datetime import datetime
 
 
 @dataclass(frozen=True)
@@ -44,9 +45,10 @@ class Offer:
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     @property
-    def duration_days(self) -> int:
-        from datetime import datetime
-
-        start = datetime.strptime(self.pickup_date, "%Y-%m-%d")
-        end = datetime.strptime(self.return_date, "%Y-%m-%d")
-        return (end - start).days
+    def duration_days(self) -> int | None:
+        try:
+            start = datetime.strptime(self.pickup_date, "%Y-%m-%d")
+            end = datetime.strptime(self.return_date, "%Y-%m-%d")
+            return (end - start).days
+        except (ValueError, TypeError):
+            return None

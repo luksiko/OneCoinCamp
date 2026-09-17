@@ -17,20 +17,33 @@ class JsonHttpClient:
         self.timeout_seconds = timeout_seconds
         self.retries = retries
 
-    def get(self, url: str, headers: Mapping[str, str] | None = None) -> Any:
-        request = Request(url, headers=dict(headers or {}), method="GET")
+    def _request(self, request: Request) -> Any:
+        """Execute request with exponential-backoff retry on transient errors."""
         for attempt in range(self.retries + 1):
             try:
                 with urlopen(request, timeout=self.timeout_seconds) as response:
                     return json.loads(response.read().decode("utf-8"))
             except HTTPError as error:
                 if error.code not in {429, 500, 502, 503, 504} or attempt == self.retries:
-                    raise FetchError(f"GET {url} failed with HTTP {error.code}") from error
-            except (TimeoutError, URLError, json.JSONDecodeError) as error:
+                    raise FetchError(
+                        f"{request.get_method()} {request.full_url} failed with HTTP {error.code}"
+                    ) from error
+            except (TimeoutError, URLError) as error:
                 if attempt == self.retries:
-                    raise FetchError(f"GET {url} failed: {error}") from error
+                    raise FetchError(
+                        f"{request.get_method()} {request.full_url} failed: {error}"
+                    ) from error
+            except json.JSONDecodeError as error:
+                # JSONDecodeError on a 200 response won't be fixed by retrying
+                raise FetchError(
+                    f"{request.get_method()} {request.full_url} returned non-JSON: {error}"
+                ) from error
             time.sleep(2**attempt)
         raise AssertionError("unreachable")
+
+    def get(self, url: str, headers: Mapping[str, str] | None = None) -> Any:
+        request = Request(url, headers=dict(headers or {}), method="GET")
+        return self._request(request)
 
     def post(
         self,
@@ -42,14 +55,5 @@ class JsonHttpClient:
         req_headers = {"Content-Type": "application/json"}
         if headers:
             req_headers.update(headers)
-        request = Request(
-            url,
-            data=body,
-            headers=req_headers,
-            method="POST",
-        )
-        try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except (HTTPError, TimeoutError, URLError, json.JSONDecodeError) as error:
-            raise FetchError(f"POST {url} failed: {error}") from error
+        request = Request(url, data=body, headers=req_headers, method="POST")
+        return self._request(request)

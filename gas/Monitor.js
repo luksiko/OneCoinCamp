@@ -241,12 +241,13 @@ function runMonitorOnce() {
     const globalFilters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
     
     // 1. Сбор маршрутов всех активных пользователей
-    const users = listActiveUsers();
+    // 1. Сбор маршрутов всех активных пользователей
+    const users = (typeof listActiveUsers === 'function') ? (listActiveUsers() || []) : [];
     const uniqueRoutesMap = {};
     const usersData = [];
     users.forEach(function(user) {
-      const userRoutes = getUserRoutes(user.telegram_id) || [];
-      const userFilters = getUserFilters(user.telegram_id);
+      const userRoutes = (typeof getUserRoutes === 'function') ? (getUserRoutes(user.telegram_id) || []) : [];
+      const userFilters = (typeof getUserFilters === 'function') ? getUserFilters(user.telegram_id) : null;
       usersData.push({
         user: user,
         routes: userRoutes,
@@ -260,7 +261,11 @@ function runMonitorOnce() {
         }
       });
     });
-    const routes = Object.keys(uniqueRoutesMap).map(function(k) { return uniqueRoutesMap[k]; });
+    let routes = Object.keys(uniqueRoutesMap).map(function(k) { return uniqueRoutesMap[k]; });
+    if (routes.length === 0) {
+      const sheetRoutes = readRoutes_(spreadsheet);
+      routes = sheetRoutes.filter(function(r) { return r.enabled && isProviderEnabled_(r.source, settings); });
+    }
 
     const known = readArchiveFingerprints_(spreadsheet);
     const cache = CacheService.getScriptCache();
@@ -322,47 +327,67 @@ function runMonitorOnce() {
     const secrets = getScriptSecrets();
     let telegramSentCount = 0;
 
-    usersData.forEach(function (data) {
-      const filters = data.filters || {};
-      const user = data.user;
-      const userRoutes = data.routes || [];
+    if (usersData.length > 0) {
+      usersData.forEach(function (data) {
+        const filters = data.filters || {};
+        const user = data.user;
+        const userRoutes = data.routes || [];
 
-      newOffers.forEach(function (offer) {
-        if (!matchesFirestoreFilter_(offer, filters, settings)) return;
-        if (hasAlertBeenSent(user.telegram_id, offer.fingerprint)) return;
+        newOffers.forEach(function (offer) {
+          if (typeof matchesFirestoreFilter_ === 'function' && !matchesFirestoreFilter_(offer, filters, settings)) return;
+          if (typeof hasAlertBeenSent === 'function' && hasAlertBeenSent(user.telegram_id, offer.fingerprint)) return;
 
-        let matchedRouteId = null;
-        for (let i = 0; i < userRoutes.length; i++) {
-          const r = userRoutes[i];
-          if (r.enabled && r.source === offer.source) {
-            // Simplified match since offer has only names
-            if ((!r.origin_name || r.origin_name === offer.origin) &&
-                (!r.destination_name || r.destination_name === offer.destination)) {
-              matchedRouteId = r._id;
-              break;
+          let matchedRouteId = null;
+          for (let i = 0; i < userRoutes.length; i++) {
+            const r = userRoutes[i];
+            if (r.enabled && r.source === offer.source) {
+              // Simplified match since offer has only names
+              if ((!r.origin_name || r.origin_name === offer.origin) &&
+                  (!r.destination_name || r.destination_name === offer.destination)) {
+                matchedRouteId = r._id;
+                break;
+              }
             }
           }
-        }
 
-        const sentAt = new Date();
-        try {
-          const userSettings = Object.assign({}, settings, {
-            silent_hours_enabled: filters.silent_hours != null,
-            silent_hours_start: filters.silent_hours ? filters.silent_hours.from : null,
-            silent_hours_end: filters.silent_hours ? filters.silent_hours.to : null
-          });
-          sendTelegramOffer_(secrets, offer, null, matchedRouteId, userSettings, user.chat_id);
-          telegramSentCount++;
-        } catch (error) {
-          return;
-        }
+          const sentAt = new Date();
+          try {
+            const userSettings = Object.assign({}, settings, {
+              silent_hours_enabled: filters.silent_hours != null,
+              silent_hours_start: filters.silent_hours ? filters.silent_hours.from : null,
+              silent_hours_end: filters.silent_hours ? filters.silent_hours.to : null
+            });
+            sendTelegramOffer_(secrets, offer, null, matchedRouteId, userSettings, user.chat_id);
+            telegramSentCount++;
+          } catch (error) {
+            return;
+          }
 
-        markAlertSent(user.telegram_id, offer.fingerprint, {
-          source: offer.source, origin: offer.origin,
-          destination: offer.destination, price: offer.price, sent_at: sentAt
+          if (typeof markAlertSent === 'function') {
+            markAlertSent(user.telegram_id, offer.fingerprint, {
+              source: offer.source, origin: offer.origin,
+              destination: offer.destination, price: offer.price, sent_at: sentAt
+            });
+          }
         });
       });
-    });
+    } else if (isTruthy_(settings.telegram_enabled) && secrets.telegramBotToken && secrets.telegramChatId) {
+      newOffers.forEach(function (offer) {
+        const pickupDate = offer.pickupDate || settings.pickup_date;
+        const returnDate = offer.returnDate || settings.return_date;
+        const window = buildDateWindow_(settings, globalFilters, pickupDate, returnDate);
+        if (isTruthy_(settings.notify_all_by_price)) {
+          if (!offerPriceMatches_(offer, settings.max_price_eur || globalFilters.max_price)) return;
+        } else {
+          if (!offerMatchesFilter_(offer, globalFilters, window)) return;
+        }
+        try {
+          sendTelegramOffer_(secrets, offer, null, null, settings, secrets.telegramChatId);
+          telegramSentCount++;
+        } catch (e) {}
+      });
+    }
+
 
     logRun_(spreadsheet, {
       startedAt: startedAt,
@@ -476,6 +501,12 @@ function checkOffersAvailability() {
   const startedAt = new Date();
   let spreadsheet = null;
   let requestCount = 0;
+  const lock = LockService.getScriptLock();
+
+  if (!lock.tryLock(10000)) {
+    // Another execution (e.g. runMonitorOnce) is holding the lock — skip this run
+    return { checked: 0, removed: 0 };
+  }
 
   try {
     spreadsheet = ensureWorkbook_();
@@ -601,6 +632,8 @@ function checkOffersAvailability() {
           }
         }
       }
+      // Rate limit: avoid 429 / UrlFetchApp quota exhaustion
+      if (k < rsKeys.length - 1) Utilities.sleep(500);
     }
 
     // Query Movacar API for each pair
@@ -642,6 +675,8 @@ function checkOffersAvailability() {
           }
         }
       }
+      // Rate limit: avoid 429 / UrlFetchApp quota exhaustion
+      if (m < mvKeys.length - 1) Utilities.sleep(500);
     }
 
     const removedCount = deleteArchiveRowsByFingerprints_(spreadsheet, toRemoveFingerprints);
@@ -679,6 +714,7 @@ function checkOffersAvailability() {
       });
     }
     throw err;
+  } finally {
+    lock.releaseLock();
   }
 }
-
