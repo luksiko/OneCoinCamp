@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 import pytest
 
-NODE_TEST_SCRIPT = """
+NODE_TEST_SCRIPT = r"""
 const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
@@ -1113,6 +1113,165 @@ if (testName === 'roadsurfer_429') {
   assert.strictEqual(uiData2.settings.silent_hours_enabled, true);
   assert.strictEqual(uiData2.settings.silent_hours_start, '22:00');
   assert.strictEqual(uiData2.settings.silent_hours_end, '08:00');
+} else if (testName === 'offer_price_matches') {
+  const { context } = setupGasContext(() => ({}));
+  assert.strictEqual(context.offerPriceMatches_({ price: 1 }, 1), true);
+  assert.strictEqual(context.offerPriceMatches_({ price: 1 }, '1'), true);
+  assert.strictEqual(context.offerPriceMatches_({ price: 0 }, 1), true);
+  assert.strictEqual(context.offerPriceMatches_({ price: null }, 1), true);
+  assert.strictEqual(context.offerPriceMatches_({ price: '' }, 1), true);
+  assert.strictEqual(context.offerPriceMatches_({ price: 10 }, 1), false);
+  assert.strictEqual(context.offerPriceMatches_({ price: 50 }, ''), true);
+  assert.strictEqual(context.offerPriceMatches_({ price: 50 }, null), true);
+} else if (testName === 'notify_all_by_price_behavior') {
+  const sentMessages = [];
+  const { context, sheets, scriptProps, memCache } = setupGasContext((url, opts) => {
+    if (url.includes('api.telegram.org')) {
+      sentMessages.push(JSON.parse(opts.payload));
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ok: true }) };
+    }
+    if (url.includes('stations/6')) {
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({ routes: [{ id: 35, country: 'IT' }] })
+      };
+    }
+    if (url.includes('rally/search')) {
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify([
+          {
+            id: 'cheap-es',
+            price: 1,
+            currency: 'EUR',
+            station_id: 6,
+            station_name: 'Berlin',
+            station_country: 'DE',
+            end_station_id: 35,
+            end_station_name: 'Paris',
+            end_station_country: 'FR'
+          }
+        ])
+      };
+    }
+    return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ included: [] }) };
+  });
+
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+
+  // 1. With notify_all_by_price disabled (default):
+  sheets['Settings'].values = [
+    ['key', 'value'],
+    ['telegram_enabled', true],
+    ['notify_all_by_price', false],
+    ['poll_interval_minutes', 5],
+  ];
+  sheets['Filters'].values = [
+    ['key', 'value'],
+    ['allowed_origin_countries', 'DE'],
+    ['allowed_destination_countries', 'ES'],
+    ['window_days', 14],
+    ['max_price', 1],
+  ];
+
+  context.runMonitorOnce();
+  assert.strictEqual(sentMessages.length, 0, 'Should not notify when filtered out and notify_all_by_price is false');
+  const archive = sheets['OffersArchive'].values;
+  assert.strictEqual(archive.length, 2, 'Should archive offer anyway');
+  assert.strictEqual(archive[1][15], false, 'matches_filter should be false');
+  assert.strictEqual(archive[1][16], '', 'telegram_sent_at should be empty');
+
+  // Reset archive and memory cache for next run with notify_all_by_price: true
+  sheets['OffersArchive'].values = [];
+  for (const k in memCache) delete memCache[k];
+
+  sheets['Settings'].values = [
+    ['key', 'value'],
+    ['telegram_enabled', true],
+    ['notify_all_by_price', true],
+    ['poll_interval_minutes', 5],
+  ];
+
+  context.runMonitorOnce();
+  assert.strictEqual(sentMessages.length, 1, 'Should notify in Telegram when notify_all_by_price is true and price matches');
+  const archive2 = sheets['OffersArchive'].values;
+  assert.strictEqual(archive2.length, 2);
+  assert.strictEqual(archive2[1][15], true, 'isMatched should be true');
+  assert.notStrictEqual(archive2[1][16], '', 'telegram_sent_at should be filled');
+} else if (testName === 'webapp_notify_all_by_price_settings') {
+  const { context, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+
+  const uiData1 = context.getUiData('');
+  assert.strictEqual(uiData1.settings.notify_all_by_price, false);
+
+  const saveRes = context.saveUiData({
+    settings: {
+      notify_all_by_price: true,
+    }
+  }, '');
+  assert.strictEqual(saveRes.settings.notify_all_by_price, true);
+
+  const uiData2 = context.getUiData('');
+  assert.strictEqual(uiData2.settings.notify_all_by_price, true);
+} else if (testName === 'webapp_filters_countries_and_days_sync') {
+  const { context, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+
+  // Initial read
+  const uiData1 = context.getUiData('');
+  assert.ok(Array.isArray(uiData1.filters.allowed_origin_countries));
+  assert.ok(Array.isArray(uiData1.filters.allowed_destination_countries));
+
+  // Save updated countries and duration via Web App
+  const saveRes = context.saveUiData({
+    filters: {
+      allowed_origin_countries: ['FR', 'ES'],
+      allowed_destination_countries: ['IT', 'PT', 'HR'],
+      min_trip_days: 3,
+      max_trip_days: 14,
+      max_price: 5
+    }
+  }, '');
+
+  assert.strictEqual(saveRes.filters.allowed_origin_countries.join(','), 'FR,ES');
+  assert.strictEqual(saveRes.filters.allowed_destination_countries.join(','), 'IT,PT,HR');
+  assert.strictEqual(saveRes.filters.min_trip_days, 3);
+  assert.strictEqual(saveRes.filters.max_trip_days, 14);
+  assert.strictEqual(saveRes.filters.max_price, 5);
+
+  // Subsequent getUiData reflects changes
+  const uiData2 = context.getUiData('');
+  assert.strictEqual(uiData2.filters.allowed_origin_countries.join(','), 'FR,ES');
+  assert.strictEqual(uiData2.filters.allowed_destination_countries.join(','), 'IT,PT,HR');
+  assert.strictEqual(uiData2.filters.min_trip_days, 3);
+  assert.strictEqual(uiData2.filters.max_trip_days, 14);
+} else if (testName === 'webapp_get_offers_sorting_and_sources') {
+  const { context, sheets, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+
+  sheets['OffersArchive'].values = [
+    ['timestamp', 'source', 'offer_id', 'vehicle_id', 'vehicle', 'origin', 'origin_country', 'destination', 'destination_country', 'pickup_date', 'return_date', 'price', 'currency', 'booking_url', 'fingerprint', 'matches_filter', 'telegram_sent_at'],
+    [new Date('2026-09-10T10:00:00.000Z'), 'movacar', 'm1', 'v1', 'Van 1', 'Berlin', 'DE', 'Paris', 'FR', '2026-09-15', '2026-09-17', 1, 'EUR', 'https://movacar.com/offers?origin=Berlin&destination=Paris', 'fp1', true, ''],
+    [new Date('2026-09-15T12:00:00.000Z'), 'roadsurfer', 'r1', 'v2', 'Camper 2', 'Munich', 'DE', 'Rome', 'IT', new Date('2026-09-15T12:00:00.000Z'), new Date('2026-09-17T12:00:00.000Z'), 5, 'EUR', 'https://roadsurfer.com', 'fp2', true, '2026-09-15T12:05:00.000Z'],
+    [new Date('2026-09-12T08:00:00.000Z'), 'movacar', 'm2', 'v3', 'Car 3', 'Hamburg', 'DE', 'Vienna', 'AT', '2026-09-20', '2026-09-22', 1, 'EUR', 'https://movacar.com/offers?origin=Hamburg&destination=Vienna', 'fp3', true, ''],
+  ];
+
+  const res = context.getOffers({}, '');
+  assert.strictEqual(res.total, 3);
+  assert.deepStrictEqual(res.availableSources, ['movacar', 'roadsurfer']);
+  // Verify sorted by newest added first (timestamp descending): r1 (Sep 15), m2 (Sep 12), m1 (Sep 10)
+  assert.strictEqual(res.offers[0].offerId, 'r1');
+  assert.strictEqual(res.offers[1].offerId, 'm2');
+  assert.strictEqual(res.offers[2].offerId, 'm1');
+
+  // Verify date normalization
+  assert.strictEqual(res.offers[0].pickupDate, '2026-09-15');
+  assert.strictEqual(res.offers[0].returnDate, '2026-09-17');
 } else {
   throw new Error('Unknown test: ' + testName);
 }
@@ -1170,6 +1329,11 @@ def run_node_test(test_name: str):
         "telegram_digest_and_silent_commands",
         "filter_max_price",
         "webapp_silent_hours_settings",
+        "offer_price_matches",
+        "notify_all_by_price_behavior",
+        "webapp_notify_all_by_price_settings",
+        "webapp_filters_countries_and_days_sync",
+        "webapp_get_offers_sorting_and_sources",
     ],
 )
 def test_gas_node_suite(test_name: str):

@@ -83,8 +83,8 @@ def poll_once(
             continue
         filtered = filter_offers(
             offers,
-            min_trip_days=settings.min_trip_days,
-            max_trip_days=settings.max_trip_days,
+            min_trip_days=None if settings.notify_all_by_price else settings.min_trip_days,
+            max_trip_days=None if settings.notify_all_by_price else settings.max_trip_days,
             max_price_eur=settings.max_price_eur,
         )
         sent = 0
@@ -146,6 +146,9 @@ def format_status(settings: Settings, state: StateStore) -> str:
         )
     if settings.max_price_eur is not None:
         lines.append(f"  Макс. цена: {settings.max_price_eur} €")
+    if settings.notify_all_by_price:
+        max_p = f"{settings.max_price_eur} €" if settings.max_price_eur is not None else "любая"
+        lines.append(f"  🔔 Все слоты до цены: вкл (до {max_p})")
     lines.append("")
     lines.append("Команды: /check — запустить опрос сейчас")
     return "\n".join(lines)

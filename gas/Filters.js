@@ -134,15 +134,27 @@ function offerMatchesFilter_(offer, filters, window) {
     }
   }
 
-  if (filters && filters.max_price != null && filters.max_price !== '') {
-    const maxPrice = Number(filters.max_price);
-    if (!isNaN(maxPrice) && maxPrice >= 0 && offer.price != null && offer.price !== '') {
-      if (Number(offer.price) > maxPrice) {
-        return false;
-      }
-    }
+  if (!offerPriceMatches_(offer, filters && filters.max_price)) {
+    return false;
   }
 
+  return true;
+}
+
+function offerPriceMatches_(offer, maxPriceSetting) {
+  if (maxPriceSetting == null || maxPriceSetting === '') {
+    return true;
+  }
+  const max = Number(maxPriceSetting);
+  if (isNaN(max) || max < 0) {
+    return true;
+  }
+  if (offer && offer.price != null && offer.price !== '') {
+    const p = Number(offer.price);
+    if (!isNaN(p)) {
+      return p <= max;
+    }
+  }
   return true;
 }
 

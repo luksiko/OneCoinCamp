@@ -291,8 +291,12 @@ function runMonitorOnce() {
           return;
         }
 
+        const notifyAllByPrice = isTruthy_(settings.notify_all_by_price);
+        const priceMatches = offerPriceMatches_(offer, filters.max_price);
+        const shouldNotify = (matches || (notifyAllByPrice && priceMatches)) && isTruthy_(settings.telegram_enabled);
+
         let telegramSentAt = '';
-        if (matches && settings.telegram_enabled) {
+        if (shouldNotify) {
           try {
             sendTelegramOffer_(secrets, offer, route, routeIndex, settings);
             telegramSentAt = formatIsoDate_(new Date());
@@ -302,10 +306,11 @@ function runMonitorOnce() {
           }
         }
 
+        const isMatched = matches || (notifyAllByPrice && priceMatches);
         known.add(fingerprint);
         cache.put(fingerprint, '1', 21600);
         foundOffers.push(offer);
-        rowsToAppend.push(offerToRow_(offer, fingerprint, matches, telegramSentAt));
+        rowsToAppend.push(offerToRow_(offer, fingerprint, isMatched, telegramSentAt));
       });
     });
 
@@ -408,6 +413,11 @@ function buildStatusMessage_(spreadsheet) {
 
   if (filters.min_trip_days || filters.max_trip_days) {
     lines.push('  Длительность: ' + (filters.min_trip_days || '0') + '–' + (filters.max_trip_days || '∞') + ' дней');
+  }
+
+  if (isTruthy_(settings.notify_all_by_price)) {
+    const maxP = (filters.max_price != null && filters.max_price !== '') ? (filters.max_price + ' €') : 'любая';
+    lines.push('  🔔 Все слоты до цены: вкл (до ' + maxP + ')');
   }
 
   lines.push('');

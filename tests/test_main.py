@@ -207,3 +207,66 @@ def test_poll_once_multiple_routes_with_first_failed_and_second_successful(tmp_p
         assert rows[1] == ("movacar", 1, 1, 0)
     finally:
         store.close()
+
+
+def test_poll_once_notify_all_by_price(tmp_path):
+    db_file = tmp_path / "state.db"
+    store = StateStore(db_file)
+    route = Route(
+        source="roadsurfer",
+        origin="Berlin",
+        destination="Rome",
+        origin_id=6,
+        destination_id=35,
+        pickup_date="2026-10-26",
+        return_date="2026-11-02",
+    )
+    # Trip duration is 7 days, but min_trip_days is 10 days
+    settings_strict = Settings(
+        routes=(route,),
+        poll_interval_seconds=60,
+        request_timeout_seconds=10,
+        telegram_bot_token=None,
+        telegram_chat_id=None,
+        allowed_origin_countries=(),
+        allowed_destination_countries=(),
+        min_trip_days=10,
+        max_trip_days=None,
+        max_price_eur=1.0,
+        notify_all_by_price=False,
+    )
+    mock_client = MagicMock()
+    mock_client.get.return_value = [
+        {
+            "id": 101,
+            "price": 1,
+            "model": {"name": "Surfer Suite"},
+            "pickup_date": "2026-10-26",
+            "return_date": "2026-11-02",
+        }
+    ]
+
+    try:
+        with patch("camper_monitor.main.JsonHttpClient", return_value=mock_client):
+            found_strict = poll_once(settings_strict, store)
+        assert found_strict == 0
+
+        settings_notify_all = Settings(
+            routes=(route,),
+            poll_interval_seconds=60,
+            request_timeout_seconds=10,
+            telegram_bot_token=None,
+            telegram_chat_id=None,
+            allowed_origin_countries=(),
+            allowed_destination_countries=(),
+            min_trip_days=10,
+            max_trip_days=None,
+            max_price_eur=1.0,
+            notify_all_by_price=True,
+        )
+        with patch("camper_monitor.main.JsonHttpClient", return_value=mock_client):
+            found_all = poll_once(settings_notify_all, store)
+        assert found_all == 1
+    finally:
+        store.close()
+

@@ -20,6 +20,7 @@ class Settings:
     max_trip_days: int | None
     max_price_eur: float | None = 1.0
     enabled_providers: tuple[str, ...] | None = None
+    notify_all_by_price: bool = False
 
 
 def _parse_countries(value) -> tuple[str, ...]:
@@ -71,4 +72,5 @@ def load_settings(path: Path, bot_token: str | None, chat_id: str | None) -> Set
         max_trip_days=data.get("max_trip_days"),
         max_price_eur=float(data["max_price_eur"]) if data.get("max_price_eur") is not None else 1.0,
         enabled_providers=_parse_providers(data.get("enabled_providers")),
+        notify_all_by_price=bool(data.get("notify_all_by_price", False)),
     )

@@ -140,6 +140,7 @@ function getUiData(initData) {
       check_neighbors: isTruthy_(settings.check_neighbors),
       timezone: settings.timezone,
       telegram_enabled: settings.telegram_enabled,
+      notify_all_by_price: isTruthy_(settings.notify_all_by_price),
       silent_hours_enabled: isTruthy_(settings.silent_hours_enabled),
       silent_hours_start: String(settings.silent_hours_start || '23:00').trim(),
       silent_hours_end: String(settings.silent_hours_end || '07:00').trim(),
@@ -697,6 +698,7 @@ function getOffers(filter, initData) {
         }
       }
     }
+    const tz = (spreadsheet && spreadsheet.getSpreadsheetTimeZone) ? spreadsheet.getSpreadsheetTimeZone() : (typeof Session !== 'undefined' && Session.getScriptTimeZone ? Session.getScriptTimeZone() : 'Europe/Berlin');
     return {
       timestamp: row[0] ? new Date(row[0]).toISOString() : null,
       source: String(row[1] || ''),
@@ -707,8 +709,8 @@ function getOffers(filter, initData) {
       originCountry: String(row[6] || ''),
       destination: String(row[7] || ''),
       destinationCountry: String(row[8] || ''),
-      pickupDate: row[9] instanceof Date ? Utilities.formatDate(row[9], (spreadsheet && spreadsheet.getSpreadsheetTimeZone) ? spreadsheet.getSpreadsheetTimeZone() : (typeof Session !== 'undefined' && Session.getScriptTimeZone ? Session.getScriptTimeZone() : 'Europe/Berlin'), 'yyyy-MM-dd') : String(row[9] || ''),
-      returnDate: row[10] instanceof Date ? Utilities.formatDate(row[10], (spreadsheet && spreadsheet.getSpreadsheetTimeZone) ? spreadsheet.getSpreadsheetTimeZone() : (typeof Session !== 'undefined' && Session.getScriptTimeZone ? Session.getScriptTimeZone() : 'Europe/Berlin'), 'yyyy-MM-dd') : String(row[10] || ''),
+      pickupDate: formatArchiveDate_(row[9], tz),
+      returnDate: formatArchiveDate_(row[10], tz),
       price: row[11],
       currency: String(row[12] || 'EUR'),
       bookingUrl: bookingUrl,
@@ -724,11 +726,19 @@ function getOffers(filter, initData) {
     } catch (e) {}
   }
 
+  // Collect available sources from all offers
+  const availableSourcesMap = {};
+  offers.forEach(function (o) {
+    const s = String(o.source || '').trim().toLowerCase();
+    if (s) { availableSourcesMap[s] = true; }
+  });
+  const availableSources = Object.keys(availableSourcesMap).sort();
+
   // Apply filters
   let filtered = offers;
   if (filter) {
     if (filter.source) {
-      filtered = filtered.filter(function (o) { return o.source === filter.source; });
+      filtered = filtered.filter(function (o) { return o.source.toLowerCase() === filter.source.toLowerCase(); });
     }
     if (filter.origin) {
       const originLower = filter.origin.toLowerCase();
@@ -771,13 +781,18 @@ function getOffers(filter, initData) {
     }
   }
 
-  // Sort by date descending, then by price
+  // Sort by added timestamp descending (newest offers first), then by pickupDate, then by price
   filtered.sort(function (a, b) {
+    const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+    const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+    if (timeA !== timeB) {
+      return timeB - timeA;
+    }
     if (a.pickupDate && b.pickupDate) {
-      const dateA = new Date(a.pickupDate);
-      const dateB = new Date(b.pickupDate);
-      if (dateA.getTime() !== dateB.getTime()) {
-        return dateB.getTime() - dateA.getTime();
+      const dateA = new Date(a.pickupDate).getTime() || 0;
+      const dateB = new Date(b.pickupDate).getTime() || 0;
+      if (dateA !== dateB) {
+        return dateA - dateB;
       }
     }
     return (a.price || 0) - (b.price || 0);
@@ -794,7 +809,22 @@ function getOffers(filter, initData) {
     total: filtered.length,
     page: page,
     totalPages: Math.ceil(filtered.length / limit),
+    availableSources: availableSources,
   };
+}
+
+function formatArchiveDate_(val, tz) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, tz || 'Europe/Berlin', 'yyyy-MM-dd');
+  }
+  const s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    return Utilities.formatDate(d, tz || 'Europe/Berlin', 'yyyy-MM-dd');
+  }
+  return s;
 }
 
 function deleteOffer(fingerprint, initData) {

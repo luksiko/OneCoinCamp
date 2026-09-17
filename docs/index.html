@@ -335,27 +335,58 @@
       border-color: var(--accent);
       color: var(--accent-text);
     }
+    .chips-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+      max-height: 180px;
+      overflow-y: auto;
+      padding: 2px;
+    }
+    .btn-chip-action {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .btn-chip-action:hover {
+      background: var(--section);
+    }
+
+    .offers-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-bottom: 10px;
+    }
 
     .offer-card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 14px;
-      padding: 12px;
+      padding: 12px 14px;
       margin-bottom: 10px;
     }
     .offer-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 8px;
+      gap: 8px;
+      margin-bottom: 6px;
     }
     .offer-route {
       font-weight: 700;
-      font-size: 14px;
+      font-size: 15px;
+      line-height: 1.3;
     }
     .offer-route .flag { margin-right: 4px; }
     .offer-source {
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.4px;
@@ -363,16 +394,48 @@
       background: var(--section);
       padding: 3px 8px;
       border-radius: 999px;
+      flex-shrink: 0;
+    }
+    .offer-details {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: var(--subtext);
     }
     .offer-dates {
-      color: var(--subtext);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      color: var(--text);
       font-size: 13px;
-      margin-bottom: 6px;
+    }
+    .offer-vehicle {
+      color: var(--subtext);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .offer-added {
+      color: var(--hint);
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
     .offer-footer {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
     }
     .offer-price {
       font-size: 18px;
@@ -383,6 +446,7 @@
       font-size: 11px;
       padding: 3px 8px;
       border-radius: 999px;
+      font-weight: 600;
     }
     .offer-status.new { background: rgba(46, 166, 255, 0.2); color: var(--accent); }
     .offer-status.sent { background: rgba(76, 217, 100, 0.15); color: var(--success); }
@@ -424,21 +488,20 @@
     .btn-check-avail {
       background: var(--section);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      width: 32px;
-      height: 32px;
-      display: flex;
+      border-radius: 10px;
+      padding: 6px 12px;
+      display: inline-flex;
       align-items: center;
-      justify-content: center;
-      font-size: 16px;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
       color: var(--accent);
       cursor: pointer;
-      flex-shrink: 0;
-      transition: background 0.15s;
-      padding: 0;
+      transition: background 0.15s, border-color 0.15s;
     }
     .btn-check-avail:hover {
       background: rgba(46, 166, 255, 0.15);
+      border-color: var(--accent);
     }
     .btn-check-avail:disabled {
       opacity: 0.5;
@@ -458,30 +521,47 @@
     }
     .offers-empty .icon { font-size: 48px; margin-bottom: 12px; }
 
-    .offers-summary {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      font-size: 13px;
-      color: var(--subtext);
-    }
     .offers-pagination {
       display: flex;
+      align-items: center;
       justify-content: center;
-      gap: 8px;
-      margin-top: 12px;
+      gap: 12px;
+      margin-top: 14px;
+      padding: 8px 0 16px;
     }
-    .offers-pagination button {
+    .offers-pagination .page-btn {
       border: 1px solid var(--border);
       background: var(--section);
       color: var(--text);
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 8px 14px;
       font-size: 13px;
+      font-weight: 600;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s, border-color 0.15s;
     }
-    .offers-pagination button:disabled { opacity: 0.4; }
+    .offers-pagination .page-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .offers-pagination .page-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .offers-pagination .page-info {
+      font-size: 13px;
+      color: var(--subtext);
+      font-weight: 500;
+      text-align: center;
+    }
+    .offers-pagination .page-total {
+      color: var(--hint);
+      font-size: 12px;
+      margin-left: 2px;
+    }
 
     .filter-panel {
       background: var(--card);
@@ -659,6 +739,58 @@
               placeholder="1">
           </label>
         </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span>Уведомлять обо всех слотах до макс. цены</span>
+            <span class="switch">
+              <input type="checkbox" id="notifyAllByPrice">
+              <span class="slider"></span>
+            </span>
+          </label>
+          <div style="font-size:11px;color:var(--hint);margin-top:4px;">
+            Игнорировать фильтры дат и стран для Telegram, если цена слота ≤ макс. цены
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="cardFilters">
+        <div class="card-title">🌍 Фильтры стран и направлений</div>
+        <div style="font-size:12px;color:var(--hint);margin-bottom:12px;">
+          Эти фильтры применяются синхронно и для приложения, и для Telegram-бота
+        </div>
+
+        <div class="field" style="margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span class="field-label" style="margin-bottom:0;">🛫 Откуда (страны отправления)</span>
+            <div>
+              <button type="button" class="btn-chip-action" id="btnAllOriginCountries">Все</button>
+              <button type="button" class="btn-chip-action" id="btnClearOriginCountries">Очистить</button>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--hint);margin-bottom:6px;" id="originCountriesCount">Все страны разрешены</div>
+          <div class="chips-wrap" id="originCountriesChips"></div>
+        </div>
+
+        <div class="field" style="margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span class="field-label" style="margin-bottom:0;">🛬 Куда (страны прибытия)</span>
+            <div>
+              <button type="button" class="btn-chip-action" id="btnAllDestCountries">Все</button>
+              <button type="button" class="btn-chip-action" id="btnClearDestCountries">Очистить</button>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--hint);margin-bottom:6px;" id="destCountriesCount">Все страны разрешены</div>
+          <div class="chips-wrap" id="destCountriesChips"></div>
+        </div>
+
+        <div class="field" style="margin-bottom:0;">
+          <span class="field-label">⏱ Длительность поездки (дней)</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="number" id="minTripDaysInput" min="0" max="60" placeholder="Мин. (любая)" style="flex:1; text-align:center; padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--text); font-size:14px;">
+            <span style="color:var(--hint); font-weight:600;">–</span>
+            <input type="number" id="maxTripDaysInput" min="0" max="60" placeholder="Макс. (любая)" style="flex:1; text-align:center; padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--text); font-size:14px;">
+          </div>
+        </div>
       </div>
 
       <div class="card" id="cardSilentHours">
@@ -745,12 +877,13 @@
     </div>
 
     <div id="screenOffers" style="display:none;">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
-        <div class="filters-bar" id="sourceFilters" style="margin-bottom:0; flex-grow:1;"></div>
-        <button type="button" class="btn-check-avail" id="btnCheckAvail" title="Проверить доступность офферов у провайдеров и удалить недоступные">🔄</button>
-      </div>
+      <div class="filters-bar" id="sourceFilters"></div>
 
-      <div class="offers-summary" id="offersSummary"></div>
+      <div class="offers-toolbar">
+        <button type="button" class="btn-check-avail" id="btnCheckAvail" title="Проверить доступность офферов у провайдеров и удалить недоступные">
+          🔄 Проверить актуальность
+        </button>
+      </div>
 
       <div id="offersList"></div>
 
@@ -1097,21 +1230,39 @@
 
     function renderSourceFilters() {
       var container = document.getElementById('sourceFilters');
+      if (!container) return;
       container.innerHTML = '';
-      var sources = ['roadsurfer', 'movacar', 'indiecampers', 'imoova'];
+
       var sourceLabels = {
         roadsurfer: '🚐 Roadsurfer',
         movacar: '🚗 Movacar',
         indiecampers: '⛺ Indie Campers',
         imoova: '🌐 Imoova'
       };
-      sources.forEach(function (src) {
+
+      var availableSources = (offersData && offersData.availableSources) ? offersData.availableSources.slice() : [];
+      if (!availableSources.length && offersData && offersData.offers && offersData.offers.length) {
+        var srcMap = {};
+        offersData.offers.forEach(function (o) {
+          var s = String(o.source || '').trim().toLowerCase();
+          if (s) srcMap[s] = true;
+        });
+        availableSources = Object.keys(srcMap).sort();
+      }
+
+      // If selected source filter is not in available sources, clear it
+      if (offerFilters.source && availableSources.indexOf(offerFilters.source.toLowerCase()) === -1) {
+        offerFilters.source = '';
+      }
+
+      // Show provider chips only if provider is present in availableSources
+      availableSources.forEach(function (src) {
         var chip = document.createElement('button');
         chip.type = 'button';
-        chip.className = 'filter-chip' + (offerFilters.source === src ? ' active' : '');
-        chip.textContent = sourceLabels[src] || src;
+        chip.className = 'filter-chip' + (offerFilters.source.toLowerCase() === src.toLowerCase() ? ' active' : '');
+        chip.textContent = sourceLabels[src.toLowerCase()] || (src.charAt(0).toUpperCase() + src.slice(1));
         chip.onclick = function () {
-          offerFilters.source = offerFilters.source === src ? '' : src;
+          offerFilters.source = offerFilters.source.toLowerCase() === src.toLowerCase() ? '' : src;
           offerFilters.page = 1;
           applyOfferFilters();
         };
@@ -1160,26 +1311,25 @@
 
     function renderOffers() {
       var list = document.getElementById('offersList');
-      var summary = document.getElementById('offersSummary');
       var pagination = document.getElementById('offersPagination');
+      if (!list || !pagination) return;
       list.innerHTML = '';
       pagination.innerHTML = '';
 
       if (!offersData || !offersData.offers || !offersData.offers.length) {
         list.innerHTML = '<div class="offers-empty"><div class="icon">🎫</div><div>Офферы не найдены</div></div>';
-        summary.innerHTML = '0 офферов';
         return;
       }
-
-      summary.textContent = 'Найдено: ' + offersData.total + ' | Стр. ' + offersData.page + ' / ' + offersData.totalPages;
 
       offersData.offers.forEach(function (offer) {
         list.appendChild(buildOfferCard(offer));
       });
 
-      // Pagination
+      // Combined pagination and summary at the bottom
       if (offersData.totalPages > 1) {
         var prev = document.createElement('button');
+        prev.type = 'button';
+        prev.className = 'page-btn';
         prev.textContent = '← Назад';
         prev.disabled = offersData.page <= 1;
         prev.onclick = function () {
@@ -1188,7 +1338,15 @@
         };
         pagination.appendChild(prev);
 
+        var info = document.createElement('div');
+        info.className = 'page-info';
+        info.innerHTML = 'Стр. ' + offersData.page + ' / ' + offersData.totalPages +
+          ' <span class="page-total">(всего: ' + offersData.total + ')</span>';
+        pagination.appendChild(info);
+
         var next = document.createElement('button');
+        next.type = 'button';
+        next.className = 'page-btn';
         next.textContent = 'Вперёд →';
         next.disabled = offersData.page >= offersData.totalPages;
         next.onclick = function () {
@@ -1196,6 +1354,11 @@
           applyOfferFilters();
         };
         pagination.appendChild(next);
+      } else if (offersData.total > 0) {
+        var totalInfo = document.createElement('div');
+        totalInfo.className = 'page-info';
+        totalInfo.textContent = 'Найдено офферов: ' + offersData.total;
+        pagination.appendChild(totalInfo);
       }
     }
 
@@ -1203,38 +1366,62 @@
       var card = document.createElement('div');
       card.className = 'offer-card';
 
-      // Header with route and source
+      // Header with route and source badge
       var header = document.createElement('div');
       header.className = 'offer-header';
       var route = document.createElement('div');
       route.className = 'offer-route';
       route.innerHTML = '<span class="flag">' + flagEmoji(offer.originCountry) + '</span>' +
-        (offer.origin || '—') + ' → <span class="flag">' + flagEmoji(offer.destinationCountry) + '</span>' +
-        (offer.destination || '—');
+        escHtml(offer.origin || '—') + ' → <span class="flag">' + flagEmoji(offer.destinationCountry) + '</span>' +
+        escHtml(offer.destination || '—');
       header.appendChild(route);
+
       var sourceBadge = document.createElement('span');
       sourceBadge.className = 'offer-source';
-      sourceBadge.textContent = offer.source;
+      sourceBadge.textContent = offer.source || '';
       header.appendChild(sourceBadge);
       card.appendChild(header);
 
-      // Dates
+      // Details section: dates, vehicle, added timestamp
+      var details = document.createElement('div');
+      details.className = 'offer-details';
+
+      // Compact dates
       var dates = document.createElement('div');
       dates.className = 'offer-dates';
-      dates.textContent = (offer.pickupDate ? shortDate(offer.pickupDate) : '—') + ' — ' +
-        (offer.returnDate ? shortDate(offer.returnDate) : '—');
-      if (offer.vehicle) {
-        dates.textContent += ' | ' + offer.vehicle;
-      }
-      card.appendChild(dates);
+      dates.textContent = '📅 ' + formatOfferDateRange(offer.pickupDate, offer.returnDate);
+      details.appendChild(dates);
 
-      // Footer with price, status, book button
+      // Vehicle
+      if (offer.vehicle && String(offer.vehicle).trim()) {
+        var vehicle = document.createElement('div');
+        vehicle.className = 'offer-vehicle';
+        vehicle.title = offer.vehicle;
+        vehicle.textContent = '🚐 ' + String(offer.vehicle).trim();
+        details.appendChild(vehicle);
+      }
+
+      // Added time
+      if (offer.timestamp) {
+        var addedStr = formatAddedTime(offer.timestamp);
+        if (addedStr) {
+          var added = document.createElement('div');
+          added.className = 'offer-added';
+          added.textContent = '🕒 ' + addedStr;
+          details.appendChild(added);
+        }
+      }
+
+      card.appendChild(details);
+
+      // Footer with price, status, action buttons
       var footer = document.createElement('div');
       footer.className = 'offer-footer';
 
       var price = document.createElement('div');
       price.className = 'offer-price';
-      price.textContent = (offer.price != null ? offer.price + ' ' + offer.currency : '—');
+      var priceText = (offer.price != null && offer.price !== '') ? offer.price + ' ' + (offer.currency || 'EUR') : '—';
+      price.textContent = priceText;
       footer.appendChild(price);
 
       var status = document.createElement('span');
@@ -1271,10 +1458,7 @@
                   return o.fingerprint !== offer.fingerprint;
                 });
                 offersData.total = Math.max(0, (offersData.total || 1) - 1);
-                var summary = document.getElementById('offersSummary');
-                if (summary) {
-                  summary.textContent = 'Найдено: ' + offersData.total + ' | Стр. ' + offersData.page + ' / ' + offersData.totalPages;
-                }
+                renderOffers();
                 if (offersData.offers.length === 0) {
                   applyOfferFilters();
                 }
@@ -1324,14 +1508,14 @@
       var btn = document.getElementById('btnCheckAvail');
       if (btn) {
         btn.disabled = true;
-        btn.textContent = '⏳';
+        btn.textContent = '⏳ Проверка…';
       }
       var initData = getInitData();
       google.script.run
         .withSuccessHandler(function (res) {
           if (btn) {
             btn.disabled = false;
-            btn.textContent = '🔄';
+            btn.textContent = '🔄 Проверить актуальность';
           }
           var msg = 'Проверка доступности завершена.';
           if (res && res.removed !== undefined) {
@@ -1345,7 +1529,7 @@
         .withFailureHandler(function (err) {
           if (btn) {
             btn.disabled = false;
-            btn.textContent = '🔄';
+            btn.textContent = '🔄 Проверить актуальность';
           }
           toast((err && err.message) || 'Ошибка при проверке доступности', true);
         })
@@ -1678,6 +1862,47 @@
         maxPriceEl.oninput = function () {
           if (!state.filters) { state.filters = {}; }
           state.filters.max_price = this.value;
+        };
+      }
+      var notifyAllEl = document.getElementById('notifyAllByPrice');
+      if (notifyAllEl) {
+        notifyAllEl.checked = isTruthy(state.settings && state.settings.notify_all_by_price);
+        notifyAllEl.onchange = function () {
+          if (!state.settings) { state.settings = {}; }
+          state.settings.notify_all_by_price = notifyAllEl.checked;
+        };
+      }
+
+      renderCountryChips(
+        'originCountriesChips',
+        'originCountriesCount',
+        'allowed_origin_countries',
+        'btnAllOriginCountries',
+        'btnClearOriginCountries'
+      );
+      renderCountryChips(
+        'destCountriesChips',
+        'destCountriesCount',
+        'allowed_destination_countries',
+        'btnAllDestCountries',
+        'btnClearDestCountries'
+      );
+
+      var minDaysEl = document.getElementById('minTripDaysInput');
+      if (minDaysEl) {
+        minDaysEl.value = (state.filters && state.filters.min_trip_days) || '';
+        minDaysEl.oninput = function () {
+          if (!state.filters) { state.filters = {}; }
+          state.filters.min_trip_days = this.value ? Number(this.value) : '';
+        };
+      }
+
+      var maxDaysEl = document.getElementById('maxTripDaysInput');
+      if (maxDaysEl) {
+        maxDaysEl.value = (state.filters && state.filters.max_trip_days) || '';
+        maxDaysEl.oninput = function () {
+          if (!state.filters) { state.filters = {}; }
+          state.filters.max_trip_days = this.value ? Number(this.value) : '';
         };
       }
       var providers = [
@@ -2020,6 +2245,8 @@
       var silentHoursEl = document.getElementById('silentHoursEnabled');
       var silentStartEl = document.getElementById('silentHoursStart');
       var silentEndEl = document.getElementById('silentHoursEnd');
+      var notifyAllEl = document.getElementById('notifyAllByPrice');
+      if (notifyAllEl) { state.settings.notify_all_by_price = notifyAllEl.checked; }
       if (pRs) { state.settings.provider_roadsurfer_enabled = pRs.checked; }
       if (pMv) { state.settings.provider_movacar_enabled = pMv.checked; }
       if (pIc) { state.settings.provider_indiecampers_enabled = pIc.checked; }
@@ -2034,6 +2261,7 @@
           window_days: state.settings.window_days,
           check_neighbors: state.settings.check_neighbors,
           telegram_enabled: state.settings.telegram_enabled,
+          notify_all_by_price: state.settings.notify_all_by_price !== undefined ? !!state.settings.notify_all_by_price : false,
           silent_hours_enabled: state.settings.silent_hours_enabled !== undefined ? !!state.settings.silent_hours_enabled : false,
           silent_hours_start: state.settings.silent_hours_start || '23:00',
           silent_hours_end: state.settings.silent_hours_end || '07:00',
@@ -2045,6 +2273,8 @@
         filters: {
           allowed_origin_countries: (state.filters.allowed_origin_countries || []).slice(),
           allowed_destination_countries: (state.filters.allowed_destination_countries || []).slice(),
+          min_trip_days: state.filters.min_trip_days != null ? state.filters.min_trip_days : '',
+          max_trip_days: state.filters.max_trip_days != null ? state.filters.max_trip_days : '',
           max_price: state.filters.max_price != null ? state.filters.max_price : ''
         },
         routes: state.routes.map(function (r) {
@@ -2100,6 +2330,69 @@
         .runMonitorFromUi(initData);
     }
 
+    function renderCountryChips(containerId, countElId, filterKey, btnAllId, btnClearId) {
+      var container = document.getElementById(containerId);
+      var countEl = document.getElementById(countElId);
+      if (!container) return;
+      container.innerHTML = '';
+      if (!state.filters) { state.filters = {}; }
+      if (!Array.isArray(state.filters[filterKey])) {
+        state.filters[filterKey] = [];
+      }
+      var selected = state.filters[filterKey];
+      var allCountries = state.countries || [];
+
+      function updateCount() {
+        if (!countEl) return;
+        if (selected.length === 0) {
+          countEl.textContent = 'Все страны разрешены (фильтр отключен)';
+        } else {
+          countEl.textContent = 'Выбрано: ' + selected.length + ' из ' + allCountries.length;
+        }
+      }
+
+      allCountries.forEach(function (c) {
+        var code = c[0];
+        var name = c[1];
+        var chip = document.createElement('button');
+        chip.type = 'button';
+        var isSel = selected.indexOf(code) !== -1;
+        chip.className = 'filter-chip' + (isSel ? ' active' : '');
+        chip.textContent = flagEmoji(code) + ' ' + name;
+        chip.onclick = function () {
+          var idx = selected.indexOf(code);
+          if (idx !== -1) {
+            selected.splice(idx, 1);
+            chip.className = 'filter-chip';
+          } else {
+            selected.push(code);
+            chip.className = 'filter-chip active';
+          }
+          updateCount();
+        };
+        container.appendChild(chip);
+      });
+
+      var btnAll = document.getElementById(btnAllId);
+      if (btnAll) {
+        btnAll.onclick = function () {
+          selected.length = 0;
+          allCountries.forEach(function (c) { selected.push(c[0]); });
+          renderCountryChips(containerId, countElId, filterKey, btnAllId, btnClearId);
+        };
+      }
+
+      var btnClear = document.getElementById(btnClearId);
+      if (btnClear) {
+        btnClear.onclick = function () {
+          selected.length = 0;
+          renderCountryChips(containerId, countElId, filterKey, btnAllId, btnClearId);
+        };
+      }
+
+      updateCount();
+    }
+
     // --- UI helpers ---
     function flagEmoji(code) {
       if (!code) { return ''; }
@@ -2109,10 +2402,83 @@
     }
 
     var MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+    function parseDateFlexible(val) {
+      if (!val) return null;
+      if (val instanceof Date && !isNaN(val.getTime())) return val;
+      var s = String(val).trim();
+      if (!s) return null;
+      var isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (isoMatch) {
+        return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+      }
+      var d = new Date(s);
+      if (!isNaN(d.getTime())) return d;
+      return null;
+    }
+
+    function formatCompactDate(d) {
+      if (!d) return '—';
+      var curYear = new Date().getFullYear();
+      return d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()] + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
+    }
+
+    function formatOfferDateRange(pickup, returnDate) {
+      var p = parseDateFlexible(pickup);
+      var r = parseDateFlexible(returnDate);
+      if (!p && !r) return '—';
+      if (p && !r) return formatCompactDate(p);
+      if (!p && r) return formatCompactDate(r);
+
+      var curYear = new Date().getFullYear();
+      var pYear = p.getFullYear();
+      var rYear = r.getFullYear();
+
+      if (pYear === rYear && p.getMonth() === r.getMonth()) {
+        if (p.getDate() === r.getDate()) {
+          return p.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + (pYear !== curYear ? ' ' + pYear : '');
+        }
+        return p.getDate() + '–' + r.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + (pYear !== curYear ? ' ' + pYear : '');
+      }
+
+      if (pYear === rYear) {
+        return p.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + ' – ' + r.getDate() + ' ' + MONTHS_SHORT[r.getMonth()] + (pYear !== curYear ? ' ' + pYear : '');
+      }
+
+      return p.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + ' ' + pYear + ' – ' + r.getDate() + ' ' + MONTHS_SHORT[r.getMonth()] + ' ' + rYear;
+    }
+
+    function formatAddedTime(iso) {
+      if (!iso) return '';
+      var d = parseDateFlexible(iso);
+      if (!d) return '';
+      var now = new Date();
+      var diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
+
+      var pad = function(n) { return n < 10 ? '0' + n : String(n); };
+      var timeStr = pad(d.getHours()) + ':' + pad(d.getMinutes());
+
+      var isToday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+      if (isToday) {
+        if (diffSec < 60) return 'добавлен только что';
+        if (diffSec < 3600) return 'добавлен ' + Math.max(1, Math.floor(diffSec / 60)) + ' мин назад';
+        return 'добавлен сегодня в ' + timeStr;
+      }
+
+      var yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      if (d.getFullYear() === yesterday.getFullYear() && d.getMonth() === yesterday.getMonth() && d.getDate() === yesterday.getDate()) {
+        return 'добавлен вчера в ' + timeStr;
+      }
+
+      var curYear = now.getFullYear();
+      return 'добавлен ' + d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()] + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '') + ' в ' + timeStr;
+    }
+
     function shortDate(iso) {
-      var d = new Date(String(iso).slice(0, 10) + 'T00:00:00');
-      if (isNaN(d.getTime())) { return String(iso); }
-      return d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()];
+      var d = parseDateFlexible(iso);
+      if (!d) return String(iso || '—');
+      return formatCompactDate(d);
     }
 
     function timeAgo(iso) {
