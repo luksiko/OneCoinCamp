@@ -170,13 +170,13 @@ function firestoreRequest_(method, path, payload, queryParams) {
         try {
           var parsed = JSON.parse(text);
           var msg = (parsed.error && parsed.error.message) || '';
-          if (msg.indexOf('Database') !== -1 || msg.indexOf('database') !== -1) {
+          if (msg.indexOf('does not exist') !== -1 && msg.indexOf('database') !== -1) {
             throw new Error('Firestore 404 (Database not found): ' + msg);
           }
         } catch (e) {
           if (e.message.indexOf('Firestore 404') !== -1) throw e;
         }
-        return null; // документ не найден — норма для GET
+        return null; // документ не найден — штатно для GET
       }
       throw new Error('Firestore request failed (' + code + ' ' + method + '): ' + text);
     }
