@@ -97,10 +97,7 @@ function getFirestoreProjectId_() {
 
 function getFirestoreDatabaseId_() {
   var prop = PropertiesService.getScriptProperties().getProperty('FIRESTORE_DATABASE_ID');
-  if (prop) return prop;
-  var cache = CacheService.getScriptCache();
-  var cached = cache.get('firestore_db_id');
-  return cached || '(default)';
+  return prop || 'default';
 }
 
 // ---------------------------------------------------------------------------
