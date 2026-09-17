@@ -1290,13 +1290,22 @@
       bookBtn.type = 'button';
       bookBtn.className = 'btn-book';
       bookBtn.textContent = 'Бронировать';
-      bookBtn.disabled = !offer.bookingUrl;
-      if (offer.bookingUrl) {
+      var targetUrl = offer.bookingUrl || '';
+      if (String(offer.source || '').toLowerCase() === 'movacar') {
+        if (!targetUrl || targetUrl === 'https://movacar.com/' || targetUrl === 'https://movacar.com' || targetUrl.indexOf('origin=') === -1) {
+          var params = [];
+          if (offer.origin) params.push('origin=' + encodeURIComponent(offer.origin));
+          if (offer.destination && offer.destination !== 'Unknown') params.push('destination=' + encodeURIComponent(offer.destination));
+          targetUrl = params.length > 0 ? ('https://www.movacar.com/offers?' + params.join('&')) : 'https://www.movacar.com/offers';
+        }
+      }
+      bookBtn.disabled = !targetUrl;
+      if (targetUrl) {
         bookBtn.onclick = function () {
           if (tg) {
-            tg.openLink(offer.bookingUrl);
+            tg.openLink(targetUrl);
           } else {
-            window.open(offer.bookingUrl, '_blank');
+            window.open(targetUrl, '_blank');
           }
         };
       }

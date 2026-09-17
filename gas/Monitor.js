@@ -5,6 +5,7 @@ function onOpen() {
     .addItem('Run once', 'runMonitorOnce')
     .addItem('Install trigger', 'installTrigger')
     .addItem('🔄 Check offers availability', 'checkOffersAvailability')
+    .addItem('🔗 Migrate Movacar archive links', 'migrateMovacarArchiveUrls')
     .addSeparator()
     .addItem('⚙️ Configure Telegram (Token & Chat ID)', 'configureTelegramSecrets')
     .addItem('🧪 Test Telegram connection', 'testTelegramConnection')

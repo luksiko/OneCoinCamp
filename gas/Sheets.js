@@ -299,3 +299,46 @@ function isTruthy_(value) {
   const normalized = String(value || '').trim().toLowerCase();
   return normalized === 'true' || normalized === '1' || normalized === 'yes';
 }
+
+function migrateMovacarArchiveUrls() {
+  const spreadsheet = getSpreadsheet();
+  const sheet = spreadsheet.getSheetByName(SHEET_NAMES.ARCHIVE);
+  if (!sheet || sheet.getLastRow() < 2) {
+    try { SpreadsheetApp.getUi().alert('Архив пуст.'); } catch (e) {}
+    return 0;
+  }
+  const totalRows = sheet.getLastRow() - 1;
+  const sourceCol = ARCHIVE_HEADERS.indexOf('source');
+  const originCol = ARCHIVE_HEADERS.indexOf('origin');
+  const destCol = ARCHIVE_HEADERS.indexOf('destination');
+  const urlCol = ARCHIVE_HEADERS.indexOf('booking_url');
+
+  const range = sheet.getRange(2, 1, totalRows, ARCHIVE_HEADERS.length);
+  const values = range.getValues();
+  let updatedCount = 0;
+
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    if (String(row[sourceCol] || '').toLowerCase() === 'movacar') {
+      const currentUrl = String(row[urlCol] || '').trim();
+      if (!currentUrl || currentUrl === 'https://movacar.com/' || currentUrl === 'https://movacar.com' || currentUrl.indexOf('origin=') === -1) {
+        const origin = String(row[originCol] || '').trim();
+        const dest = String(row[destCol] || '').trim();
+        const params = [];
+        if (origin) params.push('origin=' + encodeURIComponent(origin));
+        if (dest && dest !== 'Unknown') params.push('destination=' + encodeURIComponent(dest));
+        row[urlCol] = params.length > 0 ? ('https://www.movacar.com/offers?' + params.join('&')) : 'https://www.movacar.com/offers';
+        updatedCount++;
+      }
+    }
+  }
+
+  if (updatedCount > 0) {
+    range.setValues(values);
+  }
+  try {
+    SpreadsheetApp.getUi().alert('Обновлено ссылок Movacar: ' + updatedCount);
+  } catch (e) {}
+  return updatedCount;
+}
+

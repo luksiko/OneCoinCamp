@@ -61,7 +61,8 @@ function handleApiRequest_(e) {
       'checkOffersAvailabilityWeb',
       'getAnalytics',
       'registerTelegramWebhookWeb',
-      'deleteTelegramWebhookWeb'
+      'deleteTelegramWebhookWeb',
+      'migrateMovacarArchiveUrls'
     ];
     
     if (allowedMethods.indexOf(method) === -1) {
@@ -677,7 +678,25 @@ function getOffers(filter, initData) {
   }
 
   const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, ARCHIVE_HEADERS.length).getValues();
+  let needSheetUpdate = false;
   const offers = values.map(function (row) {
+    let bookingUrl = String(row[13] || '');
+    const source = String(row[1] || '').toLowerCase();
+    if (source === 'movacar') {
+      if (!bookingUrl || bookingUrl === 'https://movacar.com/' || bookingUrl === 'https://movacar.com' || bookingUrl.indexOf('origin=') === -1) {
+        const origin = String(row[5] || '').trim();
+        const dest = String(row[7] || '').trim();
+        const params = [];
+        if (origin) params.push('origin=' + encodeURIComponent(origin));
+        if (dest && dest !== 'Unknown') params.push('destination=' + encodeURIComponent(dest));
+        const newUrl = params.length > 0 ? ('https://www.movacar.com/offers?' + params.join('&')) : 'https://www.movacar.com/offers';
+        if (newUrl !== bookingUrl) {
+          bookingUrl = newUrl;
+          row[13] = newUrl;
+          needSheetUpdate = true;
+        }
+      }
+    }
     return {
       timestamp: row[0] ? new Date(row[0]).toISOString() : null,
       source: String(row[1] || ''),
@@ -692,12 +711,18 @@ function getOffers(filter, initData) {
       returnDate: row[10] instanceof Date ? Utilities.formatDate(row[10], (spreadsheet && spreadsheet.getSpreadsheetTimeZone) ? spreadsheet.getSpreadsheetTimeZone() : (typeof Session !== 'undefined' && Session.getScriptTimeZone ? Session.getScriptTimeZone() : 'Europe/Berlin'), 'yyyy-MM-dd') : String(row[10] || ''),
       price: row[11],
       currency: String(row[12] || 'EUR'),
-      bookingUrl: String(row[13] || ''),
+      bookingUrl: bookingUrl,
       fingerprint: String(row[14] || ''),
       matches: row[15] === true || row[15] === 'true',
       telegramSentAt: row[16] ? String(row[16]) : null,
     };
   });
+
+  if (needSheetUpdate) {
+    try {
+      sheet.getRange(2, 1, values.length, ARCHIVE_HEADERS.length).setValues(values);
+    } catch (e) {}
+  }
 
   // Apply filters
   let filtered = offers;
