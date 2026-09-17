@@ -134,6 +134,7 @@ function firestoreRequest_(method, path, payload, queryParams) {
       Utilities.sleep(500 * Math.pow(2, attempt));
       continue;
     }
+    var code = response.getResponseCode();
     if (code === 404) {
       if (method === 'GET') {
         var text = response.getContentText();
