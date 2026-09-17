@@ -174,22 +174,6 @@ function handleTelegramCallbackQuery_(callbackQuery) {
   const message = callbackQuery.message;
   const chatId = message && message.chat && message.chat.id != null ? String(message.chat.id) : '';
 
-  // Authorization check
-  const allowedList = getAllowedTelegramIds_(secrets);
-  if (allowedList.length > 0) {
-    const userId = fromUser && fromUser.id != null ? String(fromUser.id) : null;
-    const username = fromUser && fromUser.username ? String(fromUser.username).toLowerCase().replace(/^@/, '') : null;
-    const isAllowed = allowedList.some(function (allowed) {
-      return (userId && userId === allowed) ||
-             (username && username === allowed) ||
-             (chatId && chatId === allowed);
-    });
-    if (!isAllowed) {
-      answerTelegramCallbackQuery_(secrets, queryId, 'Доступ запрещен', true);
-      return;
-    }
-  }
-
   if (data === 'none' || data === 'disabled_already') {
     answerTelegramCallbackQuery_(secrets, queryId, 'Маршрут уже отключен в настройках.', false);
     return;
@@ -341,17 +325,14 @@ function handleTelegramUpdate_(update) {
   }
 
   const secrets = getScriptSecrets();
-  if (!secrets.telegramChatId) {
-    return;
-  }
-
   const incomingChatId = message.chat && message.chat.id != null ? String(message.chat.id) : '';
-  if (incomingChatId !== String(secrets.telegramChatId)) {
+  
+  if (!incomingChatId) {
     return;
   }
 
   const text = message.text.trim();
-  const chatId = secrets.telegramChatId;
+  const chatId = incomingChatId;
   const spreadsheet = ensureWorkbook_();
 
   const command = text.split(/\s+/)[0].split('@')[0];
