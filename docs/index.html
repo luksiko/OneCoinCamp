@@ -382,6 +382,101 @@
       background: var(--section);
     }
 
+    .offers-filter-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .offers-sort-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .offers-sort-bar::-webkit-scrollbar { display: none; }
+    .offers-date-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+    .date-inputs {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex: 1;
+      min-width: 200px;
+    }
+    .date-label {
+      font-size: 11px;
+      color: var(--subtext);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .offer-date-input {
+      background: var(--section);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 4px 6px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      flex: 1;
+      min-width: 80px;
+      min-height: 32px;
+    }
+    .offer-date-input:focus {
+      border-color: var(--accent);
+    }
+    .btn-clear-date {
+      background: rgba(255, 91, 102, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(255, 91, 102, 0.3);
+      border-radius: 8px;
+      width: 30px;
+      height: 30px;
+      font-size: 13px;
+      font-weight: bold;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .date-presets {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .date-preset-btn {
+      background: var(--section);
+      border: 1px solid var(--border);
+      color: var(--subtext);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      min-height: 28px;
+      transition: all 0.15s ease;
+    }
+    .date-preset-btn:active {
+      transform: scale(0.96);
+      background: var(--accent);
+      color: var(--accent-text);
+    }
+
     .offers-toolbar {
       display: flex;
       justify-content: space-between;
@@ -967,6 +1062,28 @@
     <div id="screenOffers" style="display:none;">
       <div class="filters-bar" id="sourceFilters"></div>
 
+      <div class="offers-filter-section">
+        <div class="offers-sort-bar">
+          <span class="date-label" style="margin-right:2px;">Сортировка:</span>
+          <button type="button" class="filter-chip active" id="sortAddedBtn" onclick="setOfferSort('added_desc')">🕒 По дате добавления</button>
+          <button type="button" class="filter-chip" id="sortTripBtn" onclick="setOfferSort('trip_date')">📅 По диапазону дат</button>
+        </div>
+        <div class="offers-date-row">
+          <div class="date-inputs">
+            <span class="date-label">С:</span>
+            <input type="date" id="offerDateFrom" class="offer-date-input" onchange="onOfferDateInputChange()">
+            <span class="date-label">По:</span>
+            <input type="date" id="offerDateTo" class="offer-date-input" onchange="onOfferDateInputChange()">
+            <button type="button" class="btn-clear-date" id="btnClearDates" onclick="clearOfferDateFilter()" title="Сбросить даты" style="display:none;">✕</button>
+          </div>
+          <div class="date-presets">
+            <button type="button" class="date-preset-btn" onclick="setDatePreset('7d')">7 дн</button>
+            <button type="button" class="date-preset-btn" onclick="setDatePreset('14d')">14 дн</button>
+            <button type="button" class="date-preset-btn" onclick="setDatePreset('month')">Месяц</button>
+          </div>
+        </div>
+      </div>
+
       <div class="offers-toolbar">
         <span class="offers-count-badge" id="offersCountBadge"></span>
         <button type="button" class="btn-check-avail" id="btnCheckAvail" title="Проверить доступность офферов у провайдеров и удалить недоступные">
@@ -1097,7 +1214,7 @@
     var state = null;
     var currentTab = 'main';
     var offersData = null;
-    var offerFilters = { source: '', sentStatus: '', page: 1 };
+    var offerFilters = { source: '', sentStatus: '', page: 1, sortBy: 'added_desc', dateFrom: '', dateTo: '' };
     var INTERVALS = [1, 5, 10, 15, 30];
     var WINDOWS = [7, 10, 14, 21, 30];
     var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -1305,12 +1422,113 @@
 
     var cachedSources = [];
 
+    function buildOfferFilterPayload() {
+      var filter = {
+        page: offerFilters.page,
+        limit: 50,
+        sortBy: offerFilters.sortBy
+      };
+      if (offerFilters.source) { filter.source = offerFilters.source; }
+      if (offerFilters.sentStatus) { filter.sentStatus = offerFilters.sentStatus; }
+      if (offerFilters.dateFrom) { filter.dateFrom = offerFilters.dateFrom; }
+      if (offerFilters.dateTo) { filter.dateTo = offerFilters.dateTo; }
+      return filter;
+    }
+
+    function setOfferSort(sortMode) {
+      if (offerFilters.sortBy === sortMode) return;
+      offerFilters.sortBy = sortMode;
+      offerFilters.page = 1;
+      updateSortButtons();
+      applyOfferFilters();
+    }
+
+    function updateSortButtons() {
+      var btnAdded = document.getElementById('sortAddedBtn');
+      var btnTrip = document.getElementById('sortTripBtn');
+      if (btnAdded) {
+        if (offerFilters.sortBy === 'added_desc') btnAdded.classList.add('active');
+        else btnAdded.classList.remove('active');
+      }
+      if (btnTrip) {
+        if (offerFilters.sortBy === 'trip_date') btnTrip.classList.add('active');
+        else btnTrip.classList.remove('active');
+      }
+    }
+
+    function onOfferDateInputChange() {
+      var fromInput = document.getElementById('offerDateFrom');
+      var toInput = document.getElementById('offerDateTo');
+      offerFilters.dateFrom = fromInput ? fromInput.value : '';
+      offerFilters.dateTo = toInput ? toInput.value : '';
+      offerFilters.page = 1;
+      updateClearDateButton();
+      applyOfferFilters();
+    }
+
+    function setDatePreset(type) {
+      var now = new Date();
+      var pad = function(n) { return n < 10 ? '0' + n : String(n); };
+      var formatIsoDate = function(d) {
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+      };
+      var todayStr = formatIsoDate(now);
+      var fromInput = document.getElementById('offerDateFrom');
+      var toInput = document.getElementById('offerDateTo');
+
+      if (type === 'all') {
+        offerFilters.dateFrom = '';
+        offerFilters.dateTo = '';
+      } else if (type === '7d') {
+        var d = new Date(now);
+        d.setDate(d.getDate() + 7);
+        offerFilters.dateFrom = todayStr;
+        offerFilters.dateTo = formatIsoDate(d);
+      } else if (type === '14d') {
+        var d = new Date(now);
+        d.setDate(d.getDate() + 14);
+        offerFilters.dateFrom = todayStr;
+        offerFilters.dateTo = formatIsoDate(d);
+      } else if (type === 'month') {
+        var d = new Date(now);
+        d.setDate(d.getDate() + 30);
+        offerFilters.dateFrom = todayStr;
+        offerFilters.dateTo = formatIsoDate(d);
+      }
+      if (fromInput) fromInput.value = offerFilters.dateFrom;
+      if (toInput) toInput.value = offerFilters.dateTo;
+      offerFilters.page = 1;
+      updateClearDateButton();
+      applyOfferFilters();
+    }
+
+    function clearOfferDateFilter() {
+      var fromInput = document.getElementById('offerDateFrom');
+      var toInput = document.getElementById('offerDateTo');
+      if (fromInput) fromInput.value = '';
+      if (toInput) toInput.value = '';
+      offerFilters.dateFrom = '';
+      offerFilters.dateTo = '';
+      offerFilters.page = 1;
+      updateClearDateButton();
+      applyOfferFilters();
+    }
+
+    function updateClearDateButton() {
+      var btn = document.getElementById('btnClearDates');
+      if (btn) {
+        btn.style.display = (offerFilters.dateFrom || offerFilters.dateTo) ? 'inline-flex' : 'none';
+      }
+    }
+
     function loadOffers() {
       var initData = getInitData();
       var list = document.getElementById('offersList');
       if (list && (!offersData || !offersData.offers || !offersData.offers.length)) {
         list.innerHTML = '<div class="offers-empty"><div class="icon">⏳</div><div>Загрузка офферов…</div></div>';
       }
+      updateSortButtons();
+      updateClearDateButton();
       google.script.run
         .withSuccessHandler(function (result) {
           offersData = result;
@@ -1320,7 +1538,7 @@
         .withFailureHandler(function (err) {
           toast((err && err.message) || 'Ошибка загрузки офферов', true);
         })
-        .getOffers({ page: offerFilters.page, limit: 50 }, initData);
+        .getOffers(buildOfferFilterPayload(), initData);
     }
 
     function renderSourceFilters() {
@@ -1394,12 +1612,9 @@
         list.style.opacity = '0.5';
         list.style.pointerEvents = 'none';
       }
-      var filter = {
-        page: offerFilters.page,
-        limit: 50
-      };
-      if (offerFilters.source) { filter.source = offerFilters.source; }
-      if (offerFilters.sentStatus) { filter.sentStatus = offerFilters.sentStatus; }
+      updateSortButtons();
+      updateClearDateButton();
+      var filter = buildOfferFilterPayload();
       google.script.run
         .withSuccessHandler(function (result) {
           if (list) {
@@ -1428,18 +1643,70 @@
       list.innerHTML = '';
       pagination.innerHTML = '';
 
-      if (badge) {
-        badge.textContent = (offersData && offersData.total != null) ? (offersData.total + ' офферов') : '';
-      }
-
       if (!offersData || !offersData.offers || !offersData.offers.length) {
+        if (badge) badge.textContent = '0 офферов';
         list.innerHTML = '<div class="offers-empty"><div class="icon">🎫</div><div>Офферы не найдены</div></div>';
         return;
       }
 
+      // Client-side date range filter check (ensures consistency even if server didn't filter)
+      var offers = offersData.offers.slice();
+      if (offerFilters.dateFrom) {
+        offers = offers.filter(function (o) {
+          if (!o.pickupDate) return false;
+          return o.pickupDate >= offerFilters.dateFrom;
+        });
+      }
+      if (offerFilters.dateTo) {
+        offers = offers.filter(function (o) {
+          if (!o.pickupDate) return false;
+          return o.pickupDate <= offerFilters.dateTo;
+        });
+      }
+
+      // Client-side sorting guarantee
+      offers.sort(function (a, b) {
+        if (offerFilters.sortBy === 'trip_date') {
+          // Sort by trip date range: earliest departure first, then return date, then newest added
+          var dateA = a.pickupDate || '9999-99-99';
+          var dateB = b.pickupDate || '9999-99-99';
+          if (dateA !== dateB) return dateA.localeCompare(dateB);
+          var retA = a.returnDate || '9999-99-99';
+          var retB = b.returnDate || '9999-99-99';
+          if (retA !== retB) return retA.localeCompare(retB);
+          var timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+          var timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+          return timeB - timeA;
+        } else {
+          // Default: Sort by added date descending (newest offers first)
+          var timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+          var timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+          if (timeA !== timeB) return timeB - timeA;
+          var dateA = a.pickupDate || '9999-99-99';
+          var dateB = b.pickupDate || '9999-99-99';
+          return dateA.localeCompare(dateB);
+        }
+      });
+
+      if (badge) {
+        if (offerFilters.dateFrom || offerFilters.dateTo) {
+          badge.textContent = offers.length + ' офферов (фильтр дат)';
+        } else {
+          badge.textContent = (offersData && offersData.total != null) ? (offersData.total + ' офферов') : (offers.length + ' офферов');
+        }
+      }
+
+      if (!offers.length) {
+        list.innerHTML = '<div class="offers-empty"><div class="icon">🔍</div><div>Нет офферов в выбранном диапазоне дат</div></div>';
+        return;
+      }
+
       var lastDateGroup = null;
-      offersData.offers.forEach(function (offer) {
-        var groupKey = getOfferDateGroupKey(offer.timestamp);
+      offers.forEach(function (offer) {
+        var groupKey = offerFilters.sortBy === 'trip_date'
+          ? getTripDateGroupKey(offer.pickupDate)
+          : getOfferDateGroupKey(offer.timestamp);
+
         if (groupKey && groupKey !== lastDateGroup) {
           lastDateGroup = groupKey;
           var divider = document.createElement('div');
@@ -1484,7 +1751,7 @@
       } else if (offersData.total > 0) {
         var totalInfo = document.createElement('div');
         totalInfo.className = 'page-info';
-        totalInfo.textContent = 'Найдено офферов: ' + offersData.total;
+        totalInfo.textContent = 'Найдено офферов: ' + (offerFilters.dateFrom || offerFilters.dateTo ? offers.length : offersData.total);
         pagination.appendChild(totalInfo);
       }
     }
@@ -2561,6 +2828,24 @@
       }
       var curYear = now.getFullYear();
       return d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
+    }
+
+    function getTripDateGroupKey(val) {
+      if (!val) return 'Даты не указаны';
+      var d = parseDateFlexible(val);
+      if (!d) return 'Даты не указаны';
+      var now = new Date();
+      var isToday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+      if (isToday) {
+        return 'Выезд сегодня, ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()];
+      }
+      var tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      var isTomorrow = d.getFullYear() === tomorrow.getFullYear() && d.getMonth() === tomorrow.getMonth() && d.getDate() === tomorrow.getDate();
+      if (isTomorrow) {
+        return 'Выезд завтра, ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()];
+      }
+      var curYear = now.getFullYear();
+      return 'Выезд ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
     }
 
     function formatCompactDate(d) {
