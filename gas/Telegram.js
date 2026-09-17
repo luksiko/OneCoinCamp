@@ -17,8 +17,9 @@ function computeRouteHash_(route) {
   return hex.substring(0, 10);
 }
 
-function sendTelegramOffer_(secrets, offer, route, routeIndex, settings) {
-  if (!secrets.telegramBotToken || !secrets.telegramChatId) {
+function sendTelegramOffer_(secrets, offer, route, routeIndex, settings, chatId) {
+  const targetChatId = chatId || secrets.telegramChatId;
+  if (!secrets.telegramBotToken || !targetChatId) {
     throw new Error('TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing in Script Properties');
   }
 
@@ -56,18 +57,17 @@ function sendTelegramOffer_(secrets, offer, route, routeIndex, settings) {
     ]);
   }
 
-  if (route && routeIndex != null) {
-    const routeHash = computeRouteHash_(route);
+  if (routeIndex != null) {
     keyboard.push([
       {
         text: '🚫 Отключить этот маршрут',
-        callback_data: 'dis_r:' + routeIndex + ':' + routeHash,
+        callback_data: 'dis_r:' + String(routeIndex).substring(0, 30),
       },
     ]);
   }
 
   const payload = {
-    chat_id: secrets.telegramChatId,
+    chat_id: targetChatId,
     text: text,
     parse_mode: 'HTML',
     disable_web_page_preview: false,
@@ -175,49 +175,20 @@ function handleTelegramCallbackQuery_(callbackQuery) {
   const chatId = message && message.chat && message.chat.id != null ? String(message.chat.id) : '';
 
   if (data === 'none' || data === 'disabled_already') {
-    answerTelegramCallbackQuery_(secrets, queryId, 'Маршрут уже отключен в настройках.', false);
+    answerTelegramCallbackQuery_(secrets, queryId, 'Маршрут уже отключен.', false);
     return;
   }
 
   if (data.indexOf('dis_r:') === 0) {
-    const parts = data.split(':');
-    const targetIndex = parseInt(parts[1], 10);
-    const targetHash = parts[2] || '';
+    const routeId = data.substring(6);
+    const telegramId = fromUser.id;
 
-    const spreadsheet = ensureWorkbook_();
-    const routes = readRoutes_(spreadsheet);
-    let matchedIndex = -1;
-
-    if (!isNaN(targetIndex) && routes[targetIndex]) {
-      const candidateHash = computeRouteHash_(routes[targetIndex]);
-      if (candidateHash === targetHash) {
-        matchedIndex = targetIndex;
-      }
-    }
-
-    if (matchedIndex === -1 && targetHash) {
-      for (let i = 0; i < routes.length; i++) {
-        if (computeRouteHash_(routes[i]) === targetHash) {
-          matchedIndex = i;
-          break;
-        }
-      }
-    }
-
-    if (matchedIndex === -1) {
-      answerTelegramCallbackQuery_(secrets, queryId, 'Маршрут не найден или был изменен.', true);
-      return;
-    }
-
-    const targetRoute = routes[matchedIndex];
-    const routeLabel = (targetRoute.originName || targetRoute.originId || '') + ' ➔ ' + (targetRoute.destinationName || targetRoute.destinationId || 'все');
-
-    if (!targetRoute.enabled) {
-      answerTelegramCallbackQuery_(secrets, queryId, 'Маршрут ' + routeLabel + ' уже отключен.', false);
-    } else {
-      routes[matchedIndex].enabled = false;
-      saveRoutes_(spreadsheet, routes);
-      answerTelegramCallbackQuery_(secrets, queryId, 'Маршрут ' + routeLabel + ' отключен! 🚫', false);
+    try {
+      firestoreUpdate('users/' + telegramId + '/routes/' + routeId, { enabled: false });
+      if (typeof clearUserCache === 'function') clearUserCache(telegramId);
+      answerTelegramCallbackQuery_(secrets, queryId, 'Маршрут отключен! 🚫', false);
+    } catch (e) {
+      answerTelegramCallbackQuery_(secrets, queryId, 'Ошибка при отключении маршрута.', true);
     }
 
     // Update inline keyboard on message
@@ -335,6 +306,12 @@ function handleTelegramUpdate_(update) {
   const chatId = incomingChatId;
   const spreadsheet = ensureWorkbook_();
 
+  if (message.from && message.from.id) {
+    try {
+      upsertUser(message.from.id, chatId, { username: message.from.username || '' });
+    } catch(e) {}
+  }
+
   const command = text.split(/\s+/)[0].split('@')[0];
 
   if (command === '/start') {
@@ -363,41 +340,41 @@ function handleTelegramUpdate_(update) {
       'Чтобы сообщить об ошибке: https://github.com/anomalyco/opencode/issues';
     sendTelegramMessage_(secrets, help, chatId);
   } else if (command === '/status') {
-    const statusText = buildStatusMessage_(spreadsheet);
+    const statusText = buildStatusMessage_(spreadsheet, chatId);
     sendTelegramMessage_(secrets, statusText, chatId);
   } else if (command === '/digest') {
     const digestText = buildDigestMessage_(spreadsheet);
     sendTelegramMessage_(secrets, digestText, chatId);
   } else if (command === '/silent') {
-    const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
+    let filters = getUserFilters(chatId) || {};
     const parts = text.split(/\s+/);
     if (parts.length > 1) {
       const arg = parts[1].trim().toLowerCase();
       if (arg === 'on' || arg === '1' || arg === 'true') {
-        settings.silent_hours_enabled = true;
-        writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, settings);
-        sendTelegramMessage_(secrets, '🌙 Тихие часы <b>включены</b> (' + (settings.silent_hours_start || '23:00') + ' – ' + (settings.silent_hours_end || '07:00') + '). Ночные уведомления приходят без звука.', chatId);
+        filters.silent_hours = filters.silent_hours || { from: '23:00', to: '07:00' };
+        setUserFilters(chatId, filters);
+        sendTelegramMessage_(secrets, '🌙 Тихие часы <b>включены</b> (' + filters.silent_hours.from + ' – ' + filters.silent_hours.to + '). Ночные уведомления приходят без звука.', chatId);
       } else if (arg === 'off' || arg === '0' || arg === 'false') {
-        settings.silent_hours_enabled = false;
-        writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, settings);
+        filters.silent_hours = null;
+        setUserFilters(chatId, filters);
         sendTelegramMessage_(secrets, '☀️ Тихие часы <b>отключены</b>. Все уведомления будут приходить со звуком.', chatId);
       } else if (/^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/.test(arg)) {
         const timeParts = arg.split('-');
-        settings.silent_hours_enabled = true;
-        settings.silent_hours_start = timeParts[0];
-        settings.silent_hours_end = timeParts[1];
-        writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, settings);
+        filters.silent_hours = { from: timeParts[0], to: timeParts[1] };
+        setUserFilters(chatId, filters);
         sendTelegramMessage_(secrets, '🌙 Установлен интервал тихих часов: <b>' + timeParts[0] + ' – ' + timeParts[1] + '</b> (включены).', chatId);
       } else {
         sendTelegramMessage_(secrets, 'Формат команды:\n/silent on — включить\n/silent off — выключить\n/silent 22:00-08:00 — задать интервал', chatId);
       }
     } else {
-      const isEnabled = isTruthy_(settings.silent_hours_enabled);
+      const isEnabled = filters.silent_hours != null;
       const statusStr = isEnabled ? 'Включены ✅' : 'Выключены ⬜';
+      const from = isEnabled ? filters.silent_hours.from : '23:00';
+      const to = isEnabled ? filters.silent_hours.to : '07:00';
       const msg =
         '🌙 <b>Режим тихих часов</b>\n\n' +
         'Статус: ' + statusStr + '\n' +
-        'Интервал: ' + (settings.silent_hours_start || '23:00') + ' – ' + (settings.silent_hours_end || '07:00') + '\n\n' +
+        'Интервал: ' + from + ' – ' + to + '\n\n' +
         'Команды управления:\n' +
         '• <code>/silent on</code> — включить\n' +
         '• <code>/silent off</code> — выключить\n' +
@@ -409,12 +386,13 @@ function handleTelegramUpdate_(update) {
     runMonitorOnce();
     sendTelegramMessage_(secrets, '✅ Сканирование завершено.', chatId);
   } else if (command === '/routes') {
-    const routes = readRoutes_(spreadsheet);
+    const routes = getUserRoutes(chatId) || [];
     let lines = ['🚗 <b>Отслеживаемые маршруты:</b>\n'];
     routes.forEach(function (r) {
       const statusIcon = r.enabled ? '✅' : '⬜';
-      lines.push(statusIcon + ' <b>' + r.source + '</b>: ' + r.originName + ' ➔ ' + (r.destinationName || 'все доступные'));
+      lines.push(statusIcon + ' <b>' + r.source + '</b>: ' + (r.origin_name || r.origin_id) + ' ➔ ' + (r.destination_name || r.destination_id || 'все доступные'));
     });
+    if (routes.length === 0) lines.push('Нет маршрутов.');
     sendTelegramMessage_(secrets, lines.join('\n'), chatId);
   }
 }

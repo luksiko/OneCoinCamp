@@ -125,12 +125,27 @@ function ensureTriggersFromUi(initData) {
 
 function getUiData(initData) {
   const secrets = getScriptSecrets();
-  authorizeWebAppRequest_(initData, secrets);
+  const auth = authorizeWebAppRequest_(initData, secrets);
+  const userId = auth.user ? auth.user.id : null;
 
   const spreadsheet = getSpreadsheet();
   const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
-  const filters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
-  const routes = readRoutes_(spreadsheet);
+  
+  let filters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
+  let routes = readRoutes_(spreadsheet);
+  
+  if (userId) {
+    upsertUser(userId, auth.chat ? auth.chat.id : userId, { username: auth.user.username || '' });
+    const userFilters = getUserFilters(userId);
+    if (userFilters) {
+      filters.allowed_origin_countries = userFilters.allowed_origin_countries || '';
+      filters.allowed_destination_countries = userFilters.allowed_destination_countries || '';
+      filters.min_trip_days = userFilters.min_duration_days || '';
+      filters.max_trip_days = userFilters.max_duration_days || '';
+      filters.max_price = userFilters.price_max || '';
+    }
+    routes = getUserRoutes(userId) || [];
+  }
   selfHealMonitorFromWebApp_(spreadsheet, settings);
   const dateWindow = buildDateWindow_(settings, filters, settings.pickup_date, settings.return_date);
   return {
@@ -471,7 +486,8 @@ function toClientValue_(value) {
 function saveUiData(payload, initData) {
   const rawInitData = initData || (payload && payload.initData) || '';
   const secrets = getScriptSecrets();
-  authorizeWebAppRequest_(rawInitData, secrets);
+  const auth = authorizeWebAppRequest_(rawInitData, secrets);
+  const userId = auth.user ? auth.user.id : null;
 
   const spreadsheet = getSpreadsheet();
   if (payload.settings) {
@@ -480,18 +496,33 @@ function saveUiData(payload, initData) {
     writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, mergedSettings);
   }
   if (payload.filters) {
-    const currentFilters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
-    const filters = Object.assign({}, currentFilters, payload.filters);
-    if (Array.isArray(filters.allowed_origin_countries)) {
-      filters.allowed_origin_countries = filters.allowed_origin_countries.join(',');
+    if (userId) {
+       const f = payload.filters;
+       const current = getUserFilters(userId) || {};
+       const toSave = {
+         allowed_origin_countries: Array.isArray(f.allowed_origin_countries) ? f.allowed_origin_countries : (f.allowed_origin_countries ? String(f.allowed_origin_countries).split(',').map(function(s) { return s.trim().toUpperCase(); }) : []),
+         allowed_destination_countries: Array.isArray(f.allowed_destination_countries) ? f.allowed_destination_countries : (f.allowed_destination_countries ? String(f.allowed_destination_countries).split(',').map(function(s) { return s.trim().toUpperCase(); }) : []),
+         min_duration_days: f.min_trip_days ? Number(f.min_trip_days) : null,
+         max_duration_days: f.max_trip_days ? Number(f.max_trip_days) : null,
+         price_max: f.max_price != null && f.max_price !== '' ? Number(f.max_price) : null,
+         window_days: current.window_days || Number(DEFAULT_SETTINGS.window_days) || 14,
+         window_start_rule: current.window_start_rule || 'today',
+       };
+       if (current.silent_hours) toSave.silent_hours = current.silent_hours;
+       setUserFilters(userId, toSave);
     }
-    if (Array.isArray(filters.allowed_destination_countries)) {
-      filters.allowed_destination_countries = filters.allowed_destination_countries.join(',');
-    }
-    writeKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, filters);
   }
   if (Array.isArray(payload.routes)) {
-    saveRoutes_(spreadsheet, payload.routes);
+    if (userId) {
+      if (typeof clearUserCache === 'function') clearUserCache(userId);
+      const oldRoutes = getUserRoutes(userId) || [];
+      oldRoutes.forEach(function(r) { firestoreDelete('users/' + userId + '/routes/' + r._id); });
+      payload.routes.forEach(function(r) { 
+         delete r._id; 
+         delete r.window;
+         addUserRoute(userId, r); 
+      });
+    }
   }
   try {
     const cache = typeof CacheService !== 'undefined' && CacheService.getScriptCache ? CacheService.getScriptCache() : null;

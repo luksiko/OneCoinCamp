@@ -351,8 +351,8 @@ function normalizeRoadsurferTimeframes_(payload) {
         start = source.range[0];
         end = source.range[1];
       } else {
-        start = firstDefined_(source.start, source.start_date, source.startDate, source.pickup_date, source.pickupDate, source.from, source.departure_date, source.departureDate);
-        end = firstDefined_(source.end, source.end_date, source.endDate, source.return_date, source.returnDate, source.to, source.arrival_date, source.arrivalDate);
+        start = roadsurferIsoDate_(firstDefined_(source.start, source.start_date, source.startDate, source.pickup_date, source.pickupDate, source.from, source.departure_date, source.departureDate));
+        end = roadsurferIsoDate_(firstDefined_(source.end, source.end_date, source.endDate, source.return_date, source.returnDate, source.to, source.arrival_date, source.arrivalDate));
       }
     }
 

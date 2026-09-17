@@ -238,33 +238,50 @@ function runMonitorOnce() {
   try {
     spreadsheet = ensureWorkbook_();
     const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
-    const filters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
-    const secrets = getScriptSecrets();
-
-    const routes = readRoutes_(spreadsheet).filter(function (route) {
-      return route.enabled && isProviderEnabled_(route.source, settings);
+    const globalFilters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
+    
+    // 1. Сбор маршрутов всех активных пользователей
+    const users = listActiveUsers();
+    const uniqueRoutesMap = {};
+    const usersData = [];
+    users.forEach(function(user) {
+      const userRoutes = getUserRoutes(user.telegram_id) || [];
+      const userFilters = getUserFilters(user.telegram_id);
+      usersData.push({
+        user: user,
+        routes: userRoutes,
+        filters: userFilters
+      });
+      userRoutes.forEach(function(route) {
+        if (!route.enabled || !isProviderEnabled_(route.source, settings)) return;
+        const hashKey = route.source + '|' + (route.origin_id || '') + '|' + (route.destination_id || '');
+        if (!uniqueRoutesMap[hashKey]) {
+          uniqueRoutesMap[hashKey] = route;
+        }
+      });
     });
+    const routes = Object.keys(uniqueRoutesMap).map(function(k) { return uniqueRoutesMap[k]; });
+
     const known = readArchiveFingerprints_(spreadsheet);
     const cache = CacheService.getScriptCache();
-    const foundOffers = [];
+    const newOffers = [];
     const rowsToAppend = [];
-    let telegramSentCount = 0;
     let hasErrors = false;
     let lastRouteError = '';
 
     const checkNeighbors = isTruthy_(settings.check_neighbors);
 
+    // 2. Worker: сбор офферов
     routes.forEach(function (route, routeIndex) {
-      // Build date windows per route. If route has no dates, fallback to global settings
       const pickupDate = route.pickupDate || settings.pickup_date;
       const returnDate = route.returnDate || settings.return_date;
-      const routeWindow = buildDateWindow_(settings, filters, pickupDate, returnDate);
+      const routeWindow = buildDateWindow_(settings, globalFilters, pickupDate, returnDate);
       const effectiveWindow = buildEffectiveWindow_(routeWindow, checkNeighbors);
 
       let offers = [];
       try {
         requestCount += 1;
-        offers = fetchOffersForRoute_(route, effectiveWindow, filters);
+        offers = fetchOffersForRoute_(route, effectiveWindow, globalFilters);
       } catch (error) {
         hasErrors = true;
         lastRouteError = error.message || String(error);
@@ -284,33 +301,16 @@ function runMonitorOnce() {
 
       offers.forEach(function (offer) {
         const fingerprint = offerFingerprint_(offer);
-        const matches = offerMatchesFilter_(offer, filters, effectiveWindow);
         const alreadyKnown = known.has(fingerprint) || cache.get(fingerprint) === '1' || isFingerprintDismissed_(fingerprint);
 
         if (alreadyKnown) {
           return;
         }
-
-        const notifyAllByPrice = isTruthy_(settings.notify_all_by_price);
-        const priceMatches = offerPriceMatches_(offer, filters.max_price);
-        const shouldNotify = (matches || (notifyAllByPrice && priceMatches)) && isTruthy_(settings.telegram_enabled);
-
-        let telegramSentAt = '';
-        if (shouldNotify) {
-          try {
-            sendTelegramOffer_(secrets, offer, route, routeIndex, settings);
-            telegramSentAt = formatIsoDate_(new Date());
-            telegramSentCount += 1;
-          } catch (error) {
-            return;
-          }
-        }
-
-        const isMatched = matches || (notifyAllByPrice && priceMatches);
+        
         known.add(fingerprint);
         cache.put(fingerprint, '1', 21600);
-        foundOffers.push(offer);
-        rowsToAppend.push(offerToRow_(offer, fingerprint, isMatched, telegramSentAt));
+        newOffers.push(offer);
+        rowsToAppend.push(offerToRow_(offer, fingerprint, true, ''));
       });
     });
 
@@ -318,12 +318,59 @@ function runMonitorOnce() {
       appendArchiveRows_(spreadsheet, rowsToAppend);
     }
 
+    // 3. Dispatcher: сверка с фильтрами и рассылка
+    const secrets = getScriptSecrets();
+    let telegramSentCount = 0;
+
+    usersData.forEach(function (data) {
+      const filters = data.filters;
+      if (!filters) return;
+      const user = data.user;
+      const userRoutes = data.routes;
+
+      newOffers.forEach(function (offer) {
+        if (!matchesFirestoreFilter_(offer, filters, settings)) return;
+        if (hasAlertBeenSent(user.telegram_id, offer.fingerprint)) return;
+
+        let matchedRouteId = null;
+        for (let i = 0; i < userRoutes.length; i++) {
+          const r = userRoutes[i];
+          if (r.enabled && r.source === offer.source) {
+            // Simplified match since offer has only names
+            if ((!r.origin_name || r.origin_name === offer.origin) &&
+                (!r.destination_name || r.destination_name === offer.destination)) {
+              matchedRouteId = r._id;
+              break;
+            }
+          }
+        }
+
+        const sentAt = new Date();
+        try {
+          const userSettings = Object.assign({}, settings, {
+            silent_hours_enabled: filters.silent_hours != null,
+            silent_hours_start: filters.silent_hours ? filters.silent_hours.from : null,
+            silent_hours_end: filters.silent_hours ? filters.silent_hours.to : null
+          });
+          sendTelegramOffer_(secrets, offer, null, matchedRouteId, userSettings, user.chat_id);
+          telegramSentCount++;
+        } catch (error) {
+          return;
+        }
+
+        markAlertSent(user.telegram_id, offer.fingerprint, {
+          source: offer.source, origin: offer.origin,
+          destination: offer.destination, price: offer.price, sent_at: sentAt
+        });
+      });
+    });
+
     logRun_(spreadsheet, {
       startedAt: startedAt,
       finishedAt: new Date(),
       source: 'all',
       requestCount: requestCount,
-      offersFound: foundOffers.length,
+      offersFound: newOffers.length,
       offersFiltered: rowsToAppend.length,
       telegramSent: telegramSentCount,
       status: hasErrors ? 'PARTIAL' : 'OK',
@@ -362,10 +409,12 @@ function runMonitorOnce() {
   }
 }
 
-function buildStatusMessage_(spreadsheet) {
+function buildStatusMessage_(spreadsheet, chatId) {
   const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
-  const filters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
-  const routes = readRoutes_(spreadsheet);
+  const globalFilters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
+  
+  const filters = getUserFilters(chatId) || {};
+  const routes = getUserRoutes(chatId) || [];
   const enabledRoutes = routes.filter(function (r) {
     return r.enabled;
   });
@@ -402,28 +451,25 @@ function buildStatusMessage_(spreadsheet) {
     '  ' + tgIcon + ' <b>Telegram Bot:</b> ' + health.telegram.message,
     '',
     '⏱ Последний опрос: ' + lastRunText,
-    '📬 Интервал: ' + settings.poll_interval_minutes + ' мин',
-    '📈 Офферов за 24ч: ' + total24h,
-    '🚗 Активных маршрутов: ' + enabledRoutes.length,
+    '📈 Общих офферов за 24ч: ' + total24h,
+    '🚗 Моих маршрутов (активных): ' + enabledRoutes.length,
     '',
-    'Фильтры:',
-    '  Откуда: ' + (filters.allowed_origin_countries || 'все'),
-    '  Куда: ' + (filters.allowed_destination_countries || 'все'),
+    'Мои фильтры:',
+    '  Откуда: ' + (filters.allowed_origin_countries ? filters.allowed_origin_countries.join(', ') : 'все'),
+    '  Куда: ' + (filters.allowed_destination_countries ? filters.allowed_destination_countries.join(', ') : 'все'),
   ];
 
-  if (filters.min_trip_days || filters.max_trip_days) {
-    lines.push('  Длительность: ' + (filters.min_trip_days || '0') + '–' + (filters.max_trip_days || '∞') + ' дней');
+  if (filters.min_duration_days || filters.max_duration_days) {
+    lines.push('  Длительность: ' + (filters.min_duration_days || '0') + '–' + (filters.max_duration_days || '∞') + ' дней');
   }
 
-  if (isTruthy_(settings.notify_all_by_price)) {
-    const maxP = (filters.max_price != null && filters.max_price !== '') ? (filters.max_price + ' €') : 'любая';
-    lines.push('  🔔 Все слоты до цены: вкл (до ' + maxP + ')');
-  }
+  const maxP = (filters.price_max != null && filters.price_max !== '') ? (filters.price_max + ' €') : 'любая';
+  lines.push('  Макс. цена: ' + maxP);
 
   lines.push('');
   lines.push('Команды:');
   lines.push('/check — запустить сканирование прямо сейчас');
-  lines.push('/routes — список маршрутов');
+  lines.push('/routes — список моих маршрутов');
   return lines.join('\n');
 }
 

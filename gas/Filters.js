@@ -206,3 +206,40 @@ function offerFingerprint_(offer) {
     })
     .join('');
 }
+
+
+function matchesFirestoreFilter_(offer, filters, settings) {
+  const origins = filters.allowed_origin_countries || [];
+  const destinations = filters.allowed_destination_countries || [];
+  if (origins.length > 0 && offer.originCountry && origins.indexOf(offer.originCountry.toUpperCase()) === -1) {
+    return false;
+  }
+  if (destinations.length > 0 && offer.destinationCountry && destinations.indexOf(offer.destinationCountry.toUpperCase()) === -1) {
+    return false;
+  }
+  
+  const pickup = parseIsoDate_(offer.pickupDate);
+  const dropoff = parseIsoDate_(offer.returnDate);
+
+  if (pickup && filters.window_days > 0) {
+    const start = (filters.window_start_rule === 'today') ? new Date() : nextSunday_(settings.timezone || DEFAULT_SETTINGS.timezone);
+    const end = addDays_(start, filters.window_days);
+    if (pickup < start || pickup > end) {
+      return false;
+    }
+  }
+
+  if (pickup && dropoff) {
+    const durationDays = Math.round((dropoff.getTime() - pickup.getTime()) / (1000 * 60 * 60 * 24));
+    const minDays = Number(filters.min_duration_days);
+    const maxDays = Number(filters.max_duration_days);
+    if (!isNaN(minDays) && minDays > 0 && durationDays < minDays) return false;
+    if (!isNaN(maxDays) && maxDays > 0 && durationDays > maxDays) return false;
+  }
+
+  if (!offerPriceMatches_(offer, filters.price_max)) {
+    return false;
+  }
+
+  return true;
+}
