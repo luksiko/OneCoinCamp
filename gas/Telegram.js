@@ -136,12 +136,12 @@ function handleTelegramWebhook(e) {
     handleTelegramUpdate_(update);
   } catch (error) {
     try {
-      firestoreAdd('webhook_logs', {
-        timestamp: new Date().toISOString(),
-        error_webhook: error.message || String(error),
-        stack: error.stack || ''
-      });
-    } catch (e) {}
+      firestoreAdd('webhook_logs', { timestamp: new Date().toISOString(), error: error.message || String(error), stack: error.stack });
+    } catch(e) {}
+    try {
+      const secrets = getScriptSecrets();
+      sendTelegramMessage_(secrets, '⚠️ <b>Критическая ошибка вебхука</b>\n\n<code>' + (error.message || String(error)) + '</code>\n\n' + (error.stack || ''), secrets.telegramChatId);
+    } catch(e) {}
   }
   return HtmlService.createHtmlOutput('ok');
 }
@@ -745,3 +745,4 @@ function escapeHtml_(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
