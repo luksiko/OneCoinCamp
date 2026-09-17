@@ -217,6 +217,30 @@
       border: 1px solid var(--accent);
       margin-top: 8px;
     }
+    .actions-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      margin-bottom: 8px;
+    }
+    .actions-row .btn {
+      flex: 1;
+      width: auto;
+      margin: 0;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: transform 0.1s, filter 0.15s, opacity 0.15s;
+    }
+    .actions-row .btn:active:not(:disabled) {
+      transform: scale(0.97);
+    }
     .btn:disabled { opacity: 0.6; }
     .link-reset {
       display: block;
@@ -684,8 +708,10 @@
           <div id="routesList"></div>
           <button type="button" class="add-route" id="btnAddRoute">+ Добавить маршрут</button>
         </div>
-        <button type="button" class="btn btn-accent" id="btnSaveMain" style="margin-bottom: 8px;">💾 Сохранить изменения</button>
-        <button type="button" class="btn btn-secondary" id="btnRun">▶ Запустить проверку</button>
+        <div class="actions-row">
+          <button type="button" class="btn btn-accent" id="btnSaveMain">💾 Сохранить</button>
+          <button type="button" class="btn btn-secondary" id="btnRun">▶ Проверить</button>
+        </div>
       </div>
 
     <div id="screenSettings" style="display:none;">
