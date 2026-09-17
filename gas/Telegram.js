@@ -406,6 +406,8 @@ function handleTelegramUpdate_(update) {
   const text = message.text.trim();
   const chatId = incomingChatId;
 
+  const userId = message.from && message.from.id ? String(message.from.id) : chatId;
+
   if (message.from && message.from.id) {
     try {
       upsertUser(message.from.id, chatId, { username: message.from.username || '' });
@@ -434,7 +436,7 @@ function handleTelegramUpdate_(update) {
   } else if (command === '/help') {
     const help =
       '🚐 <b>Camper Monitor — Справка</b>\n\n' +
-      'Бот опрашивает API аренды кемперов и присылает уведомления при появлении слотов за 1€.\n\n' +
+      'Бот автоматически сканирует сайты и присылает новые перегоны за 1 евро.\n\n' +
       '<b>Команды:</b>\n' +
       '/status — время последнего опроса, интервал, статистика за 24ч\n' +
       '/digest — сводный дайджест найденных офферов за 24ч\n' +
@@ -454,7 +456,7 @@ function handleTelegramUpdate_(update) {
     const digestText = buildDigestMessage_(spreadsheet);
     try { sendTelegramMessage_(secrets, digestText, chatId); } catch (e) {}
   } else if (command === '/silent') {
-    let filters = getUserFilters(chatId) || {};
+    let filters = getUserFilters(userId) || {};
     const parts = text.split(/\s+/);
     
     if (parts.length > 1) {
@@ -474,7 +476,7 @@ function handleTelegramUpdate_(update) {
           sendTelegramMessage_(secrets, '❌ Неверный формат времени. Пример: /silent 22:00-08:00', chatId);
         }
       }
-      setUserFilters(chatId, filters);
+      setUserFilters(userId, filters);
     } else {
       const isEnabled = filters.silent_hours && filters.silent_hours.enabled;
       let msg = '🌙 <b>Тихие часы</b>\n\nТекущий статус: ' + (isEnabled ? 'ВКЛЮЧЕНЫ' : 'ВЫКЛЮЧЕНЫ') + '\n';
@@ -489,14 +491,14 @@ function handleTelegramUpdate_(update) {
     }
   } else if (command === '/actual') {
     const spreadsheet = ensureWorkbook_();
-    const actualText = buildActualOffersMessage_(spreadsheet, chatId);
+    const actualText = buildActualOffersMessage_(spreadsheet, userId);
     try { sendTelegramMessage_(secrets, actualText, chatId); } catch (e) {}
   } else if (command === '/check') {
     sendTelegramMessage_(secrets, '⏳ Запуск сканирования...', chatId);
     runMonitorOnce();
     sendTelegramMessage_(secrets, '✅ Сканирование завершено.', chatId);
   } else if (command === '/routes') {
-    const routes = getUserRoutes(chatId) || [];
+    const routes = getUserRoutes(userId) || [];
     let lines = ['🚗 <b>Отслеживаемые маршруты:</b>\n'];
     routes.forEach(function (r) {
       const statusIcon = r.enabled ? '✅' : '⬜';
