@@ -124,7 +124,10 @@ function ensureTriggersFromUi(initData) {
 function getUiData(initData) {
   const secrets = getScriptSecrets();
   const auth = authorizeWebAppRequest_(initData, secrets);
-  const userId = auth.user ? auth.user.id : null;
+  let userId = auth.user ? auth.user.id : null;
+  if (!userId && secrets.telegramChatId) {
+    userId = secrets.telegramChatId;
+  }
 
   const spreadsheet = getSpreadsheet();
   const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
@@ -483,7 +486,10 @@ function saveUiData(payload, initData) {
   const rawInitData = initData || (payload && payload.initData) || '';
   const secrets = getScriptSecrets();
   const auth = authorizeWebAppRequest_(rawInitData, secrets);
-  const userId = auth.user ? auth.user.id : null;
+  let userId = auth.user ? auth.user.id : null;
+  if (!userId && secrets.telegramChatId) {
+    userId = secrets.telegramChatId;
+  }
 
   const spreadsheet = getSpreadsheet();
   const isAdmin = userId && (userId === secrets.telegramChatId || (secrets.telegramAllowedUsers && secrets.telegramAllowedUsers.indexOf(userId) !== -1));
@@ -956,4 +962,12 @@ function getAnalytics(initData) {
     hourlyPattern: hourlyPattern,
     bySources:     bySources,
   };
+}
+function testUrl() {
+  try {
+    new URLSearchParams("a=1");
+    console.log("URLSearchParams EXISTS");
+  } catch(e) {
+    console.log("URLSearchParams DOES NOT EXIST: " + e.message);
+  }
 }

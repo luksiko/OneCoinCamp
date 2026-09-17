@@ -502,7 +502,9 @@ function handleTelegramUpdate_(update) {
     let lines = ['🚗 <b>Отслеживаемые маршруты:</b>\n'];
     routes.forEach(function (r) {
       const statusIcon = r.enabled ? '✅' : '⬜';
-      lines.push(statusIcon + ' <b>' + r.source + '</b>: ' + (r.origin_name || r.origin_id) + ' ➔ ' + (r.destination_name || r.destination_id || 'все доступные'));
+      const orig = r.origin_name || r.originName || (r.origin_id === '*' || r.originId === '*' ? 'Все города' : (r.origin_id || r.originId || 'Все города'));
+      const dest = r.destination_name || r.destinationName || (r.destination_id === '*' || r.destinationId === '*' ? 'Все города' : (r.destination_id || r.destinationId || 'все доступные'));
+      lines.push(statusIcon + ' <b>' + (r.source || 'маршрут') + '</b>: ' + orig + ' ➔ ' + dest);
     });
     if (routes.length === 0) lines.push('Нет маршрутов.');
     sendTelegramMessage_(secrets, lines.join('\n'), chatId);
