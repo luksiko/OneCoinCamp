@@ -96,8 +96,11 @@ function getFirestoreProjectId_() {
 }
 
 function getFirestoreDatabaseId_() {
-  var dbId = PropertiesService.getScriptProperties().getProperty('FIRESTORE_DATABASE_ID');
-  return dbId || '(default)';
+  var prop = PropertiesService.getScriptProperties().getProperty('FIRESTORE_DATABASE_ID');
+  if (prop) return prop;
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get('firestore_db_id');
+  return cached || '(default)';
 }
 
 // ---------------------------------------------------------------------------
@@ -107,17 +110,20 @@ function getFirestoreDatabaseId_() {
 function firestoreRequest_(method, path, payload, queryParams) {
   var projectId = getFirestoreProjectId_();
   var dbId = getFirestoreDatabaseId_();
-  var url = FIRESTORE_BASE_URL + '/projects/' + projectId + '/databases/' + dbId + '/documents/' + path;
 
-  if (queryParams) {
-    var qs = Object.keys(queryParams).map(function (k) {
-      var v = queryParams[k];
-      if (Array.isArray(v)) {
-        return v.map(function (item) { return k + '=' + encodeURIComponent(item); }).join('&');
-      }
-      return k + '=' + encodeURIComponent(v);
-    }).join('&');
-    if (qs) url += (url.indexOf('?') === -1 ? '?' : '&') + qs;
+  function buildUrl(currentDbId) {
+    var u = FIRESTORE_BASE_URL + '/projects/' + projectId + '/databases/' + currentDbId + '/documents/' + path;
+    if (queryParams) {
+      var qs = Object.keys(queryParams).map(function (k) {
+        var v = queryParams[k];
+        if (Array.isArray(v)) {
+          return v.map(function (item) { return k + '=' + encodeURIComponent(item); }).join('&');
+        }
+        return k + '=' + encodeURIComponent(v);
+      }).join('&');
+      if (qs) u += (u.indexOf('?') === -1 ? '?' : '&') + qs;
+    }
+    return u;
   }
 
   var options = {
@@ -132,6 +138,7 @@ function firestoreRequest_(method, path, payload, queryParams) {
 
   var lastError;
   for (var attempt = 0; attempt <= FIRESTORE_MAX_RETRIES; attempt++) {
+    var url = buildUrl(dbId);
     var response;
     try {
       response = UrlFetchApp.fetch(url, options);
@@ -141,9 +148,28 @@ function firestoreRequest_(method, path, payload, queryParams) {
       continue;
     }
     var code = response.getResponseCode();
+    var text = response.getContentText() || '';
+
+    // Если база с текущим ID не найдена, пробуем альтернативный ID ('default' <-> '(default)')
+    if (code === 404 && (text.indexOf('does not exist') !== -1 || text.indexOf('Database') !== -1) && (text.indexOf('(default)') !== -1 || text.indexOf('default') !== -1)) {
+      var altDbId = (dbId === '(default)') ? 'default' : '(default)';
+      if (altDbId !== dbId) {
+        try {
+          var altUrl = buildUrl(altDbId);
+          var altResponse = UrlFetchApp.fetch(altUrl, options);
+          var altCode = altResponse.getResponseCode();
+          if (altCode >= 200 && altCode < 300) {
+            dbId = altDbId;
+            CacheService.getScriptCache().put('firestore_db_id', altDbId, 21600);
+            var altText = altResponse.getContentText();
+            return altText ? JSON.parse(altText) : null;
+          }
+        } catch (e) {}
+      }
+    }
+
     if (code === 404) {
       if (method === 'GET') {
-        var text = response.getContentText();
         try {
           var parsed = JSON.parse(text);
           var msg = (parsed.error && parsed.error.message) || '';
@@ -155,19 +181,18 @@ function firestoreRequest_(method, path, payload, queryParams) {
         }
         return null; // документ не найден — норма для GET
       }
-      throw new Error('Firestore request failed (' + code + ' ' + method + '): ' + response.getContentText());
+      throw new Error('Firestore request failed (' + code + ' ' + method + '): ' + text);
     }
     if (code >= 200 && code < 300) {
-      var text = response.getContentText();
       return text ? JSON.parse(text) : null;
     }
     if (code === 429 || code >= 500) {
-      lastError = new Error('Firestore ' + code + ': ' + response.getContentText());
+      lastError = new Error('Firestore ' + code + ': ' + text);
       Utilities.sleep(500 * Math.pow(2, attempt));
       continue;
     }
     // 4xx кроме 404/429 — не повторяем
-    throw new Error('Firestore request failed (' + code + '): ' + response.getContentText());
+    throw new Error('Firestore request failed (' + code + '): ' + text);
   }
   throw lastError || new Error('Firestore request failed after retries');
 }
