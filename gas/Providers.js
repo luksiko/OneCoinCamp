@@ -253,7 +253,7 @@ function resolveRoadsurferPairsBatched_(route, filters) {
 function roadsurferRadarBatchSize_(filters) {
   const raw = Number(filters && filters.roadsurfer_origins_per_run);
   if (!isFinite(raw) || raw <= 0) return 5;
-  return Math.max(1, Math.min(10, Math.floor(raw)));
+  return Math.max(1, Math.min(50, Math.floor(raw)));
 }
 
 function roadsurferRadarCursorKey_(route, filters) {
@@ -388,7 +388,7 @@ function roadsurferIsoDate_(value) {
 
 function roadsurferTimeframeInsideWindow_(timeframe, rangeStart, rangeEnd) {
   if (!timeframe || !timeframe.start || !timeframe.end) return false;
-  return timeframe.start >= rangeStart && timeframe.end <= rangeEnd;
+  return timeframe.start <= rangeEnd && timeframe.end >= rangeStart;
 }
 
 function fetchRoadsurferOffers_(route, window, filters) {
@@ -507,7 +507,7 @@ function fetchRoadsurferOffersForTimeframe_(pair, timeframe, route, searchRangeS
     const returnDate = roadsurferIsoDate_(firstDefined_(item.return_date, item.returnDate, rangeEnd)) || rangeEnd;
     
     // Check if the actual offer falls into user's overall search window
-    if (pickupDate < searchRangeStart || returnDate > searchRangeEnd) {
+    if (pickupDate > searchRangeEnd || returnDate < searchRangeStart) {
       continue;
     }
 

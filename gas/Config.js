@@ -37,6 +37,7 @@ const DEFAULT_SETTINGS = {
   check_neighbors: false,
   timezone: 'Europe/Berlin',
   telegram_enabled: true,
+  notify_all_by_price: false,
   silent_hours_enabled: false,
   silent_hours_start: '23:00',
   silent_hours_end: '07:00',
@@ -65,7 +66,7 @@ function isProviderEnabled_(source, settings) {
 const DEFAULT_FILTERS = {
   allowed_origin_countries: 'DE,AT,NL,BE,FR,CH',
   allowed_destination_countries: 'ES,IT',
-  roadsurfer_origins_per_run: 5,
+  roadsurfer_origins_per_run: 20,
   window_start_rule: 'next_sunday',
   window_days: 14,
   max_price: '',
