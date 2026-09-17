@@ -360,9 +360,16 @@
 
     .offers-toolbar {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
       align-items: center;
       margin-bottom: 10px;
+      gap: 8px;
+      min-height: 34px;
+    }
+    .offers-count-badge {
+      font-size: 13px;
+      color: var(--subtext);
+      font-weight: 600;
     }
 
     .offer-card {
@@ -371,6 +378,7 @@
       border-radius: 14px;
       padding: 12px 14px;
       margin-bottom: 10px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
     .offer-header {
       display: flex;
@@ -399,7 +407,7 @@
     .offer-details {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 4px;
       margin-bottom: 10px;
       font-size: 13px;
       color: var(--subtext);
@@ -415,12 +423,11 @@
     .offer-vehicle {
       color: var(--subtext);
       font-size: 12px;
+      line-height: 1.35;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 5px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      word-break: break-word;
     }
     .offer-added {
       color: var(--hint);
@@ -455,26 +462,42 @@
       background: var(--accent);
       color: var(--accent-text);
       border: none;
-      border-radius: 8px;
-      padding: 8px 14px;
+      border-radius: 9px;
+      padding: 9px 16px;
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-book:active:not(:disabled) {
+      transform: scale(0.97);
+      opacity: 0.9;
     }
     .btn-book:disabled { opacity: 0.5; }
 
     .btn-delete-offer {
       background: transparent;
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 6px 10px;
-      font-size: 14px;
+      border-radius: 9px;
+      padding: 6px 12px;
+      font-size: 15px;
       cursor: pointer;
       color: var(--hint);
+      min-height: 38px;
+      min-width: 38px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.15s, border-color 0.15s;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-delete-offer:active:not(:disabled) {
+      transform: scale(0.95);
     }
     .btn-delete-offer:hover {
       background: rgba(255, 59, 48, 0.15);
@@ -489,7 +512,7 @@
       background: var(--section);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 6px 12px;
+      padding: 7px 13px;
       display: inline-flex;
       align-items: center;
       gap: 6px;
@@ -497,7 +520,12 @@
       font-weight: 600;
       color: var(--accent);
       cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
+      min-height: 34px;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-check-avail:active:not(:disabled) {
+      transform: scale(0.97);
     }
     .btn-check-avail:hover {
       background: rgba(46, 166, 255, 0.15);
@@ -880,6 +908,7 @@
       <div class="filters-bar" id="sourceFilters"></div>
 
       <div class="offers-toolbar">
+        <span class="offers-count-badge" id="offersCountBadge"></span>
         <button type="button" class="btn-check-avail" id="btnCheckAvail" title="Проверить доступность офферов у провайдеров и удалить недоступные">
           🔄 Проверить актуальность
         </button>
@@ -1011,7 +1040,7 @@
     var offerFilters = { source: '', sentStatus: '', page: 1 };
     var INTERVALS = [1, 5, 10, 15, 30];
     var WINDOWS = [7, 10, 14, 21, 30];
-    var tg = window.Telegram && Telegram.WebApp ? Telegram.WebApp : null;
+    var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
     var toastTimer = null;
 
     function getInitData() {
@@ -1214,8 +1243,14 @@
     // ── End Analytics ────────────────────────────────────────────
 
 
+    var cachedSources = [];
+
     function loadOffers() {
       var initData = getInitData();
+      var list = document.getElementById('offersList');
+      if (list && (!offersData || !offersData.offers || !offersData.offers.length)) {
+        list.innerHTML = '<div class="offers-empty"><div class="icon">⏳</div><div>Загрузка офферов…</div></div>';
+      }
       google.script.run
         .withSuccessHandler(function (result) {
           offersData = result;
@@ -1240,15 +1275,18 @@
         imoova: '🌐 Imoova'
       };
 
-      var availableSources = (offersData && offersData.availableSources) ? offersData.availableSources.slice() : [];
-      if (!availableSources.length && offersData && offersData.offers && offersData.offers.length) {
+      if (offersData && Array.isArray(offersData.availableSources) && offersData.availableSources.length) {
+        cachedSources = offersData.availableSources.slice();
+      } else if (!cachedSources.length && offersData && offersData.offers && offersData.offers.length) {
         var srcMap = {};
         offersData.offers.forEach(function (o) {
           var s = String(o.source || '').trim().toLowerCase();
           if (s) srcMap[s] = true;
         });
-        availableSources = Object.keys(srcMap).sort();
+        cachedSources = Object.keys(srcMap).sort();
       }
+
+      var availableSources = cachedSources.slice();
 
       // If selected source filter is not in available sources, clear it
       if (offerFilters.source && availableSources.indexOf(offerFilters.source.toLowerCase()) === -1) {
@@ -1291,6 +1329,11 @@
 
     function applyOfferFilters() {
       var initData = getInitData();
+      var list = document.getElementById('offersList');
+      if (list) {
+        list.style.opacity = '0.5';
+        list.style.pointerEvents = 'none';
+      }
       var filter = {
         page: offerFilters.page,
         limit: 50
@@ -1299,11 +1342,19 @@
       if (offerFilters.sentStatus) { filter.sentStatus = offerFilters.sentStatus; }
       google.script.run
         .withSuccessHandler(function (result) {
+          if (list) {
+            list.style.opacity = '1';
+            list.style.pointerEvents = '';
+          }
           offersData = result;
           renderSourceFilters();
           renderOffers();
         })
         .withFailureHandler(function (err) {
+          if (list) {
+            list.style.opacity = '1';
+            list.style.pointerEvents = '';
+          }
           toast((err && err.message) || 'Ошибка фильтрации', true);
         })
         .getOffers(filter, initData);
@@ -1312,9 +1363,14 @@
     function renderOffers() {
       var list = document.getElementById('offersList');
       var pagination = document.getElementById('offersPagination');
+      var badge = document.getElementById('offersCountBadge');
       if (!list || !pagination) return;
       list.innerHTML = '';
       pagination.innerHTML = '';
+
+      if (badge) {
+        badge.textContent = (offersData && offersData.total != null) ? (offersData.total + ' офферов') : '';
+      }
 
       if (!offersData || !offersData.offers || !offersData.offers.length) {
         list.innerHTML = '<div class="offers-empty"><div class="icon">🎫</div><div>Офферы не найдены</div></div>';
@@ -1335,6 +1391,7 @@
         prev.onclick = function () {
           offerFilters.page = offersData.page - 1;
           applyOfferFilters();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         };
         pagination.appendChild(prev);
 
@@ -1352,6 +1409,7 @@
         next.onclick = function () {
           offerFilters.page = offersData.page + 1;
           applyOfferFilters();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         };
         pagination.appendChild(next);
       } else if (offersData.total > 0) {
@@ -2433,19 +2491,21 @@
       var curYear = new Date().getFullYear();
       var pYear = p.getFullYear();
       var rYear = r.getFullYear();
+      var daysDiff = Math.max(1, Math.round((r.getTime() - p.getTime()) / (1000 * 60 * 60 * 24)));
+      var daysLabel = ' (' + daysDiff + ' ' + (daysDiff === 1 ? 'день' : (daysDiff < 5 ? 'дня' : 'дней')) + ')';
 
       if (pYear === rYear && p.getMonth() === r.getMonth()) {
         if (p.getDate() === r.getDate()) {
           return p.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + (pYear !== curYear ? ' ' + pYear : '');
         }
-        return p.getDate() + '–' + r.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + (pYear !== curYear ? ' ' + pYear : '');
+        return p.getDate() + '–' + r.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + (pYear !== curYear ? ' ' + pYear : '') + daysLabel;
       }
 
       if (pYear === rYear) {
-        return p.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + ' – ' + r.getDate() + ' ' + MONTHS_SHORT[r.getMonth()] + (pYear !== curYear ? ' ' + pYear : '');
+        return p.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + ' – ' + r.getDate() + ' ' + MONTHS_SHORT[r.getMonth()] + (pYear !== curYear ? ' ' + pYear : '') + daysLabel;
       }
 
-      return p.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + ' ' + pYear + ' – ' + r.getDate() + ' ' + MONTHS_SHORT[r.getMonth()] + ' ' + rYear;
+      return p.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + ' ' + pYear + ' – ' + r.getDate() + ' ' + MONTHS_SHORT[r.getMonth()] + ' ' + rYear + daysLabel;
     }
 
     function formatAddedTime(iso) {
