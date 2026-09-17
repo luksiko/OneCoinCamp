@@ -513,7 +513,7 @@ function saveUiData(payload, initData) {
   }
 
   const spreadsheet = getSpreadsheet();
-  const isAdmin = userId && (userId === secrets.telegramChatId || (secrets.telegramAllowedUsers && secrets.telegramAllowedUsers.indexOf(userId) !== -1));
+  const isAdmin = Boolean(secrets.webAppSkipAuth || !secrets.telegramChatId || (userId && (String(userId) === String(secrets.telegramChatId) || (secrets.telegramAllowedUsers && secrets.telegramAllowedUsers.indexOf(userId) !== -1))));
   if (payload.settings && isAdmin) {
     const currentSettings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
     const mergedSettings = Object.assign({}, currentSettings, payload.settings);

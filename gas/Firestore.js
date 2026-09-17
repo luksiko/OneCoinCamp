@@ -352,9 +352,34 @@ function getUserRoutes(telegramId) {
   if (cached) {
     try { return JSON.parse(cached); } catch(e) {}
   }
-  var routes = firestoreList('users/' + telegramId + '/routes');
-  cache.put(key, JSON.stringify(routes || []), 240);
-  return routes || [];
+  var routes = firestoreList('users/' + telegramId + '/routes') || [];
+  
+  // Автоматическая дедупликация и очистка лишних дубликатов из Firestore
+  var seen = {};
+  var uniqueRoutes = [];
+  routes.forEach(function (r) {
+    var sig = [
+      r.source || '',
+      r.origin_name || r.originName || '',
+      r.origin_id || r.originId || '',
+      r.origin_country || r.originCountry || '',
+      r.destination_name || r.destinationName || '',
+      r.destination_id || r.destinationId || '',
+      r.destination_country || r.destinationCountry || ''
+    ].join('|').toLowerCase();
+
+    if (!seen[sig]) {
+      seen[sig] = true;
+      uniqueRoutes.push(r);
+    } else if (r._id) {
+      try {
+        firestoreDelete('users/' + telegramId + '/routes/' + r._id);
+      } catch (e) {}
+    }
+  });
+
+  cache.put(key, JSON.stringify(uniqueRoutes), 240);
+  return uniqueRoutes;
 }
 
 function clearUserCache(telegramId) {

@@ -312,20 +312,19 @@ function runMonitorOnce() {
           return;
         }
         
-        known.add(fingerprint);
-        cache.put(fingerprint, '1', 21600);
-        newOffers.push(offer);
-        rowsToAppend.push(offerToRow_(offer, fingerprint, true, ''));
+        const matches = isTruthy_(settings.notify_all_by_price)
+          ? offerPriceMatches_(offer, settings.max_price_eur || globalFilters.max_price)
+          : offerMatchesFilter_(offer, globalFilters, routeWindow);
+        const rowIndex = rowsToAppend.length;
+        newOffers.push({ offer: offer, fingerprint: fingerprint, matches: matches, route: route, routeIndex: routeIndex, routeWindow: routeWindow, rowIndex: rowIndex });
+        rowsToAppend.push(offerToRow_(offer, fingerprint, matches, ''));
       });
     });
-
-    if (rowsToAppend.length) {
-      appendArchiveRows_(spreadsheet, rowsToAppend);
-    }
 
     // 3. Dispatcher: сверка с фильтрами и рассылка
     const secrets = getScriptSecrets();
     let telegramSentCount = 0;
+    const failedFingerprints = new Set();
 
     if (usersData.length > 0) {
       usersData.forEach(function (data) {
@@ -333,7 +332,8 @@ function runMonitorOnce() {
         const user = data.user;
         const userRoutes = data.routes || [];
 
-        newOffers.forEach(function (offer) {
+        newOffers.forEach(function (item) {
+          const offer = item.offer || item;
           if (typeof matchesFirestoreFilter_ === 'function' && !matchesFirestoreFilter_(offer, filters, settings)) return;
           if (typeof hasAlertBeenSent === 'function' && hasAlertBeenSent(user.telegram_id, offer.fingerprint)) return;
 
@@ -357,9 +357,13 @@ function runMonitorOnce() {
               silent_hours_start: filters.silent_hours ? filters.silent_hours.from : null,
               silent_hours_end: filters.silent_hours ? filters.silent_hours.to : null
             });
-            sendTelegramOffer_(secrets, offer, null, matchedRouteId, userSettings, user.chat_id);
+            sendTelegramOffer_(secrets, offer, item.route, matchedRouteId || item.routeIndex, userSettings, user.chat_id);
             telegramSentCount++;
+            known.add(item.fingerprint);
+            cache.put(item.fingerprint, '1', 21600);
           } catch (error) {
+            hasErrors = true;
+            failedFingerprints.add(item.fingerprint);
             return;
           }
 
@@ -372,20 +376,49 @@ function runMonitorOnce() {
         });
       });
     } else if (isTruthy_(settings.telegram_enabled) && secrets.telegramBotToken && secrets.telegramChatId) {
-      newOffers.forEach(function (offer) {
+      newOffers.forEach(function (item) {
+        const offer = item.offer || item;
         const pickupDate = offer.pickupDate || settings.pickup_date;
         const returnDate = offer.returnDate || settings.return_date;
-        const window = buildDateWindow_(settings, globalFilters, pickupDate, returnDate);
+        const window = item.routeWindow || buildDateWindow_(settings, globalFilters, pickupDate, returnDate);
+        let shouldSend = false;
         if (isTruthy_(settings.notify_all_by_price)) {
-          if (!offerPriceMatches_(offer, settings.max_price_eur || globalFilters.max_price)) return;
+          shouldSend = offerPriceMatches_(offer, settings.max_price_eur || globalFilters.max_price);
         } else {
-          if (!offerMatchesFilter_(offer, globalFilters, window)) return;
+          shouldSend = item.matches !== undefined ? item.matches : offerMatchesFilter_(offer, globalFilters, window);
         }
-        try {
-          sendTelegramOffer_(secrets, offer, null, null, settings, secrets.telegramChatId);
-          telegramSentCount++;
-        } catch (e) {}
+        if (shouldSend) {
+          try {
+            sendTelegramOffer_(secrets, offer, item.route, item.routeIndex, settings, secrets.telegramChatId);
+            telegramSentCount++;
+            known.add(item.fingerprint);
+            cache.put(item.fingerprint, '1', 21600);
+            if (item.rowIndex !== undefined && rowsToAppend[item.rowIndex]) {
+              rowsToAppend[item.rowIndex][16] = formatIsoDate_(new Date());
+            }
+          } catch (e) {
+            hasErrors = true;
+            failedFingerprints.add(item.fingerprint);
+          }
+        } else {
+          known.add(item.fingerprint);
+          cache.put(item.fingerprint, '1', 21600);
+        }
       });
+    } else {
+      newOffers.forEach(function (item) {
+        known.add(item.fingerprint);
+        cache.put(item.fingerprint, '1', 21600);
+      });
+    }
+
+    const finalRowsToAppend = rowsToAppend.filter(function (row) {
+      const fp = row[14];
+      return !failedFingerprints.has(fp);
+    });
+
+    if (finalRowsToAppend.length) {
+      appendArchiveRows_(spreadsheet, finalRowsToAppend);
     }
 
 

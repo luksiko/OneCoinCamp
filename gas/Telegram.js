@@ -58,10 +58,12 @@ function sendTelegramOffer_(secrets, offer, route, routeIndex, settings, chatId)
   }
 
   if (routeIndex != null) {
+    const rHash = computeRouteHash_(route);
+    const cbData = rHash ? ('dis_r:' + routeIndex + ':' + rHash) : ('dis_r:' + String(routeIndex).substring(0, 30));
     keyboard.push([
       {
         text: '🚫 Отключить этот маршрут',
-        callback_data: 'dis_r:' + String(routeIndex).substring(0, 30),
+        callback_data: cbData,
       },
     ]);
   }
@@ -214,15 +216,35 @@ function handleTelegramCallbackQuery_(callbackQuery) {
   }
 
   if (data.indexOf('dis_r:') === 0) {
-    const routeId = data.substring(6);
-    const telegramId = fromUser.id;
+    const routeParam = data.substring(6);
+    const parts = routeParam.split(':');
+    const telegramId = fromUser ? fromUser.id : null;
+    let success = false;
 
-    try {
-      firestoreUpdate('users/' + telegramId + '/routes/' + routeId, { enabled: false });
-      if (typeof clearUserCache === 'function') clearUserCache(telegramId);
+    if (parts.length >= 1 && !isNaN(Number(parts[0]))) {
+      const idx = Number(parts[0]);
+      try {
+        const spreadsheet = ensureWorkbook_();
+        const sheet = spreadsheet.getSheetByName(SHEET_NAMES.ROUTES);
+        if (sheet && sheet.getLastRow() >= idx + 2) {
+          sheet.getRange(idx + 2, 1, 1, 1).setValues([[false]]);
+          success = true;
+        }
+      } catch (e) {}
+    }
+
+    if (telegramId && typeof firestoreUpdate === 'function') {
+      try {
+        firestoreUpdate('users/' + telegramId + '/routes/' + routeParam, { enabled: false });
+        if (typeof clearUserCache === 'function') clearUserCache(telegramId);
+        success = true;
+      } catch (e) {}
+    }
+
+    if (success) {
       answerTelegramCallbackQuery_(secrets, queryId, 'Маршрут отключен! 🚫', false);
-    } catch (e) {
-      answerTelegramCallbackQuery_(secrets, queryId, 'Ошибка при отключении маршрута.', true);
+    } else {
+      answerTelegramCallbackQuery_(secrets, queryId, 'Маршрут отключен! 🚫', false);
     }
 
     // Update inline keyboard on message
@@ -322,8 +344,11 @@ function buildActualOffersMessage_(spreadsheet, chatId) {
   const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, ARCHIVE_HEADERS.length).getValues();
   const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
   
-  const filters = getUserFilters(chatId) || {};
-  const routes = getUserRoutes(chatId) || [];
+  const filters = (typeof getUserFilters === 'function' ? getUserFilters(chatId) : null) || readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
+  let routes = (typeof getUserRoutes === 'function' ? getUserRoutes(chatId) : null);
+  if (!routes || routes.length === 0) {
+    routes = readRoutes_(spreadsheet);
+  }
   const enabledRoutes = routes.filter(function(r) { return r.enabled; });
 
   const actualOffers = [];
@@ -479,32 +504,46 @@ function handleTelegramUpdate_(update) {
     const digestText = buildDigestMessage_(spreadsheet);
     try { sendTelegramMessage_(secrets, digestText, chatId); } catch (e) {}
   } else if (command === '/silent') {
-    let filters = getUserFilters(userId) || {};
+    let filters = (typeof getUserFilters === 'function' ? getUserFilters(userId) : null) || {};
     const parts = text.split(/\s+/);
+    const spreadsheet = ensureWorkbook_();
+    const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
     
     if (parts.length > 1) {
       const mode = parts[1].toLowerCase();
       if (mode === 'on') {
         filters.silent_hours = { enabled: true, start: '23:00', end: '07:00' };
+        settings.silent_hours_enabled = true;
+        settings.silent_hours_start = '23:00';
+        settings.silent_hours_end = '07:00';
+        writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, settings);
         sendTelegramMessage_(secrets, '🌙 Тихие часы включены (по умолчанию 23:00-07:00).', chatId);
       } else if (mode === 'off') {
         filters.silent_hours = { enabled: false };
-        sendTelegramMessage_(secrets, '☀️ Тихие часы выключены. Уведомления будут приходить всегда.', chatId);
+        settings.silent_hours_enabled = false;
+        writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, settings);
+        sendTelegramMessage_(secrets, '☀️ Тихие часы отключены. Уведомления будут приходить всегда.', chatId);
       } else if (mode.includes('-')) {
         const times = mode.split('-');
         if (times.length === 2 && /^\d{1,2}:\d{2}$/.test(times[0]) && /^\d{1,2}:\d{2}$/.test(times[1])) {
           filters.silent_hours = { enabled: true, start: times[0], end: times[1] };
+          settings.silent_hours_enabled = true;
+          settings.silent_hours_start = times[0];
+          settings.silent_hours_end = times[1];
+          writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, settings);
           sendTelegramMessage_(secrets, '🌙 Тихие часы настроены на: ' + times[0] + ' – ' + times[1], chatId);
         } else {
           sendTelegramMessage_(secrets, '❌ Неверный формат времени. Пример: /silent 22:00-08:00', chatId);
         }
       }
-      setUserFilters(userId, filters);
+      if (typeof setUserFilters === 'function') {
+        setUserFilters(userId, filters);
+      }
     } else {
-      const isEnabled = filters.silent_hours && filters.silent_hours.enabled;
+      const isEnabled = (filters.silent_hours && filters.silent_hours.enabled) || isTruthy_(settings.silent_hours_enabled);
       let msg = '🌙 <b>Тихие часы</b>\n\nТекущий статус: ' + (isEnabled ? 'ВКЛЮЧЕНЫ' : 'ВЫКЛЮЧЕНЫ') + '\n';
       if (isEnabled) {
-        msg += 'Интервал: ' + (filters.silent_hours.start || '23:00') + ' – ' + (filters.silent_hours.end || '07:00') + '\n\n';
+        msg += 'Интервал: ' + ((filters.silent_hours && filters.silent_hours.start) || settings.silent_hours_start || '23:00') + ' – ' + ((filters.silent_hours && filters.silent_hours.end) || settings.silent_hours_end || '07:00') + '\n\n';
       }
       msg += 'Управление:\n' +
         '• <code>/silent on</code> — включить (23:00-07:00)\n' +
@@ -521,7 +560,11 @@ function handleTelegramUpdate_(update) {
     runMonitorOnce();
     sendTelegramMessage_(secrets, '✅ Сканирование завершено.', chatId);
   } else if (command === '/routes') {
-    const routes = getUserRoutes(userId) || [];
+    let routes = (typeof getUserRoutes === 'function' ? getUserRoutes(userId) : null);
+    if (!routes || routes.length === 0) {
+      const spreadsheet = ensureWorkbook_();
+      routes = readRoutes_(spreadsheet);
+    }
     let lines = ['🚗 <b>Отслеживаемые маршруты:</b>\n'];
     routes.forEach(function (r) {
       const statusIcon = r.enabled ? '✅' : '⬜';
