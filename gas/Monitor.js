@@ -323,10 +323,9 @@ function runMonitorOnce() {
     let telegramSentCount = 0;
 
     usersData.forEach(function (data) {
-      const filters = data.filters;
-      if (!filters) return;
+      const filters = data.filters || {};
       const user = data.user;
-      const userRoutes = data.routes;
+      const userRoutes = data.routes || [];
 
       newOffers.forEach(function (offer) {
         if (!matchesFirestoreFilter_(offer, filters, settings)) return;

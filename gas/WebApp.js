@@ -488,7 +488,8 @@ function saveUiData(payload, initData) {
   const userId = auth.user ? auth.user.id : null;
 
   const spreadsheet = getSpreadsheet();
-  if (payload.settings) {
+  const isAdmin = userId && (userId === secrets.telegramChatId || (secrets.telegramAllowedUsers && secrets.telegramAllowedUsers.indexOf(userId) !== -1));
+  if (payload.settings && isAdmin) {
     const currentSettings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
     const mergedSettings = Object.assign({}, currentSettings, payload.settings);
     writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, mergedSettings);
@@ -639,14 +640,16 @@ function validateTelegramWebAppData_(initData, secrets, nowSeconds) {
   const username = user && user.username ? String(user.username).toLowerCase().replace(/^@/, '') : null;
   const chatId = chat && chat.id != null ? String(chat.id) : null;
 
-  const isAllowed = allowedList.length === 0 || allowedList.some(function (allowed) {
+  const isAllowed = secrets.webAppSkipAuth || allowedList.length === 0 || allowedList.some(function (allowed) {
     return allowed === '*' ||
            (userId && userId === allowed) ||
            (username && username === allowed) ||
            (chatId && chatId === allowed);
   });
 
-  if (!isAllowed) {
+  // В многопользовательской версии любой юзер с валидной подписью Telegram имеет доступ к своим данным.
+  // Оставляем проверку isAllowed только если явно не передан webAppSkipAuth и есть список.
+  if (!isAllowed && !secrets.webAppSkipAuth) {
     throw new Error('Access denied: Unauthorized Telegram user or chat.');
   }
 

@@ -137,6 +137,13 @@ function handleTelegramWebhook(e) {
 
     handleTelegramUpdate_(update);
   } catch (error) {
+    try {
+      firestoreAdd('webhook_logs', {
+        timestamp: new Date().toISOString(),
+        error_webhook: error.message || String(error),
+        stack: error.stack || ''
+      });
+    } catch (e) {}
   }
   return HtmlService.createHtmlOutput('ok');
 }
@@ -400,7 +407,6 @@ function handleTelegramUpdate_(update) {
 
   const text = message.text.trim();
   const chatId = incomingChatId;
-  const spreadsheet = ensureWorkbook_();
 
   if (message.from && message.from.id) {
     try {
@@ -442,9 +448,11 @@ function handleTelegramUpdate_(update) {
       'Чтобы сообщить об ошибке: https://github.com/anomalyco/opencode/issues';
     sendTelegramMessage_(secrets, help, chatId);
   } else if (command === '/status') {
+    const spreadsheet = ensureWorkbook_();
     const statusText = buildStatusMessage_(spreadsheet, chatId);
     sendTelegramMessage_(secrets, statusText, chatId);
   } else if (command === '/digest') {
+    const spreadsheet = ensureWorkbook_();
     const digestText = buildDigestMessage_(spreadsheet);
     sendTelegramMessage_(secrets, digestText, chatId);
   } else if (command === '/silent') {
@@ -484,6 +492,7 @@ function handleTelegramUpdate_(update) {
       sendTelegramMessage_(secrets, msg, chatId);
     }
   } else if (command === '/actual') {
+    const spreadsheet = ensureWorkbook_();
     const actualText = buildActualOffersMessage_(spreadsheet, chatId);
     sendTelegramMessage_(secrets, actualText, chatId);
   } else if (command === '/check') {
