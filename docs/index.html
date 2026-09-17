@@ -109,7 +109,7 @@
       color: var(--accent-text);
     }
 
-    select, input[type="text"], input[type="number"] {
+    select, input[type="text"], input[type="number"], input[type="time"] {
       width: 100%;
       padding: 11px 12px;
       border-radius: 10px;
@@ -118,8 +118,17 @@
       color: var(--text);
       font-size: 15px;
       outline: none;
+      color-scheme: dark;
     }
     select:focus, input:focus { border-color: var(--accent); }
+    code {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: var(--accent);
+    }
 
     /* Route cards */
     .route {
@@ -649,6 +658,37 @@
               style="width:72px;text-align:right;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:var(--card);color:var(--text);font-size:15px;"
               placeholder="1">
           </label>
+        </div>
+      </div>
+
+      <div class="card" id="cardSilentHours">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div class="card-title" style="margin-bottom:0;">🌙 Режим тихих часов</div>
+          <span class="switch">
+            <input type="checkbox" id="silentHoursEnabled">
+            <span class="slider"></span>
+          </span>
+        </div>
+        <div style="font-size:12px; color:var(--hint); margin-bottom:12px;">
+          В тихие часы уведомления приходят в Telegram без звука.
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; margin-bottom:12px;">
+          <span style="color:var(--subtext);">Статус:</span>
+          <span id="silentHoursStatusText" style="font-weight:600;">Выключены ⬜</span>
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+          <span class="field-label">Интервал тихих часов</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="time" id="silentHoursStart" value="23:00" style="flex:1; text-align:center;">
+            <span style="color:var(--hint); font-weight:600;">–</span>
+            <input type="time" id="silentHoursEnd" value="07:00" style="flex:1; text-align:center;">
+          </div>
+        </div>
+        <div style="padding:10px 12px; background:var(--section); border-radius:10px; font-size:12px; color:var(--subtext); line-height:1.6;">
+          <div style="font-weight:600; color:var(--text); margin-bottom:4px;">Команды управления в чате:</div>
+          <div>• <code>/silent on</code> — включить</div>
+          <div>• <code>/silent off</code> — выключить</div>
+          <div>• <code>/silent 22:00-08:00</code> — изменить интервал</div>
         </div>
       </div>
 
@@ -1343,6 +1383,31 @@
       document.getElementById('telegramEnabled').onchange = function () {
         state.settings.telegram_enabled = this.checked;
       };
+      var silentHoursEl = document.getElementById('silentHoursEnabled');
+      if (silentHoursEl) {
+        silentHoursEl.onchange = function () {
+          if (!state || !state.settings) return;
+          state.settings.silent_hours_enabled = this.checked;
+          var statusEl = document.getElementById('silentHoursStatusText');
+          if (statusEl) {
+            statusEl.textContent = this.checked ? 'Включены ✅' : 'Выключены ⬜';
+          }
+        };
+      }
+      var silentStartEl = document.getElementById('silentHoursStart');
+      if (silentStartEl) {
+        silentStartEl.onchange = function () {
+          if (!state || !state.settings) return;
+          state.settings.silent_hours_start = this.value;
+        };
+      }
+      var silentEndEl = document.getElementById('silentHoursEnd');
+      if (silentEndEl) {
+        silentEndEl.onchange = function () {
+          if (!state || !state.settings) return;
+          state.settings.silent_hours_end = this.value;
+        };
+      }
       var btnToggleWebhook = document.getElementById('btnToggleWebhook');
       if (btnToggleWebhook) {
         btnToggleWebhook.onclick = function () {
@@ -1542,6 +1607,24 @@
         };
       }
       document.getElementById('telegramEnabled').checked = isTruthy(state.settings.telegram_enabled);
+      var silentHoursEl = document.getElementById('silentHoursEnabled');
+      var silentStatusTextEl = document.getElementById('silentHoursStatusText');
+      var silentStartEl = document.getElementById('silentHoursStart');
+      var silentEndEl = document.getElementById('silentHoursEnd');
+
+      var isSilent = state.settings && isTruthy(state.settings.silent_hours_enabled);
+      if (silentHoursEl) {
+        silentHoursEl.checked = isSilent;
+      }
+      if (silentStatusTextEl) {
+        silentStatusTextEl.textContent = isSilent ? 'Включены ✅' : 'Выключены ⬜';
+      }
+      if (silentStartEl) {
+        silentStartEl.value = (state.settings && state.settings.silent_hours_start) || '23:00';
+      }
+      if (silentEndEl) {
+        silentEndEl.value = (state.settings && state.settings.silent_hours_end) || '07:00';
+      }
       var maxPriceEl = document.getElementById('maxPriceInput');
       if (maxPriceEl) {
         var maxPrice = state.filters && state.filters.max_price != null && state.filters.max_price !== ''
@@ -1890,10 +1973,16 @@
       var pMv = document.getElementById('providerMovacar');
       var pIc = document.getElementById('providerIndiecampers');
       var pIm = document.getElementById('providerImoova');
+      var silentHoursEl = document.getElementById('silentHoursEnabled');
+      var silentStartEl = document.getElementById('silentHoursStart');
+      var silentEndEl = document.getElementById('silentHoursEnd');
       if (pRs) { state.settings.provider_roadsurfer_enabled = pRs.checked; }
       if (pMv) { state.settings.provider_movacar_enabled = pMv.checked; }
       if (pIc) { state.settings.provider_indiecampers_enabled = pIc.checked; }
       if (pIm) { state.settings.provider_imoova_enabled = pIm.checked; }
+      if (silentHoursEl) { state.settings.silent_hours_enabled = silentHoursEl.checked; }
+      if (silentStartEl && silentStartEl.value) { state.settings.silent_hours_start = silentStartEl.value; }
+      if (silentEndEl && silentEndEl.value) { state.settings.silent_hours_end = silentEndEl.value; }
 
       var payload = {
         settings: {
@@ -1901,6 +1990,9 @@
           window_days: state.settings.window_days,
           check_neighbors: state.settings.check_neighbors,
           telegram_enabled: state.settings.telegram_enabled,
+          silent_hours_enabled: state.settings.silent_hours_enabled !== undefined ? !!state.settings.silent_hours_enabled : false,
+          silent_hours_start: state.settings.silent_hours_start || '23:00',
+          silent_hours_end: state.settings.silent_hours_end || '07:00',
           provider_roadsurfer_enabled: state.settings.provider_roadsurfer_enabled !== undefined ? state.settings.provider_roadsurfer_enabled : true,
           provider_movacar_enabled: state.settings.provider_movacar_enabled !== undefined ? state.settings.provider_movacar_enabled : true,
           provider_indiecampers_enabled: state.settings.provider_indiecampers_enabled !== undefined ? state.settings.provider_indiecampers_enabled : true,

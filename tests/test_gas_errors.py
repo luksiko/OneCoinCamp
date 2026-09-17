@@ -1088,6 +1088,31 @@ if (testName === 'roadsurfer_429') {
 
   assert.strictEqual(context.offerMatchesFilter_(cheapOffer, { max_price: 10 }, window), true);
   assert.strictEqual(context.offerMatchesFilter_(expensiveOffer, { max_price: 10 }, window), false);
+} else if (testName === 'webapp_silent_hours_settings') {
+  const { context, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+
+  const uiData1 = context.getUiData('');
+  assert.strictEqual(uiData1.settings.silent_hours_enabled, false);
+  assert.strictEqual(uiData1.settings.silent_hours_start, '23:00');
+  assert.strictEqual(uiData1.settings.silent_hours_end, '07:00');
+
+  const saveRes = context.saveUiData({
+    settings: {
+      silent_hours_enabled: true,
+      silent_hours_start: '22:00',
+      silent_hours_end: '08:00',
+    }
+  }, '');
+  assert.strictEqual(saveRes.settings.silent_hours_enabled, true);
+  assert.strictEqual(saveRes.settings.silent_hours_start, '22:00');
+  assert.strictEqual(saveRes.settings.silent_hours_end, '08:00');
+
+  const uiData2 = context.getUiData('');
+  assert.strictEqual(uiData2.settings.silent_hours_enabled, true);
+  assert.strictEqual(uiData2.settings.silent_hours_start, '22:00');
+  assert.strictEqual(uiData2.settings.silent_hours_end, '08:00');
 } else {
   throw new Error('Unknown test: ' + testName);
 }
@@ -1144,6 +1169,7 @@ def run_node_test(test_name: str):
         "telegram_silent_hours_disable_notification",
         "telegram_digest_and_silent_commands",
         "filter_max_price",
+        "webapp_silent_hours_settings",
     ],
 )
 def test_gas_node_suite(test_name: str):
