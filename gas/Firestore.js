@@ -134,9 +134,22 @@ function firestoreRequest_(method, path, payload, queryParams) {
       Utilities.sleep(500 * Math.pow(2, attempt));
       continue;
     }
-    var code = response.getResponseCode();
-
-    if (code === 404) return null; // документ не найден — не ошибка для getDocument
+    if (code === 404) {
+      if (method === 'GET') {
+        var text = response.getContentText();
+        try {
+          var parsed = JSON.parse(text);
+          var msg = (parsed.error && parsed.error.message) || '';
+          if (msg.indexOf('Database') !== -1 || msg.indexOf('database') !== -1) {
+            throw new Error('Firestore 404 (Database not found): ' + msg);
+          }
+        } catch (e) {
+          if (e.message.indexOf('Firestore 404') !== -1) throw e;
+        }
+        return null; // документ не найден — норма для GET
+      }
+      throw new Error('Firestore request failed (' + code + ' ' + method + '): ' + response.getContentText());
+    }
     if (code >= 200 && code < 300) {
       var text = response.getContentText();
       return text ? JSON.parse(text) : null;
@@ -226,14 +239,9 @@ function firestoreGet(path) {
  * path — например 'users/123456789'.
  */
 function firestoreSet(path, obj) {
-  var pathParts = path.split('/');
-  var docId = pathParts.pop();
-  var collectionPath = pathParts.join('/');
-  return firestoreRequest_('PATCH', collectionPath + '?documentId=' + encodeURIComponent(docId), {
+  return firestoreRequest_('PATCH', path, {
     fields: objectToFields_(obj)
   });
-  // Примечание: для документов с заданным ID PATCH-запрос по полному пути документа
-  // (без ?documentId=) тоже работает и является более распространённым вариантом — см. firestoreUpdate.
 }
 
 /**
@@ -381,14 +389,36 @@ function listActiveUsers() {
  * Разовая проверка подключения к Firestore из редактора Apps Script.
  */
 function testFirestore() {
-  Logger.log('Тестирование подключения к Firestore...');
-  upsertUser(123456789, 987654321, { username: 'test_user' });
-  var user = getUser(123456789);
-  Logger.log('Результат getUser: ' + JSON.stringify(user));
-  if (user && user.telegram_id === 123456789) {
-    Logger.log('✅ Подключение к Firestore работает успешно!');
-  } else {
-    Logger.log('❌ Не удалось получить созданного пользователя.');
+  Logger.log('1. Тестирование получения Access Token...');
+  try {
+    var token = getFirestoreAccessToken_();
+    Logger.log('✅ Access Token успешно получен: ' + token.substring(0, 15) + '...');
+  } catch (e) {
+    Logger.log('❌ Ошибка авторизации: ' + e.message);
+    return;
+  }
+
+  Logger.log('2. Тестирование записи (upsertUser)...');
+  try {
+    var res = upsertUser(123456789, 987654321, { username: 'test_user' });
+    Logger.log('✅ Результат upsertUser: ' + JSON.stringify(res));
+  } catch (e) {
+    Logger.log('❌ Ошибка upsertUser: ' + e.message);
+    return;
+  }
+
+  Logger.log('3. Тестирование чтения (getUser)...');
+  try {
+    var user = getUser(123456789);
+    Logger.log('Результат getUser: ' + JSON.stringify(user));
+    if (user && user.telegram_id === 123456789) {
+      Logger.log('🎉 УСПЕХ: Подключение к Firestore работает штатно!');
+    } else {
+      Logger.log('❌ Не удалось прочитать пользователя (null).');
+    }
+  } catch (e) {
+    Logger.log('❌ Ошибка getUser: ' + e.message);
   }
 }
+
 
