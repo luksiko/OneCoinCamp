@@ -116,13 +116,11 @@ function handleTelegramWebhook(e) {
   try {
     const secrets = getScriptSecrets();
     const expectedSecret = secrets.telegramWebhookSecret;
-    const providedSecret =
-      (e && e.parameter && (e.parameter.secret || e.parameter.secret_token)) ||
-      (e && e.headers && (e.headers['x-telegram-bot-api-secret-token'] || e.headers['X-Telegram-Bot-Api-Secret-Token'])) ||
-      '';
-
-    if (!expectedSecret || providedSecret !== expectedSecret) {
-      return HtmlService.createHtmlOutput('Unauthorized');
+    if (expectedSecret && e && e.parameter && (e.parameter.secret || e.parameter.secret_token)) {
+      const provided = e.parameter.secret || e.parameter.secret_token;
+      if (provided !== expectedSecret) {
+        return HtmlService.createHtmlOutput('Unauthorized');
+      }
     }
 
     if (!e || !e.postData || !e.postData.contents) {
