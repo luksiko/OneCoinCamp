@@ -394,6 +394,9 @@ function handleTelegramUpdate_(update) {
     });
     if (routes.length === 0) lines.push('Нет маршрутов.');
     sendTelegramMessage_(secrets, lines.join('\n'), chatId);
+  } else {
+    // Пользователь написал произвольный текст, а не команду
+    sendTelegramMessage_(secrets, 'Извините, я понимаю только команды. Нажмите /help, чтобы посмотреть список доступных команд.', chatId);
   }
 }
 
