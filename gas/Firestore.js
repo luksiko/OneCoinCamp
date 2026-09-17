@@ -376,3 +376,19 @@ function listActiveUsers() {
   cache.put('active_users', JSON.stringify(users), 240);
   return users;
 }
+
+/**
+ * Разовая проверка подключения к Firestore из редактора Apps Script.
+ */
+function testFirestore() {
+  Logger.log('Тестирование подключения к Firestore...');
+  upsertUser(123456789, 987654321, { username: 'test_user' });
+  var user = getUser(123456789);
+  Logger.log('Результат getUser: ' + JSON.stringify(user));
+  if (user && user.telegram_id === 123456789) {
+    Logger.log('✅ Подключение к Firestore работает успешно!');
+  } else {
+    Logger.log('❌ Не удалось получить созданного пользователя.');
+  }
+}
+
