@@ -2,45 +2,63 @@
 
 ## Цель
 
-Классический Google Apps Script без LLM в рантайме мониторит JSON API Movacar и roadsurfer Rally. Google Sheets — единственное долговременное хранилище, архив и конфигурация. Telegram получает только новые подходящие слоты. Скрипт не бронирует поездки и не обходит CAPTCHA, логин или ограничения сайтов.
+Классический Google Apps Script без LLM в рантайме мониторит JSON/GraphQL API провайдеров кемперов за 1€ (Roadsurfer Rally, Movacar, Indie Campers, Imoova).
+Google Sheets служит общим архивом офферов и журналом запусков. Cloud Firestore обеспечивает многопользовательское хранение (пользователи, персональные маршруты, фильтры и история отправленных алертов). Telegram-бот и Telegram Mini App (Web App) предоставляют интерфейс управления и оповещения пользователей. Скрипт не бронирует поездки и не обходит CAPTCHA/логин.
 
 ## Компоненты GAS
 
-- `Monitor.js`: installable time-driven trigger (`runMonitorOnce`), получает данные обоих провайдеров, ограничивает объём работы до лимита выполнения GAS.
-- `Providers.js`: HTTP-запросы через `UrlFetchApp` для обоих провайдеров, нормализация разных JSON в единый слот.
-- `Sheets.js`: создаёт листы, читает конфигурацию, записывает новые строки архива пачкой, проверяет архивные fingerprints.
-- `Filters.js`: применяет бизнес-правила к нормализованным слотам.
-- `Telegram.js`: отправляет `sendMessage` только для впервые найденных подходящих слотов.
-- `Http.js`: оборачивает `UrlFetchApp` с ретраями для 429/5xx/таймаутов.
-- `WebApp.js`: бэкенд Telegram Mini App (doPost/doGet), обрабатывающий запросы от статического фронтенда (docs/index.html).
-- `Config.js`: доступ к `SpreadsheetApp`, секретам и скриптовым свойствам; `CacheService` в `Monitor.js` ускоряет проверку недавно обработанных fingerprints; Google Sheets остаётся источником истины.
+- `Monitor.js`:
+  - Time-driven trigger (`runMonitorOnce`) для периодического опроса всех активных провайдеров.
+  - Дедупликация через вычисление SHA-256 fingerprint.
+  - Сохранение в `OffersArchive` и `Runs` в Google Sheets.
+  - Диспетчеризация алертов пользователям в Firestore (`dispatchNewOffers_`) с учётом персональных фильтров и маршрутов.
+  - Контроль свежести триггеров (`checkMonitorFreshness`) и self-healing.
+- `Providers.js`:
+  - Адаптеры к API 4 провайдеров (`roadsurfer`, `movacar`, `indiecampers`, `imoova`).
+  - Нормализация разнородных форматов JSON/GraphQL в единую структуру слота.
+  - Поддержка wildcard (`*`) для направлений и стран, автоматическое сопоставление станций.
+- `Firestore.js`:
+  - Интеграция с Cloud Firestore REST API v1 через Service Account с генерацией RS256 JWT токенов (кэширование в `CacheService`).
+  - Хранение сущностей `users`, `users/{telegram_id}/routes`, `users/{telegram_id}/settings/filters`, `users/{telegram_id}/sent_alerts/{fingerprint}`.
+  - Автоматическое определение идентификатора базы данных (`default` / `(default)` / кастомный).
+- `Sheets.js`:
+  - Инициализация и ведение листов Google Sheets (`Settings`, `Routes`, `Filters`, `OffersArchive`, `Runs`).
+  - Пакетная запись новых строк и чтение архивных fingerprints.
+- `Filters.js`:
+  - Применение глобальных и персональных фильтров (страны выезда/прибытия, окно дат, максимальная цена, длительность поездки, тихие часы `silent_hours`).
+- `Telegram.js`:
+  - Отправка уведомлений с inline-кнопками («Забронировать оффер ➔», «🚫 Отключить этот маршрут»).
+  - Обработка входящих команд Telegram (`/start`, `/help`, `/status`, `/digest`, `/actual`, `/silent`, `/check`, `/routes`).
+  - Управление Webhook (`setupTelegramWebhook`, `deleteTelegramWebhook`, валидация `X-Telegram-Bot-Api-Secret-Token`).
+  - Фоновый поллинг (`processTelegramUpdates`) как альтернатива/fallback вебхуку.
+- `WebApp.js`:
+  - Обработка Webhook (`doPost`) и бэкенд Telegram Mini App / Web App (`doGet`, `handleApiRequest_`).
+  - Валидация подписи Telegram Mini App (`initData` через HMAC-SHA256).
+  - API для проверки здоровья провайдеров (`checkProvidersHealth`), получения списка доступных станций/направлений и сохранения настроек.
+- `Http.js`:
+  - Обертка `fetchJson_` над `UrlFetchApp` с поддержкой экспоненциального бэкоффа и ретраев для кодов 429/5xx.
+- `Config.js`:
+  - Константы, схемы заголовков, дефолтные значения настроек и доступ к `ScriptProperties`.
 
-## Листы Google Sheets
+## Хранилища данных
 
-### `Settings`
+### 1. Google Cloud Firestore (Multi-user Data)
+- `users/{telegram_id}` — профиль пользователя (`chat_id`, `username`, `status`, даты активности).
+- `users/{telegram_id}/routes/{routeId}` — персональные маршруты пользователя.
+- `users/{telegram_id}/settings/filters` — персональные фильтры (страны, цены, тихие часы, окно дат).
+- `users/{telegram_id}/sent_alerts/{fingerprint}` — история отправленных уведомлений (быстрая проверка O(1) по document ID).
+- `webhook_logs` — журнал ошибок вебхука для отладки.
 
-Одна строка настроек: `poll_interval_minutes`, `window_days`, `timezone`, `telegram_enabled`.
-
-### `Routes`
-
-Редактируемые направления: `enabled`, `source`, `origin_name`, `origin_id`, `destination_name`, `destination_id`, `origin_country`, `destination_country`, `pickup_date`, `return_date`.
-Допускается использование `*` (wildcard) в `origin_id` и `destination_id` для поиска по всем городам или фильтрации по стране/имени.
-
-### `Filters`
-
-Строгая фильтрация: `allowed_origin_countries`, `allowed_destination_countries`, `window_start_rule`, `window_days`. Стартовое правило: ближайшее воскресенье включительно; окно — 14 дней.
-
-### `OffersArchive`
-
-Append-only архив **всех** найденных предложений, включая неподходящие по правилам. Колонки: `found_at`, `source`, `offer_id`, `vehicle_id`, `vehicle`, `origin`, `origin_country`, `destination`, `destination_country`, `pickup_date`, `return_date`, `price`, `currency`, `booking_url`, `fingerprint`, `matches_filter`, `telegram_sent_at`, `raw_json`.
-
-### `Runs`
-
-Технический журнал: `started_at`, `finished_at`, `source`, `request_count`, `offers_found`, `archived`, `alerts_sent`, `status`, `error`.
+### 2. Google Sheets (Global Archive & Logs)
+- `Settings` — глобальные параметры (интервалы опроса, таймзона, флаги провайдеров).
+- `Routes` — глобальные/дефолтные маршруты.
+- `Filters` — глобальные/дефолтные фильтры.
+- `OffersArchive` — append-only архив всех найденных офферов с колонками: `found_at`, `source`, `offer_id`, `vehicle_id`, `vehicle`, `origin`, `origin_country`, `destination`, `destination_country`, `pickup_date`, `return_date`, `price`, `currency`, `booking_url`, `fingerprint`, `matches_filter`, `telegram_sent_at`, `raw_json`.
+- `Runs` — технический журнал выполнения опросов.
 
 ## Нормализованный слот
 
-Каждый адаптер возвращает:
+Каждый адаптер провайдера преобразует данные в единый формат:
 
 ```text
 source, offer_id, vehicle_id, vehicle, origin, origin_country,
@@ -48,20 +66,37 @@ destination, destination_country, pickup_date, return_date,
 price, currency, booking_url, raw_json
 ```
 
-`fingerprint` вычисляется как SHA-256 от `source|offer_id|vehicle_id|origin|destination|pickup_date|return_date|price`. Если у источника нет стабильного `vehicle_id`, используется стабильный ID оффера.
+`fingerprint` вычисляется как SHA-256 от `source|offer_id|vehicle_id|origin|destination|pickup_date|return_date|price`.
 
-## Архивация, фильтрация, уведомления
+## Поток выполнения (Lifecycle)
 
-1. Получить все доступные офферы из API.
-2. Нормализовать каждый оффер.
-3. Найти fingerprints в `OffersArchive` одним чтением; `CacheService` использовать как быстрый предфильтр.
-4. Добавить в `OffersArchive` только ранее не встречавшиеся fingerprints. Таким образом архив не раздувается повторными идентичными polling-результатами.
-5. Каждый новый слот проверить: отправление — разрешённая страна, прибытие — разрешённая страна, дата старта от ближайшего воскресенья до конца 14-дневного окна.
-6. Отправить Telegram только для нового слота, прошедшего фильтр; заполнить `telegram_sent_at` после успешного ответа Telegram.
+```
+[Time Trigger / Manual /check]
+           │
+           ▼
+     runMonitorOnce()
+           │
+    ┌──────┴───────────────────────────┐
+    ▼                                  ▼
+Fetch Providers              Deduplicate via Fingerprints
+(Roadsurfer, Movacar,        (Sheets OffersArchive + Cache)
+ IndieCampers, Imoova)                 │
+    │                                  ▼
+    └──────────┬───────────────────────┘
+               ▼
+     Append to OffersArchive (Google Sheets)
+               │
+               ▼
+     dispatchNewOffers_() (Firestore)
+     For each active user:
+       ├── Check user routes & filters (Dates, Countries, Price, Silent Hours)
+       ├── Check sent_alerts/{fingerprint}
+       └── Send Telegram Notification + Mark sent_alerts
+```
 
-## Отказоустойчивость
+## Отказоустойчивость и безопасность
 
-- `LockService` предотвращает одновременные запуски.
-- Время выполнения контролируется дедлайном; перед лимитом скрипт завершает текущую пачку и пишет `Runs`.
-- Для 429/5xx/таймаутов — ограниченные повторные попытки с задержкой. 403 и невалидный JSON — без повтора, с записью ошибки в `Runs`.
-- Записи в Sheets выполняются пачками через `setValues`; Sheets API нужен только при необходимости расширенных batch-операций.
+- **LockService**: предотвращает параллельные запуски тяжелых задач мониторинга.
+- **Self-Healing Triggers**: проверка активности триггера и автоматическое пересоздание при зависании.
+- **Graceful Error Handling**: ошибки отдельных провайдеров или сбои отправки в Telegram логируются и не прерывают общий цикл мониторинга.
+- **HMAC / Secret Token Verification**: вебхуки Telegram проверяются по заголовку `X-Telegram-Bot-Api-Secret-Token`, а запросы Mini App — по алгоритму валидации Telegram WebApp `initData`.
