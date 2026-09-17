@@ -448,43 +448,41 @@ function handleTelegramUpdate_(update) {
   } else if (command === '/status') {
     const spreadsheet = ensureWorkbook_();
     const statusText = buildStatusMessage_(spreadsheet, chatId);
-    sendTelegramMessage_(secrets, statusText, chatId);
+    try { sendTelegramMessage_(secrets, statusText, chatId); } catch (e) {}
   } else if (command === '/digest') {
     const spreadsheet = ensureWorkbook_();
     const digestText = buildDigestMessage_(spreadsheet);
-    sendTelegramMessage_(secrets, digestText, chatId);
+    try { sendTelegramMessage_(secrets, digestText, chatId); } catch (e) {}
   } else if (command === '/silent') {
     let filters = getUserFilters(chatId) || {};
     const parts = text.split(/\s+/);
+    
     if (parts.length > 1) {
-      const arg = parts[1].trim().toLowerCase();
-      if (arg === 'on' || arg === '1' || arg === 'true') {
-        filters.silent_hours = filters.silent_hours || { from: '23:00', to: '07:00' };
-        setUserFilters(chatId, filters);
-        sendTelegramMessage_(secrets, '🌙 Тихие часы <b>включены</b> (' + filters.silent_hours.from + ' – ' + filters.silent_hours.to + '). Ночные уведомления приходят без звука.', chatId);
-      } else if (arg === 'off' || arg === '0' || arg === 'false') {
-        filters.silent_hours = null;
-        setUserFilters(chatId, filters);
-        sendTelegramMessage_(secrets, '☀️ Тихие часы <b>отключены</b>. Все уведомления будут приходить со звуком.', chatId);
-      } else if (/^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/.test(arg)) {
-        const timeParts = arg.split('-');
-        filters.silent_hours = { from: timeParts[0], to: timeParts[1] };
-        setUserFilters(chatId, filters);
-        sendTelegramMessage_(secrets, '🌙 Установлен интервал тихих часов: <b>' + timeParts[0] + ' – ' + timeParts[1] + '</b> (включены).', chatId);
-      } else {
-        sendTelegramMessage_(secrets, 'Формат команды:\n/silent on — включить\n/silent off — выключить\n/silent 22:00-08:00 — задать интервал', chatId);
+      const mode = parts[1].toLowerCase();
+      if (mode === 'on') {
+        filters.silent_hours = { enabled: true, start: '23:00', end: '07:00' };
+        sendTelegramMessage_(secrets, '🌙 Тихие часы включены (по умолчанию 23:00-07:00).', chatId);
+      } else if (mode === 'off') {
+        filters.silent_hours = { enabled: false };
+        sendTelegramMessage_(secrets, '☀️ Тихие часы выключены. Уведомления будут приходить всегда.', chatId);
+      } else if (mode.includes('-')) {
+        const times = mode.split('-');
+        if (times.length === 2 && /^\d{1,2}:\d{2}$/.test(times[0]) && /^\d{1,2}:\d{2}$/.test(times[1])) {
+          filters.silent_hours = { enabled: true, start: times[0], end: times[1] };
+          sendTelegramMessage_(secrets, '🌙 Тихие часы настроены на: ' + times[0] + ' – ' + times[1], chatId);
+        } else {
+          sendTelegramMessage_(secrets, '❌ Неверный формат времени. Пример: /silent 22:00-08:00', chatId);
+        }
       }
+      setUserFilters(chatId, filters);
     } else {
-      const isEnabled = filters.silent_hours != null;
-      const statusStr = isEnabled ? 'Включены ✅' : 'Выключены ⬜';
-      const from = isEnabled ? filters.silent_hours.from : '23:00';
-      const to = isEnabled ? filters.silent_hours.to : '07:00';
-      const msg =
-        '🌙 <b>Режим тихих часов</b>\n\n' +
-        'Статус: ' + statusStr + '\n' +
-        'Интервал: ' + from + ' – ' + to + '\n\n' +
-        'Команды управления:\n' +
-        '• <code>/silent on</code> — включить\n' +
+      const isEnabled = filters.silent_hours && filters.silent_hours.enabled;
+      let msg = '🌙 <b>Тихие часы</b>\n\nТекущий статус: ' + (isEnabled ? 'ВКЛЮЧЕНЫ' : 'ВЫКЛЮЧЕНЫ') + '\n';
+      if (isEnabled) {
+        msg += 'Интервал: ' + (filters.silent_hours.start || '23:00') + ' – ' + (filters.silent_hours.end || '07:00') + '\n\n';
+      }
+      msg += 'Управление:\n' +
+        '• <code>/silent on</code> — включить (23:00-07:00)\n' +
         '• <code>/silent off</code> — выключить\n' +
         '• <code>/silent 22:00-08:00</code> — изменить интервал';
       sendTelegramMessage_(secrets, msg, chatId);
@@ -492,7 +490,7 @@ function handleTelegramUpdate_(update) {
   } else if (command === '/actual') {
     const spreadsheet = ensureWorkbook_();
     const actualText = buildActualOffersMessage_(spreadsheet, chatId);
-    sendTelegramMessage_(secrets, actualText, chatId);
+    try { sendTelegramMessage_(secrets, actualText, chatId); } catch (e) {}
   } else if (command === '/check') {
     sendTelegramMessage_(secrets, '⏳ Запуск сканирования...', chatId);
     runMonitorOnce();
