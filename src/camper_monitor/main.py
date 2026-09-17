@@ -150,7 +150,7 @@ def format_status(settings: Settings, state: StateStore) -> str:
         max_p = f"{settings.max_price_eur} €" if settings.max_price_eur is not None else "любая"
         lines.append(f"  🔔 Все слоты до цены: вкл (до {max_p})")
     lines.append("")
-    lines.append("Команды: /check — запустить опрос сейчас")
+    lines.append("Команды: /check — запустить опрос сейчас, /actual — актуальные предложения")
     return "\n".join(lines)
 
 

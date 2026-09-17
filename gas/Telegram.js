@@ -129,6 +129,12 @@ function handleTelegramWebhook(e) {
       return HtmlService.createHtmlOutput('ok');
     }
     const update = JSON.parse(e.postData.contents);
+    
+    // DEBUG LOGGING
+    try {
+      firestoreAdd('webhook_logs', { timestamp: new Date().toISOString(), update: update });
+    } catch(logErr) {}
+
     handleTelegramUpdate_(update);
   } catch (error) {
   }
@@ -279,6 +285,96 @@ function buildDigestMessage_(spreadsheet) {
   return lines.join('\n');
 }
 
+function buildActualOffersMessage_(spreadsheet, chatId) {
+  const sheet = spreadsheet.getSheetByName(SHEET_NAMES.ARCHIVE);
+  if (!sheet || sheet.getLastRow() < 2) {
+    return '📋 <b>Актуальные предложения</b>\n\nНа данный момент предложений нет.';
+  }
+
+  const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, ARCHIVE_HEADERS.length).getValues();
+  const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
+  
+  const filters = getUserFilters(chatId) || {};
+  const routes = getUserRoutes(chatId) || [];
+  const enabledRoutes = routes.filter(function(r) { return r.enabled; });
+
+  const actualOffers = [];
+  const now = new Date();
+  const todayStr = Utilities.formatDate(now, settings.timezone || 'Europe/Berlin', 'yyyy-MM-dd');
+
+  for (let i = values.length - 1; i >= 0; i--) {
+    const row = values[i];
+    const offer = {
+      source: row[1] || '',
+      origin: row[5] || '',
+      originCountry: row[6] || '',
+      destination: row[7] || '',
+      destinationCountry: row[8] || '',
+      pickupDate: row[9] || '',
+      returnDate: row[10] || '',
+      price: row[11],
+      bookingUrl: row[13] || '',
+    };
+    
+    if (offer.pickupDate && offer.pickupDate < todayStr) {
+      continue;
+    }
+    
+    if (!matchesFirestoreFilter_(offer, filters, settings)) {
+      continue;
+    }
+    
+    let matched = false;
+    for (let rIdx = 0; rIdx < enabledRoutes.length; rIdx++) {
+      const r = enabledRoutes[rIdx];
+      if (r.source === offer.source) {
+        if ((!r.origin_name || r.origin_name === offer.origin) &&
+            (!r.destination_name || r.destination_name === offer.destination)) {
+          matched = true;
+          break;
+        }
+      }
+    }
+    
+    if (matched) {
+      actualOffers.push(offer);
+    }
+  }
+
+  if (actualOffers.length === 0) {
+    return '📋 <b>Актуальные предложения</b>\n\nПо вашим фильтрам и маршрутам актуальных предложений не найдено.';
+  }
+
+  const lines = [
+    '📋 <b>Актуальные предложения:</b>',
+    'Найдено слотов: ' + actualOffers.length + '\n',
+  ];
+
+  const maxItems = Math.min(actualOffers.length, 10);
+  for (let j = 0; j < maxItems; j++) {
+    const off = actualOffers[j];
+    const sourceLabel = off.source === 'roadsurfer' ? 'Roadsurfer' : off.source;
+    let itemLine = (j + 1) + '. 🚐 <b>' + escapeHtml_(sourceLabel) + '</b>: ' +
+      escapeHtml_(off.origin) + ' ➔ ' + escapeHtml_(off.destination);
+    if (off.pickupDate && off.returnDate) {
+      itemLine += ' (' + escapeHtml_(off.pickupDate) + ' – ' + escapeHtml_(off.returnDate) + ')';
+    }
+    if (off.price) {
+      itemLine += ' — <b>' + escapeHtml_(String(off.price)) + '€</b>';
+    }
+    if (off.bookingUrl) {
+      itemLine += '\n   <a href="' + escapeHtml_(off.bookingUrl, true) + '">Забронировать ➔</a>';
+    }
+    lines.push(itemLine);
+  }
+
+  if (actualOffers.length > maxItems) {
+    lines.push('\n... и еще ' + (actualOffers.length - maxItems) + ' слотов.');
+  }
+
+  return lines.join('\n');
+}
+
 function handleTelegramUpdate_(update) {
   if (!update) {
     return;
@@ -321,11 +417,16 @@ function handleTelegramUpdate_(update) {
       '<b>Доступные команды:</b>\n' +
       '📊 /status — статус мониторинга и статистика\n' +
       '📋 /digest — сводный дайджест офферов за 24ч\n' +
+      '🎯 /actual — актуальные предложения по вашим фильтрам\n' +
       '🌙 /silent — настройки режима тихих часов\n' +
       '🔍 /check — принудительный запуск сканирования\n' +
       '🚗 /routes — список отслеживаемых маршрутов\n' +
       'ℹ️ /help — справка';
-    sendTelegramMessage_(secrets, welcome, chatId);
+    try {
+      sendTelegramMessage_(secrets, welcome, chatId);
+    } catch(err) {
+      try { firestoreAdd('webhook_logs', { timestamp: new Date().toISOString(), error_start: err.message || String(err), chatId: chatId }); } catch(e) {}
+    }
   } else if (command === '/help') {
     const help =
       '🚐 <b>Camper Monitor — Справка</b>\n\n' +
@@ -333,6 +434,7 @@ function handleTelegramUpdate_(update) {
       '<b>Команды:</b>\n' +
       '/status — время последнего опроса, интервал, статистика за 24ч\n' +
       '/digest — сводный дайджест найденных офферов за 24ч\n' +
+      '/actual — актуальные предложения по вашим фильтрам и маршрутам\n' +
       '/silent [on|off|HH:MM-HH:MM] — режим тихих часов (без звука)\n' +
       '/check — запустить проверку прямо сейчас\n' +
       '/routes — список активных направлений\n\n' +
@@ -381,6 +483,9 @@ function handleTelegramUpdate_(update) {
         '• <code>/silent 22:00-08:00</code> — изменить интервал';
       sendTelegramMessage_(secrets, msg, chatId);
     }
+  } else if (command === '/actual') {
+    const actualText = buildActualOffersMessage_(spreadsheet, chatId);
+    sendTelegramMessage_(secrets, actualText, chatId);
   } else if (command === '/check') {
     sendTelegramMessage_(secrets, '⏳ Запуск сканирования...', chatId);
     runMonitorOnce();
