@@ -431,6 +431,15 @@ function getUserFilters(telegramId) {
     try { return JSON.parse(cached); } catch(e) {}
   }
   var filters = firestoreGet('users/' + telegramId + '/settings/filters');
+  if ((!filters || Object.keys(filters).length === 0) && String(telegramId) !== '999') {
+    try {
+      var devFilters = firestoreGet('users/999/settings/filters');
+      if (devFilters && Object.keys(devFilters).length > 0) {
+        setUserFilters(telegramId, devFilters);
+        filters = devFilters;
+      }
+    } catch (e) {}
+  }
   cache.put(key, JSON.stringify(filters || {}), 240);
   return filters;
 }
