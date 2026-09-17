@@ -95,13 +95,19 @@ function getFirestoreProjectId_() {
   return projectId;
 }
 
+function getFirestoreDatabaseId_() {
+  var dbId = PropertiesService.getScriptProperties().getProperty('FIRESTORE_DATABASE_ID');
+  return dbId || '(default)';
+}
+
 // ---------------------------------------------------------------------------
 // HTTP CORE (с ретраями по аналогии с Http.js)
 // ---------------------------------------------------------------------------
 
 function firestoreRequest_(method, path, payload, queryParams) {
   var projectId = getFirestoreProjectId_();
-  var url = FIRESTORE_BASE_URL + '/projects/' + projectId + '/databases/(default)/documents/' + path;
+  var dbId = getFirestoreDatabaseId_();
+  var url = FIRESTORE_BASE_URL + '/projects/' + projectId + '/databases/' + dbId + '/documents/' + path;
 
   if (queryParams) {
     var qs = Object.keys(queryParams).map(function (k) {
