@@ -738,7 +738,10 @@
       <button type="button" class="btn btn-secondary" id="btnTriggers" style="margin-top:8px;">🔧 Восстановить триггеры</button>
       <button type="button" class="btn btn-accent" id="btnSave">Сохранить настройки</button>
       <button type="button" class="link-reset" id="btnReset">Сбросить несохранённые изменения</button>
-    </div>
+      <div id="versionFooter" style="text-align:center; margin-top:28px; margin-bottom:12px; font-size:12px; color:var(--hint);">
+        <span>Версия: </span>
+        <a id="gitVersionLink" href="https://github.com/luksiko/OneCoinCamp/commit/2a4b6b4" target="_blank" rel="noopener noreferrer" style="color:var(--hint); text-decoration:none; border-bottom:1px dashed var(--hint); font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px;">git: <span id="gitCommitHash">2a4b6b4</span></a>
+      </div>
     </div>
 
     <div id="screenOffers" style="display:none;">
@@ -907,6 +910,7 @@
       if (screenOffers)    screenOffers.style.display    = tab === 'offers'    ? '' : 'none';
       if (screenAnalytics) screenAnalytics.style.display = tab === 'analytics' ? '' : 'none';
       
+      if (tab === 'settings')  updateGitVersionDisplay();
       if (tab === 'offers')    loadOffers();
       if (tab === 'analytics') loadAnalytics();
     }
@@ -1369,12 +1373,43 @@
       if (form) form.style.display = 'none';
     }
 
+    function updateGitVersionDisplay() {
+      var commitHashEl = document.getElementById('gitCommitHash');
+      var linkEl = document.getElementById('gitVersionLink');
+      if (!commitHashEl) return;
+      if (linkEl) {
+        linkEl.onclick = function (e) {
+          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
+            e.preventDefault();
+            window.Telegram.WebApp.openLink(this.href);
+          }
+        };
+      }
+      try {
+        fetch('https://api.github.com/repos/luksiko/OneCoinCamp/commits/flatback')
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (data && data.sha) {
+              var shortSha = data.sha.substring(0, 7);
+              commitHashEl.textContent = shortSha;
+              if (linkEl) {
+                linkEl.href = 'https://github.com/luksiko/OneCoinCamp/commit/' + data.sha;
+                var msg = data.commit && data.commit.message ? data.commit.message.split('\n')[0] : '';
+                if (msg) linkEl.title = msg;
+              }
+            }
+          })
+          .catch(function () {});
+      } catch (e) {}
+    }
+
     function init() {
       if (tg && getInitData()) {
         tg.ready();
         tg.expand();
         tg.MainButton.hide(); // Отключаем нативную кнопку, чтобы не ломать табы
       }
+      updateGitVersionDisplay();
       document.getElementById('btnRun').onclick = runCheck;
       var btnTriggers = document.getElementById('btnTriggers');
       if (btnTriggers) btnTriggers.onclick = installTriggers;
