@@ -295,14 +295,16 @@
 
     /* Save button progress states */
     @keyframes btn-spin {
-      0%      { transform: rotate(0deg); }
-      28%     { transform: rotate(360deg); }
-      100%    { transform: rotate(360deg); }
+      0%   { transform: rotate(0deg); }
+      14%  { transform: rotate(180deg); }
+      50%  { transform: rotate(180deg); }
+      64%  { transform: rotate(360deg); }
+      100% { transform: rotate(360deg); }
     }
     .btn-saving { opacity: 0.75; pointer-events: none; }
     .btn-saving .save-spinner {
       display: inline-block;
-      animation: btn-spin 2.8s linear infinite;
+      animation: btn-spin 5.6s linear infinite;
     }
     .save-spinner { display: none; }
     .btn-saving .save-spinner { display: inline-block; }
