@@ -294,11 +294,15 @@
     #toast.err { color: var(--danger); }
 
     /* Save button progress states */
-    @keyframes btn-spin { to { transform: rotate(360deg); } }
+    @keyframes btn-spin {
+      0%      { transform: rotate(0deg); }
+      28%     { transform: rotate(360deg); }
+      100%    { transform: rotate(360deg); }
+    }
     .btn-saving { opacity: 0.75; pointer-events: none; }
     .btn-saving .save-spinner {
       display: inline-block;
-      animation: btn-spin 0.65s linear infinite;
+      animation: btn-spin 2.8s linear infinite;
     }
     .save-spinner { display: none; }
     .btn-saving .save-spinner { display: inline-block; }
