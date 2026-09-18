@@ -1237,7 +1237,7 @@
     var state = null;
     var currentTab = 'main';
     var offersData = null;
-    var offerFilters = { source: '', sentStatus: '', page: 1, sortBy: 'added_desc', dateFrom: '', dateTo: '' };
+    var offerFilters = { source: '', sentStatus: '', page: 1, sortBy: 'added_desc', dateFrom: '', dateTo: '', isMatched: false };
     var INTERVALS = [1, 5, 10, 15, 30];
     var WINDOWS = [7, 10, 14, 21, 30];
     var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -1455,6 +1455,7 @@
       if (offerFilters.sentStatus) { filter.sentStatus = offerFilters.sentStatus; }
       if (offerFilters.dateFrom) { filter.dateFrom = offerFilters.dateFrom; }
       if (offerFilters.dateTo) { filter.dateTo = offerFilters.dateTo; }
+      if (offerFilters.isMatched) { filter.isMatched = true; }
       return filter;
     }
 
@@ -1626,6 +1627,24 @@
         };
         container.appendChild(chip);
       });
+
+      // Spacer before the match filter
+      var spacer = document.createElement('div');
+      spacer.style.width = '4px';
+      spacer.style.display = 'inline-block';
+      container.appendChild(spacer);
+
+      // Match filter ("Подходящие мне")
+      var matchChip = document.createElement('button');
+      matchChip.type = 'button';
+      matchChip.className = 'filter-chip' + (offerFilters.isMatched ? ' active' : '');
+      matchChip.textContent = '✨ Подходящие мне';
+      matchChip.onclick = function () {
+        offerFilters.isMatched = !offerFilters.isMatched;
+        offerFilters.page = 1;
+        applyOfferFilters();
+      };
+      container.appendChild(matchChip);
     }
 
     function applyOfferFilters() {

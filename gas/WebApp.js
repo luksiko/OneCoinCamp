@@ -889,6 +889,9 @@ function getOffers(filter, initData) {
     } else if (filter.sentStatus === 'sent') {
       filtered = filtered.filter(function (o) { return o.telegramSentAt; });
     }
+    if (filter.isMatched === true || filter.isMatched === 'true') {
+      filtered = filtered.filter(function (o) { return o.matches; });
+    }
   }
 
   // Sort by added timestamp descending (newest offers first), then by pickupDate, then by price
