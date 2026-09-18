@@ -255,9 +255,25 @@ function runMonitorOnce() {
       });
       userRoutes.forEach(function(route) {
         if (!route.enabled || !isProviderEnabled_(route.source, settings)) return;
-        const hashKey = route.source + '|' + (route.origin_id || '') + '|' + (route.destination_id || '');
+        const normalizedRoute = Object.assign({}, route, {
+          originId: route.originId != null ? route.originId : (route.origin_id != null ? String(route.origin_id) : ''),
+          origin_id: route.origin_id != null ? route.origin_id : (route.originId != null ? String(route.originId) : ''),
+          destinationId: route.destinationId != null ? route.destinationId : (route.destination_id != null ? String(route.destination_id) : ''),
+          destination_id: route.destination_id != null ? route.destination_id : (route.destinationId != null ? String(route.destinationId) : ''),
+          originCountry: route.originCountry || route.origin_country || '',
+          origin_country: route.origin_country || route.originCountry || '',
+          originName: route.originName || route.origin_name || '',
+          origin_name: route.origin_name || route.originName || '',
+          destinationName: route.destinationName || route.destination_name || '',
+          destination_name: route.destination_name || route.destinationName || '',
+          pickupDate: route.pickupDate || route.pickup_date || '',
+          pickup_date: route.pickup_date || route.pickupDate || '',
+          returnDate: route.returnDate || route.return_date || '',
+          return_date: route.return_date || route.returnDate || '',
+        });
+        const hashKey = normalizedRoute.source + '|' + (normalizedRoute.origin_id || '') + '|' + (normalizedRoute.destination_id || '');
         if (!uniqueRoutesMap[hashKey]) {
-          uniqueRoutesMap[hashKey] = route;
+          uniqueRoutesMap[hashKey] = normalizedRoute;
         }
       });
     });
@@ -278,8 +294,8 @@ function runMonitorOnce() {
 
     // 2. Worker: сбор офферов
     routes.forEach(function (route, routeIndex) {
-      const pickupDate = route.pickupDate || settings.pickup_date;
-      const returnDate = route.returnDate || settings.return_date;
+      const pickupDate = route.pickupDate || route.pickup_date || settings.pickup_date;
+      const returnDate = route.returnDate || route.return_date || settings.return_date;
       const routeWindow = buildDateWindow_(settings, globalFilters, pickupDate, returnDate);
       const effectiveWindow = buildEffectiveWindow_(routeWindow, checkNeighbors);
 
@@ -306,6 +322,7 @@ function runMonitorOnce() {
 
       offers.forEach(function (offer) {
         const fingerprint = offerFingerprint_(offer);
+        offer.fingerprint = fingerprint;
         const alreadyKnown = known.has(fingerprint) || cache.get(fingerprint) === '1' || isFingerprintDismissed_(fingerprint);
 
         if (alreadyKnown) {
@@ -334,8 +351,10 @@ function runMonitorOnce() {
 
         newOffers.forEach(function (item) {
           const offer = item.offer || item;
+          const fp = item.fingerprint || offer.fingerprint;
+          if (!fp) return;
           if (typeof matchesFirestoreFilter_ === 'function' && !matchesFirestoreFilter_(offer, filters, settings)) return;
-          if (typeof hasAlertBeenSent === 'function' && hasAlertBeenSent(user.telegram_id, offer.fingerprint)) return;
+          if (typeof hasAlertBeenSent === 'function' && hasAlertBeenSent(user.telegram_id, fp)) return;
 
           let matchedRouteId = null;
           for (let i = 0; i < userRoutes.length; i++) {
@@ -359,16 +378,16 @@ function runMonitorOnce() {
             });
             sendTelegramOffer_(secrets, offer, item.route, matchedRouteId || item.routeIndex, userSettings, user.chat_id);
             telegramSentCount++;
-            known.add(item.fingerprint);
-            cache.put(item.fingerprint, '1', 21600);
+            known.add(fp);
+            cache.put(fp, '1', 21600);
           } catch (error) {
             hasErrors = true;
-            failedFingerprints.add(item.fingerprint);
+            failedFingerprints.add(fp);
             return;
           }
 
           if (typeof markAlertSent === 'function') {
-            markAlertSent(user.telegram_id, offer.fingerprint, {
+            markAlertSent(user.telegram_id, fp, {
               source: offer.source, origin: offer.origin,
               destination: offer.destination, price: offer.price, sent_at: sentAt
             });

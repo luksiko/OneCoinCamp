@@ -200,7 +200,7 @@ function setupGasContext(fetchMock) {
   };
 
   vm.createContext(context);
-  const files = ['gas/Config.js', 'gas/Http.js', 'gas/Filters.js', 'gas/Sheets.js', 'gas/Telegram.js', 'gas/Providers.js', 'gas/Monitor.js', 'gas/WebApp.js'];
+  const files = ['gas/Config.js', 'gas/Http.js', 'gas/Filters.js', 'gas/Sheets.js', 'gas/Firestore.js', 'gas/Telegram.js', 'gas/Providers.js', 'gas/Monitor.js', 'gas/WebApp.js'];
   for (const f of files) {
     vm.runInContext(fs.readFileSync(f, 'utf8'), context);
   }
@@ -1331,6 +1331,12 @@ if (testName === 'roadsurfer_429') {
   assert.strictEqual(uiData.filters.max_price, '');
   assert.strictEqual(uiData.filters.min_trip_days, '');
   assert.strictEqual(uiData.filters.max_trip_days, '');
+} else if (testName === 'firestore_sent_alerts_guards_against_undefined') {
+  const { context } = setupGasContext(() => ({}));
+  assert.strictEqual(context.hasAlertBeenSent(12345, undefined), false);
+  assert.strictEqual(context.hasAlertBeenSent(12345, 'undefined'), false);
+  assert.strictEqual(context.hasAlertBeenSent(12345, null), false);
+  assert.strictEqual(context.hasAlertBeenSent(12345, ''), false);
 } else {
   throw new Error('Unknown test: ' + testName);
 }
@@ -1394,6 +1400,7 @@ def run_node_test(test_name: str):
         "webapp_filters_countries_and_days_sync",
         "webapp_get_offers_sorting_and_sources",
         "webapp_save_routes_and_price_max_null",
+        "firestore_sent_alerts_guards_against_undefined",
     ],
 )
 def test_gas_node_suite(test_name: str):

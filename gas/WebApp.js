@@ -578,7 +578,7 @@ function saveUiData(payload, initData) {
       cache.remove('webapp:providers-health:v1');
     }
   } catch (e) {}
-  return getUiData(rawInitData);
+  return getUiData(initData);
 }
 
 function runMonitorFromUi(initData) {

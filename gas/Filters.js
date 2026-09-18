@@ -222,7 +222,13 @@ function matchesFirestoreFilter_(offer, filters, settings) {
   const dropoff = parseIsoDate_(offer.returnDate);
 
   if (pickup && filters.window_days > 0) {
-    const start = (filters.window_start_rule === 'today') ? new Date() : nextSunday_(settings.timezone || DEFAULT_SETTINGS.timezone);
+    let start;
+    if (filters.window_start_rule === 'today') {
+      start = new Date();
+      start.setHours(0, 0, 0, 0);
+    } else {
+      start = nextSunday_(settings.timezone || DEFAULT_SETTINGS.timezone);
+    }
     const end = addDays_(start, filters.window_days);
     if (pickup < start || pickup > end) {
       return false;

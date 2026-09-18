@@ -89,6 +89,15 @@ function getFirestoreAccessToken_() {
   return accessToken;
 }
 
+function isFirestoreConfigured_() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    return !!(props && props.getProperty('FIRESTORE_PROJECT_ID') && props.getProperty('FIRESTORE_CLIENT_EMAIL') && props.getProperty('FIRESTORE_PRIVATE_KEY'));
+  } catch (e) {
+    return false;
+  }
+}
+
 function getFirestoreProjectId_() {
   var projectId = PropertiesService.getScriptProperties().getProperty('FIRESTORE_PROJECT_ID');
   if (!projectId) throw new Error('FIRESTORE_PROJECT_ID не задан в Script Properties');
@@ -325,10 +334,12 @@ function firestoreList(collectionPath, pageSize) {
 // ---------------------------------------------------------------------------
 
 function getUser(telegramId) {
+  if (!isFirestoreConfigured_()) return null;
   return firestoreGet('users/' + telegramId);
 }
 
 function upsertUser(telegramId, chatId, extra) {
+  if (!isFirestoreConfigured_()) return null;
   var data = Object.assign({
     telegram_id: telegramId,
     chat_id: chatId,
@@ -346,6 +357,7 @@ function upsertUser(telegramId, chatId, extra) {
 }
 
 function getUserRoutes(telegramId) {
+  if (!isFirestoreConfigured_()) return [];
   var routes = firestoreList('users/' + telegramId + '/routes') || [];
   if ((!routes || routes.length === 0) && String(telegramId) !== '999') {
     try {
@@ -391,6 +403,7 @@ function clearUserCache(telegramId) {
 }
 
 function deleteAllUserRoutes(telegramId) {
+  if (!isFirestoreConfigured_()) return 0;
   clearUserCache(telegramId);
   var routes = firestoreList('users/' + telegramId + '/routes');
   routes.forEach(function(r) {
@@ -400,6 +413,7 @@ function deleteAllUserRoutes(telegramId) {
 }
 
 function addUserRoute(telegramId, route) {
+  if (!isFirestoreConfigured_()) return null;
   clearUserCache(telegramId);
   var normalized = Object.assign({}, route);
   if (normalized.originName && !normalized.origin_name) normalized.origin_name = normalized.originName;
@@ -414,6 +428,7 @@ function addUserRoute(telegramId, route) {
 }
 
 function getUserFilters(telegramId) {
+  if (!isFirestoreConfigured_()) return {};
   var cache = CacheService.getScriptCache();
   var key = 'filters_' + telegramId;
   var cached = cache.get(key);
@@ -435,6 +450,7 @@ function getUserFilters(telegramId) {
 }
 
 function setUserFilters(telegramId, filters) {
+  if (!isFirestoreConfigured_()) return null;
   clearUserCache(telegramId);
   return firestoreUpdate('users/' + telegramId + '/settings/filters', filters);
 }
@@ -444,10 +460,18 @@ function setUserFilters(telegramId, filters) {
  * document ID = fingerprint, поэтому это один GET, без запросов с фильтрами.
  */
 function hasAlertBeenSent(telegramId, fingerprint) {
+  if (!fingerprint || fingerprint === 'undefined') return false;
+  if (!isFirestoreConfigured_()) return false;
   return firestoreGet('users/' + telegramId + '/sent_alerts/' + fingerprint) !== null;
 }
 
 function markAlertSent(telegramId, fingerprint, offerSummary) {
+  if (!fingerprint || fingerprint === 'undefined') return;
+  if (!isFirestoreConfigured_()) return;
+  // Clean up legacy corrupted undefined doc if present
+  try {
+    firestoreDelete('users/' + telegramId + '/sent_alerts/undefined');
+  } catch (e) {}
   return firestoreUpdate('users/' + telegramId + '/sent_alerts/' + fingerprint, Object.assign({
     sent_at: new Date()
   }, offerSummary || {}));
@@ -457,6 +481,7 @@ function markAlertSent(telegramId, fingerprint, offerSummary) {
  * Список активных пользователей с включённым ботом — для рассылки/обхода.
  */
 function listActiveUsers() {
+  if (!isFirestoreConfigured_()) return [];
   var cache = CacheService.getScriptCache();
   var cached = cache.get('active_users');
   if (cached) {
