@@ -347,6 +347,19 @@ function upsertUser(telegramId, chatId, extra) {
 
 function getUserRoutes(telegramId) {
   var routes = firestoreList('users/' + telegramId + '/routes') || [];
+  if ((!routes || routes.length === 0) && String(telegramId) !== '999') {
+    try {
+      var devRoutes = firestoreList('users/999/routes') || [];
+      if (devRoutes && devRoutes.length > 0) {
+        devRoutes.forEach(function (r) {
+          var copy = Object.assign({}, r);
+          delete copy._id;
+          addUserRoute(telegramId, copy);
+        });
+        routes = firestoreList('users/' + telegramId + '/routes') || [];
+      }
+    } catch (e) {}
+  }
   
   // Автоматическая дедупликация и удаление лишних дубликатов из базы Firestore
   var seen = {};
@@ -408,6 +421,15 @@ function getUserFilters(telegramId) {
     try { return JSON.parse(cached); } catch(e) {}
   }
   var filters = firestoreGet('users/' + telegramId + '/settings/filters');
+  if ((!filters || Object.keys(filters).length === 0 || filters.price_max == null) && String(telegramId) !== '999') {
+    try {
+      var devFilters = firestoreGet('users/999/settings/filters');
+      if (devFilters && Object.keys(devFilters).length > 0 && devFilters.price_max != null) {
+        filters = Object.assign({}, devFilters, filters || {});
+        setUserFilters(telegramId, filters);
+      }
+    } catch (e) {}
+  }
   cache.put(key, JSON.stringify(filters || {}), 240);
   return filters;
 }

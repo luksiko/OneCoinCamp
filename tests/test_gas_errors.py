@@ -562,6 +562,13 @@ if (testName === 'roadsurfer_429') {
   const skipped = context.authorizeWebAppRequest_('', context.getScriptSecrets());
   assert.strictEqual(skipped.authenticated, true);
   assert.strictEqual(skipped.user.username, 'dev_user');
+
+  // If initData with real user is provided, authorizeWebAppRequest_ must use the real user even if WEBAPP_SKIP_AUTH is enabled
+  const realInitData = 'user=%7B%22id%22%3A777888%2C%22first_name%22%3A%22Alex%22%2C%22username%22%3A%22alex_real%22%7D';
+  const realAuth = context.authorizeWebAppRequest_(realInitData, context.getScriptSecrets());
+  assert.strictEqual(realAuth.authenticated, true);
+  assert.strictEqual(realAuth.user.id, 777888);
+  assert.strictEqual(realAuth.user.username, 'alex_real');
 } else if (testName === 'webapp_status_serializes_dates') {
   const { context, sheets } = setupGasContext(() => ({}));
   sheets['Runs'].values = [

@@ -578,7 +578,7 @@ function saveUiData(payload, initData) {
       cache.remove('webapp:providers-health:v1');
     }
   } catch (e) {}
-  return { ok: true };
+  return getUiData(rawInitData);
 }
 
 function runMonitorFromUi(initData) {
@@ -587,14 +587,45 @@ function runMonitorFromUi(initData) {
   return runMonitorOnce();
 }
 
+function extractUserFromInitData_(initData) {
+  if (!initData || typeof initData !== 'string') return null;
+  try {
+    const parts = initData.trim().split('&');
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (part.indexOf('user=') === 0) {
+        const rawVal = decodeURIComponent(part.substring(5).replace(/\+/g, ' '));
+        return JSON.parse(rawVal);
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
 function authorizeWebAppRequest_(initData, secrets) {
-  // During development, allow skipping auth via Script Property WEBAPP_SKIP_AUTH=1|true
-  if (secrets.webAppSkipAuth) {
-    return { authenticated: true, user: { id: 999, first_name: 'Dev', username: 'dev_user' } };
+  // 1. If Telegram initData is provided, always authenticate as the real Telegram user!
+  if (initData && typeof initData === 'string' && initData.trim() !== '') {
+    try {
+      return validateTelegramWebAppData_(initData, secrets);
+    } catch (e) {
+      if (secrets && secrets.webAppSkipAuth) {
+        const parsedUser = extractUserFromInitData_(initData);
+        if (parsedUser && parsedUser.id) {
+          return { authenticated: true, user: parsedUser };
+        }
+      }
+      throw e;
+    }
+  }
+
+  // 2. Only during development without initData, allow skipping auth
+  if (secrets && secrets.webAppSkipAuth) {
+    const devId = secrets.telegramChatId ? (Number(secrets.telegramChatId) || secrets.telegramChatId) : 999;
+    return { authenticated: true, user: { id: devId, first_name: 'Dev', username: 'dev_user' } };
   }
 
   if (!initData || typeof initData !== 'string' || initData.trim() === '') {
-    if (secrets.webAppRequireTelegramAuth) {
+    if (secrets && secrets.webAppRequireTelegramAuth) {
       throw new Error('Missing Telegram WebApp initData');
     }
     return { authenticated: false };
