@@ -293,6 +293,17 @@
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     #toast.err { color: var(--danger); }
 
+    /* Save button progress states */
+    @keyframes btn-spin { to { transform: rotate(360deg); } }
+    .btn-saving { opacity: 0.75; pointer-events: none; }
+    .btn-saving .save-spinner {
+      display: inline-block;
+      animation: btn-spin 0.65s linear infinite;
+    }
+    .save-spinner { display: none; }
+    .btn-saving .save-spinner { display: inline-block; }
+    .btn-done { filter: brightness(1.1); }
+
     /* Bottom Tab nav */
     .tab-nav {
       position: fixed;
@@ -838,7 +849,7 @@
           <button type="button" class="add-route" id="btnAddRoute">+ Добавить маршрут</button>
         </div>
         <div class="actions-row">
-          <button type="button" class="btn btn-accent" id="btnSaveMain">💾 Сохранить</button>
+          <button type="button" class="btn btn-accent" id="btnSaveMain"><span class="save-spinner">⏳</span><span class="save-label">💾 Сохранить</span></button>
           <button type="button" class="btn btn-secondary" id="btnRun">▶ Проверить</button>
         </div>
       </div>
@@ -1051,7 +1062,7 @@
       </div>
 
       <button type="button" class="btn btn-secondary" id="btnTriggers" style="margin-top:8px;">🔧 Восстановить триггеры</button>
-      <button type="button" class="btn btn-accent" id="btnSave">Сохранить настройки</button>
+      <button type="button" class="btn btn-accent" id="btnSave"><span class="save-spinner">⏳</span><span class="save-label">Сохранить настройки</span></button>
       <button type="button" class="link-reset" id="btnReset">Сбросить несохранённые изменения</button>
       <div id="versionFooter" style="text-align:center; margin-top:28px; margin-bottom:12px; font-size:12px; color:var(--hint);">
         <span>Версия: </span>
@@ -2630,6 +2641,38 @@
       renderRoutes();
     }
 
+    function setSavingState(saving, done) {
+      var buttons = [
+        document.getElementById('btnSave'),
+        document.getElementById('btnSaveMain')
+      ];
+      buttons.forEach(function(btn) {
+        if (!btn) return;
+        if (saving) {
+          btn.disabled = true;
+          btn.classList.add('btn-saving');
+          btn.classList.remove('btn-done');
+        } else if (done) {
+          btn.disabled = false;
+          btn.classList.remove('btn-saving');
+          btn.classList.add('btn-done');
+          var spinner = btn.querySelector('.save-spinner');
+          var origInner = btn._origInner;
+          // Temporarily show checkmark label
+          var saveText = btn.querySelector('.save-label');
+          if (saveText) saveText.textContent = '✓ Сохранено';
+          btn._doneTimer = setTimeout(function() {
+            btn.classList.remove('btn-done');
+            if (origInner) btn.innerHTML = origInner;
+          }, 1600);
+        } else {
+          btn.disabled = false;
+          btn.classList.remove('btn-saving', 'btn-done');
+          if (btn._origInner) btn.innerHTML = btn._origInner;
+        }
+      });
+    }
+
     function saveSettings() {
       var initData = getInitData();
       var pRs = document.getElementById('providerRoadsurfer');
@@ -2685,16 +2728,32 @@
           return copy;
         })
       };
+
+      // Store original button HTML for restoration, cancel any pending done-restore
+      [document.getElementById('btnSave'), document.getElementById('btnSaveMain')].forEach(function(btn) {
+        if (!btn) return;
+        if (btn._doneTimer) {
+          clearTimeout(btn._doneTimer);
+          btn._doneTimer = null;
+          // Restore from already-stored original before re-saving
+          if (btn._origInner) btn.innerHTML = btn._origInner;
+        } else {
+          btn._origInner = btn.innerHTML;
+        }
+      });
+
+      setSavingState(true);
+
       google.script.run
         .withSuccessHandler(function (result) {
+          // result is now { ok: true } — no full reload needed
+          setSavingState(false, true);
           toast('Сохранено ✓');
-          if (result && result.settings) {
-            render(result);
-          } else {
-            setTimeout(load, 600);
-          }
         })
-        .withFailureHandler(function (err) { toast((err && err.message) || 'Ошибка сохранения', true); })
+        .withFailureHandler(function (err) {
+          setSavingState(false, false);
+          toast((err && err.message) || 'Ошибка сохранения', true);
+        })
         .saveUiData(payload, initData);
     }
 
