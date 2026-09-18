@@ -1595,7 +1595,25 @@
         offerFilters.source = '';
       }
 
-      // Show provider chips only if provider is present in availableSources
+      // 1. Match filter ("✨ Подходящие")
+      var matchChip = document.createElement('button');
+      matchChip.type = 'button';
+      matchChip.className = 'filter-chip' + (offerFilters.isMatched ? ' active' : '');
+      matchChip.textContent = '✨ Подходящие';
+      matchChip.onclick = function () {
+        offerFilters.isMatched = !offerFilters.isMatched;
+        offerFilters.page = 1;
+        applyOfferFilters();
+      };
+      container.appendChild(matchChip);
+
+      // Spacer
+      var spacer = document.createElement('div');
+      spacer.style.width = '4px';
+      spacer.style.display = 'inline-block';
+      container.appendChild(spacer);
+
+      // 2. Show provider chips only if provider is present in availableSources
       availableSources.forEach(function (src) {
         var chip = document.createElement('button');
         chip.type = 'button';
@@ -1609,7 +1627,7 @@
         container.appendChild(chip);
       });
 
-      // Status filters
+      // 3. Status filters
       var statusChips = [
         { value: '', label: 'Все' },
         { value: 'new', label: 'Новые' },
@@ -1627,24 +1645,6 @@
         };
         container.appendChild(chip);
       });
-
-      // Spacer before the match filter
-      var spacer = document.createElement('div');
-      spacer.style.width = '4px';
-      spacer.style.display = 'inline-block';
-      container.appendChild(spacer);
-
-      // Match filter ("Подходящие мне")
-      var matchChip = document.createElement('button');
-      matchChip.type = 'button';
-      matchChip.className = 'filter-chip' + (offerFilters.isMatched ? ' active' : '');
-      matchChip.textContent = '✨ Подходящие мне';
-      matchChip.onclick = function () {
-        offerFilters.isMatched = !offerFilters.isMatched;
-        offerFilters.page = 1;
-        applyOfferFilters();
-      };
-      container.appendChild(matchChip);
     }
 
     function applyOfferFilters() {

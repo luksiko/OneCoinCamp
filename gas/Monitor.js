@@ -380,6 +380,9 @@ function runMonitorOnce() {
             telegramSentCount++;
             known.add(fp);
             cache.put(fp, '1', 21600);
+            if (item.rowIndex !== undefined && rowsToAppend[item.rowIndex]) {
+              rowsToAppend[item.rowIndex][16] = formatIsoDate_(sentAt);
+            }
           } catch (error) {
             hasErrors = true;
             failedFingerprints.add(fp);
