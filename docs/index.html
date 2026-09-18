@@ -718,6 +718,12 @@
       color: var(--hint);
     }
     .offers-empty .icon { font-size: 48px; margin-bottom: 12px; }
+    .offers-loading-icon {
+      font-size: 24px;
+      margin-bottom: 10px;
+      display: inline-block;
+      animation: btn-spin 5.6s linear infinite;
+    }
 
     .offers-pagination {
       display: flex;
@@ -1542,7 +1548,7 @@
       var initData = getInitData();
       var list = document.getElementById('offersList');
       if (list && (!offersData || !offersData.offers || !offersData.offers.length)) {
-        list.innerHTML = '<div class="offers-empty"><div class="icon">⏳</div><div>Загрузка офферов…</div></div>';
+        list.innerHTML = '<div class="offers-empty"><span class="offers-loading-icon">⏳</span><div>Загрузка офферов…</div></div>';
       }
       updateSortButtons();
       updateClearDateButton();
