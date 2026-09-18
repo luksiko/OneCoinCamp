@@ -538,6 +538,7 @@ function saveUiData(payload, initData) {
           price_max: f.max_price != null && f.max_price !== '' ? Number(f.max_price) : null,
           window_days: current.window_days || Number(DEFAULT_SETTINGS.window_days) || 14,
           window_start_rule: current.window_start_rule || 'today',
+          roadsurfer_origins_per_run: current.roadsurfer_origins_per_run || 15,
         };
         if (current.silent_hours) toSave.silent_hours = current.silent_hours;
         setUserFilters(userId, toSave);

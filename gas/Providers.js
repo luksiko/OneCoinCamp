@@ -199,15 +199,23 @@ function resolveRoadsurferPairs_(route, filters) {
 function resolveRoadsurferPairsBatched_(route, filters) {
   const isWildDest = isWildcardStation_(route.destinationId);
 
-  const targetOriginCountry = String(route.originCountry || '').trim().toUpperCase();
+  const rawOriginCountry = String(route.originCountry || '').trim().toUpperCase();
+  const targetOriginCountry = (rawOriginCountry === '*' || rawOriginCountry === 'ANY' || rawOriginCountry === 'ALL') ? '' : rawOriginCountry;
   const targetDestCountry = String(route.destinationCountry || '').trim().toUpperCase();
+  
+  const allowedOriginCountries = targetOriginCountry
+    ? [targetOriginCountry]
+    : (filters && filters.allowed_origin_countries ? parseCountryList_(filters.allowed_origin_countries) : []);
+    
   const allowedDestCountries = targetDestCountry
     ? [targetDestCountry]
     : (filters && filters.allowed_destination_countries ? parseCountryList_(filters.allowed_destination_countries) : []);
 
   const allStations = getRoadsurferAllStations_();
   const originStations = allStations.filter(function (station) {
-    return !targetOriginCountry || String(station.country || '').trim().toUpperCase() === targetOriginCountry;
+    const stCountry = String(station.country || '').trim().toUpperCase();
+    if (allowedOriginCountries.length > 0 && stCountry && allowedOriginCountries.indexOf(stCountry) === -1) return false;
+    return true;
   });
   if (!originStations.length) return [];
 
@@ -252,7 +260,7 @@ function resolveRoadsurferPairsBatched_(route, filters) {
 
 function roadsurferRadarBatchSize_(filters) {
   const raw = Number(filters && filters.roadsurfer_origins_per_run);
-  if (!isFinite(raw) || raw <= 0) return 5;
+  if (!isFinite(raw) || raw <= 0) return 15;
   return Math.max(1, Math.min(50, Math.floor(raw)));
 }
 
