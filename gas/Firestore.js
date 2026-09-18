@@ -465,13 +465,20 @@ function hasAlertBeenSent(telegramId, fingerprint) {
   return firestoreGet('users/' + telegramId + '/sent_alerts/' + fingerprint) !== null;
 }
 
+var cleanupUndefinedCache_ = {};
+
 function markAlertSent(telegramId, fingerprint, offerSummary) {
   if (!fingerprint || fingerprint === 'undefined') return;
   if (!isFirestoreConfigured_()) return;
-  // Clean up legacy corrupted undefined doc if present
-  try {
-    firestoreDelete('users/' + telegramId + '/sent_alerts/undefined');
-  } catch (e) {}
+  
+  // Clean up legacy corrupted undefined doc if present (once per user per execution)
+  if (!cleanupUndefinedCache_[telegramId]) {
+    try {
+      firestoreDelete('users/' + telegramId + '/sent_alerts/undefined');
+    } catch (e) {}
+    cleanupUndefinedCache_[telegramId] = true;
+  }
+  
   return firestoreUpdate('users/' + telegramId + '/sent_alerts/' + fingerprint, Object.assign({
     sent_at: new Date()
   }, offerSummary || {}));
