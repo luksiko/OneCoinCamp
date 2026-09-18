@@ -150,12 +150,18 @@ function getUiData(initData) {
         }
         if (userFilters.min_duration_days !== undefined && userFilters.min_duration_days !== null && userFilters.min_duration_days !== '') {
           filters.min_trip_days = userFilters.min_duration_days;
+        } else if (userFilters.min_duration_days === null) {
+          filters.min_trip_days = '';
         }
         if (userFilters.max_duration_days !== undefined && userFilters.max_duration_days !== null && userFilters.max_duration_days !== '') {
           filters.max_trip_days = userFilters.max_duration_days;
+        } else if (userFilters.max_duration_days === null) {
+          filters.max_trip_days = '';
         }
         if (userFilters.price_max !== undefined && userFilters.price_max !== null && userFilters.price_max !== '') {
           filters.max_price = userFilters.price_max;
+        } else if (userFilters.price_max === null) {
+          filters.max_price = '';
         }
       }
     } catch (e) {}
@@ -535,7 +541,9 @@ function saveUiData(payload, initData) {
         };
         if (current.silent_hours) toSave.silent_hours = current.silent_hours;
         setUserFilters(userId, toSave);
-      } catch (e) {}
+      } catch (e) {
+        console.error('Error saving user filters: ' + (e && e.message));
+      }
     }
     if (isAdmin || !userId || typeof setUserFilters !== 'function') {
       const currentFilters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
@@ -556,10 +564,12 @@ function saveUiData(payload, initData) {
           delete r.window;
           addUserRoute(userId, r); 
         });
-      } catch (e) {}
+      } catch (e) {
+        console.error('Error saving user routes: ' + (e && e.message));
+      }
     }
     if (isAdmin || !userId || typeof addUserRoute !== 'function') {
-      writeRoutes_(spreadsheet, payload.routes);
+      saveRoutes_(spreadsheet, payload.routes);
     }
   }
   try {

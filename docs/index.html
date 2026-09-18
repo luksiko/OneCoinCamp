@@ -2253,7 +2253,7 @@
           ? state.filters.max_price
           : '';
         maxPriceEl.value = maxPrice;
-        maxPriceEl.oninput = function () {
+        maxPriceEl.oninput = maxPriceEl.onchange = function () {
           if (!state.filters) { state.filters = {}; }
           state.filters.max_price = this.value;
         };
@@ -2285,7 +2285,7 @@
       var minDaysEl = document.getElementById('minTripDaysInput');
       if (minDaysEl) {
         minDaysEl.value = (state.filters && state.filters.min_trip_days) || '';
-        minDaysEl.oninput = function () {
+        minDaysEl.oninput = minDaysEl.onchange = function () {
           if (!state.filters) { state.filters = {}; }
           state.filters.min_trip_days = this.value ? Number(this.value) : '';
         };
@@ -2294,7 +2294,7 @@
       var maxDaysEl = document.getElementById('maxTripDaysInput');
       if (maxDaysEl) {
         maxDaysEl.value = (state.filters && state.filters.max_trip_days) || '';
-        maxDaysEl.oninput = function () {
+        maxDaysEl.oninput = maxDaysEl.onchange = function () {
           if (!state.filters) { state.filters = {}; }
           state.filters.max_trip_days = this.value ? Number(this.value) : '';
         };
@@ -2648,6 +2648,14 @@
       if (silentHoursEl) { state.settings.silent_hours_enabled = silentHoursEl.checked; }
       if (silentStartEl && silentStartEl.value) { state.settings.silent_hours_start = silentStartEl.value; }
       if (silentEndEl && silentEndEl.value) { state.settings.silent_hours_end = silentEndEl.value; }
+
+      var maxPriceEl = document.getElementById('maxPriceInput');
+      var minDaysEl = document.getElementById('minTripDaysInput');
+      var maxDaysEl = document.getElementById('maxTripDaysInput');
+      if (!state.filters) { state.filters = {}; }
+      if (maxPriceEl) { state.filters.max_price = maxPriceEl.value.trim(); }
+      if (minDaysEl) { state.filters.min_trip_days = minDaysEl.value ? Number(minDaysEl.value) : ''; }
+      if (maxDaysEl) { state.filters.max_trip_days = maxDaysEl.value ? Number(maxDaysEl.value) : ''; }
 
       var payload = {
         settings: {

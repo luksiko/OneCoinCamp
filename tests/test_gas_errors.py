@@ -179,7 +179,18 @@ function setupGasContext(fetchMock) {
                   }
                 }
               },
-              clearContent: () => {}
+              clearContent: () => {
+                const nRows = numRows || 1;
+                const nCols = numCols || 1;
+                for (let r = 0; r < nRows; r++) {
+                  const targetRow = row - 1 + r;
+                  if (s.values[targetRow]) {
+                    for (let c = 0; c < nCols; c++) {
+                      s.values[targetRow][col - 1 + c] = '';
+                    }
+                  }
+                }
+              }
             }),
             setFrozenRows: () => {}
           };
@@ -1272,6 +1283,47 @@ if (testName === 'roadsurfer_429') {
   // Verify date normalization
   assert.strictEqual(res.offers[0].pickupDate, '2026-09-15');
   assert.strictEqual(res.offers[0].returnDate, '2026-09-17');
+} else if (testName === 'webapp_save_routes_and_price_max_null') {
+  const { context, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+
+  // 1. Verify saving routes and filters via saveUiData succeeds without writeRoutes_ error
+  const saveRes = context.saveUiData({
+    filters: {
+      max_price: 130,
+      min_trip_days: 2,
+      max_trip_days: 10,
+    },
+    routes: [
+      {
+        enabled: true,
+        source: 'roadsurfer',
+        originId: '*',
+        originName: 'All',
+        destinationId: '*',
+        destinationName: 'All',
+        originCountry: 'DE',
+        destinationCountry: 'IT'
+      }
+    ]
+  }, '');
+  assert.strictEqual(saveRes.filters.max_price, 130);
+  assert.strictEqual(saveRes.routes.length, 1);
+
+  // 2. Verify when userFilters in Firestore has price_max: null, getUiData returns empty string for max_price
+  context.upsertUser = function() {};
+  context.getUserFilters = function() {
+    return {
+      price_max: null,
+      min_duration_days: null,
+      max_duration_days: null
+    };
+  };
+  const uiData = context.getUiData('');
+  assert.strictEqual(uiData.filters.max_price, '');
+  assert.strictEqual(uiData.filters.min_trip_days, '');
+  assert.strictEqual(uiData.filters.max_trip_days, '');
 } else {
   throw new Error('Unknown test: ' + testName);
 }
@@ -1334,6 +1386,7 @@ def run_node_test(test_name: str):
         "webapp_notify_all_by_price_settings",
         "webapp_filters_countries_and_days_sync",
         "webapp_get_offers_sorting_and_sources",
+        "webapp_save_routes_and_price_max_null",
     ],
 )
 def test_gas_node_suite(test_name: str):

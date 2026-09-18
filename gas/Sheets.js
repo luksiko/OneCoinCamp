@@ -286,6 +286,10 @@ function saveRoutes_(spreadsheet, routes) {
   }
 }
 
+function writeRoutes_(spreadsheet, routes) {
+  return saveRoutes_(spreadsheet, routes);
+}
+
 function isTruthy_(value) {
   if (typeof value === 'boolean') {
     return value;
