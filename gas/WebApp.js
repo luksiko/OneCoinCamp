@@ -80,7 +80,16 @@ function handleApiRequest_(e) {
 }
 
 
-function doGet() {
+function doGet(e) {
+  if (e && e.parameter && e.parameter.debug === 'runs') {
+    try {
+      const sheet = getSpreadsheet().getSheetByName('Routes');
+      const data = sheet.getDataRange().getValues().filter(row => row[0] === true);
+      return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+    } catch(err) {
+      return ContentService.createTextOutput(err.toString());
+    }
+  }
   ensureTriggersFromWebApp_();
   return ContentService.createTextOutput("This web app UI has been moved to GitHub Pages.")
     .setMimeType(ContentService.MimeType.TEXT);

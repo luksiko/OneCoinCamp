@@ -594,7 +594,11 @@ function fetchMovacarOffers_(route, window) {
     if (!isWildDest) {
       query += '&destination_reference=' + encodeURIComponent(destRef);
     }
-    const url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/offers?locale=en&origin=' + encodeURIComponent(origin.id) + (isWildDest ? '' : '&destination=' + encodeURIComponent(destRef));
+    let url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/offers?locale=en&origin=' + encodeURIComponent(origin.id) + (isWildDest ? '' : '&destination=' + encodeURIComponent(destRef));
+    if (window && window.start) {
+      const windowStartStr = (typeof formatIsoDate_ === 'function') ? formatIsoDate_(window.start) : new Date(window.start).toISOString().split('T')[0];
+      url += '&pickup_date_from=' + encodeURIComponent(windowStartStr);
+    }
     
     const cache = typeof CacheService !== 'undefined' && CacheService.getScriptCache ? CacheService.getScriptCache() : null;
     const cacheKey = 'movacar:offers:v1:' + origin.id + ':' + (isWildDest ? 'all' : destRef);

@@ -314,7 +314,7 @@ function runMonitorOnce() {
           returnDate: route.returnDate || route.return_date || '',
           return_date: route.return_date || route.returnDate || '',
         });
-        const hashKey = normalizedRoute.source + '|' + (normalizedRoute.origin_id || '') + '|' + (normalizedRoute.destination_id || '');
+        const hashKey = normalizedRoute.source + '|' + (normalizedRoute.origin_id || '') + '|' + (normalizedRoute.destination_id || '') + '|' + (normalizedRoute.origin_country || '') + '|' + (normalizedRoute.destination_country || '');
         if (!uniqueRoutesMap[hashKey]) {
           uniqueRoutesMap[hashKey] = normalizedRoute;
         }
