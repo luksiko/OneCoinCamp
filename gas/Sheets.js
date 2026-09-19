@@ -189,9 +189,14 @@ function deleteArchiveRowsByFingerprints_(spreadsheet, fingerprintsSet) {
   }
 
   if (deletedCount > 0) {
-    sheet.getRange(2, 1, totalDataRows, numCols).clearContent();
+    // Write remaining rows first, then clear any trailing rows.
+    // This order is safe if GAS hits the 6-min timeout between the two calls:
+    // worst case some stale rows remain; the archive is never emptied entirely.
     if (remainingValues.length > 0) {
       sheet.getRange(2, 1, remainingValues.length, numCols).setValues(remainingValues);
+    }
+    if (totalDataRows > remainingValues.length) {
+      sheet.getRange(remainingValues.length + 2, 1, totalDataRows - remainingValues.length, numCols).clearContent();
     }
   }
 
@@ -210,8 +215,10 @@ function deleteArchiveRowByFingerprint_(spreadsheet, fingerprint) {
 function rotateRunsSheet_(sheet) {
   try {
     const lastRow = sheet.getLastRow();
-    const maxRows = 1000;
-    if (lastRow > maxRows) {
+    // 1000 data rows + 1 header = 1001 total.
+    // Only trim when 50+ rows over budget to avoid an RPC call on every log write.
+    const maxRows = 1001;
+    if (lastRow > maxRows + 50) {
       const rowsToDelete = lastRow - maxRows;
       sheet.deleteRows(2, rowsToDelete);
     }

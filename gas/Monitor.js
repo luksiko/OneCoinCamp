@@ -202,7 +202,7 @@ function getMonitorFreshness_(spreadsheet, settings, now) {
     const finishedAtIndex = headers.indexOf('finished_at');
     const startedAtIndex = headers.indexOf('started_at');
     const statusIndex = headers.indexOf('status');
-    const errorIndex = headers.indexOf('error_message');
+    const errorIndex = headers.indexOf('error');
 
     // Inspect last up to 5 runs
     const rowsToCheck = Math.min(5, lastRow - 1);
@@ -243,7 +243,7 @@ function getMonitorFreshness_(spreadsheet, settings, now) {
     : null;
 
   const isTimeStale = isInstalled && (ageMinutes === null || ageMinutes > thresholdMinutes);
-  const isStatusFailing = consecutiveFailures >= 3;
+  const isStatusFailing = isInstalled && consecutiveFailures >= 3;
 
   return {
     ageMinutes: ageMinutes,
@@ -392,11 +392,16 @@ function runMonitorOnce() {
         const filters = data.filters || {};
         const user = data.user;
         const userRoutes = data.routes || [];
+        // In-memory dedup: prevents duplicate sends within a single execution run
+        // (Firestore markAlertSent is async/eventual, so hasAlertBeenSent can
+        // still return false for a second user before the first write completes).
+        const sentThisRun = new Set();
 
         newOffers.forEach(function (item) {
           const offer = item.offer || item;
           const fp = item.fingerprint || offer.fingerprint;
           if (!fp) return;
+          if (sentThisRun.has(fp)) return;
           if (typeof matchesFirestoreFilter_ === 'function' && !matchesFirestoreFilter_(offer, filters, settings)) return;
           if (typeof hasAlertBeenSent === 'function' && hasAlertBeenSent(user.telegram_id, fp)) return;
 
@@ -422,11 +427,12 @@ function runMonitorOnce() {
             const isSilentEnabled = Boolean(sh && sh.enabled !== false);
             const userSettings = Object.assign({}, settings, {
               silent_hours_enabled: isSilentEnabled,
-              silent_hours_start: sh ? (sh.start || sh.from || '23:00') : '23:00',
-              silent_hours_end: sh ? (sh.end || sh.to || '07:00') : '07:00'
+              silent_hours_start: sh ? (sh.start || sh.from || settings.silent_hours_start || '23:00') : settings.silent_hours_start,
+              silent_hours_end: sh ? (sh.end || sh.to || settings.silent_hours_end || '07:00') : settings.silent_hours_end
             });
             sendTelegramOffer_(secrets, offer, item.route, matchedRouteId || item.routeIndex, userSettings, user.chat_id);
             telegramSentCount++;
+            sentThisRun.add(fp);
             alertedKeys.add(String(user.chat_id || user.telegram_id) + ':' + fp);
             known.add(fp);
             cache.put(fp, '1', 21600);
@@ -434,7 +440,7 @@ function runMonitorOnce() {
               rowsToAppend[item.rowIndex][16] = formatIsoDate_(sentAt);
             }
           } catch (error) {
-            console.error('sendTelegramOffer_ failed for user ' + user.telegram_id + ' / ' + fp + ':', error.message || error);
+            console.error('sendTelegramOffer_ failed for user ....' + String(user.telegram_id).slice(-4) + ' / ' + fp + ':', error.message || error);
             hasErrors = true;
             failedFingerprints.add(fp);
             return;
@@ -479,22 +485,16 @@ function runMonitorOnce() {
                 rowsToAppend[item.rowIndex][16] = formatIsoDate_(new Date());
               }
             } catch (e) {
-              console.error('sendTelegramOffer_ failed for main chat ' + secrets.telegramChatId + ' / ' + fp + ':', e.message || e);
+              console.error('sendTelegramOffer_ failed for main chat / ' + fp + ':', e.message || e);
               hasErrors = true;
               failedFingerprints.add(fp);
             }
           }
+          // NOTE: offers that don't match globalFilters are intentionally NOT marked
+          // as known/cached here — they remain available for the next run in case
+          // user routes or filters change.
         });
       }
-
-      // Mark all processed valid offers as known and cached
-      newOffers.forEach(function (item) {
-        const fp = item.fingerprint || (item.offer && item.offer.fingerprint);
-        if (fp && !failedFingerprints.has(fp)) {
-          known.add(fp);
-          cache.put(fp, '1', 21600);
-        }
-      });
     } else if (isTruthy_(settings.telegram_enabled) && secrets.telegramBotToken && secrets.telegramChatId) {
       newOffers.forEach(function (item) {
         const offer = item.offer || item;
