@@ -533,6 +533,9 @@ function saveUiData(payload, initData) {
     const currentSettings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
     const mergedSettings = Object.assign({}, currentSettings, payload.settings);
     writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, mergedSettings);
+    if (payload.settings.poll_interval_minutes !== currentSettings.poll_interval_minutes) {
+      installMonitorTriggers_(mergedSettings);
+    }
   }
   if (payload.filters) {
     if (userId && typeof setUserFilters === 'function') {
