@@ -1072,13 +1072,26 @@
           </label>
         </div>
       </div>
+      <div class="card" id="cardTriggers">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div class="card-title" style="margin-bottom:0;">🔧 Триггеры автоматизации</div>
+          <button type="button" class="btn btn-secondary" id="btnTriggers" style="width:auto; padding:6px 12px; font-size:12px; margin-top:0;">Восстановить</button>
+        </div>
+        <div style="font-size:12px; color:var(--hint); margin-bottom:10px;">
+          Автоматические фоновые службы в Google Apps Script:
+        </div>
+        <div style="padding:10px 12px; background:var(--section); border-radius:10px; font-size:12px; color:var(--subtext); line-height:1.6;">
+          <div>• <code>runMonitorOnce</code> — фоновый мониторинг предложений</div>
+          <div>• <code>processTelegramUpdates</code> — опрос Telegram бота</div>
+          <div>• <code>checkMonitorFreshness</code> — самовосстановление и проверка</div>
+          <div>• <code>checkOffersAvailability</code> — проверка актуальности офферов</div>
+        </div>
+      </div>
 
-      <button type="button" class="btn btn-secondary" id="btnTriggers" style="margin-top:8px;">🔧 Восстановить триггеры</button>
-      <button type="button" class="btn btn-accent" id="btnSave"><span class="save-spinner">⏳</span><span class="save-label">Сохранить настройки</span></button>
-      <button type="button" class="link-reset" id="btnReset">Сбросить несохранённые изменения</button>
+      <button type="button" class="btn btn-accent" id="btnSave" style="margin-top:8px;"><span class="save-spinner">⏳</span><span class="save-label">Сохранить настройки</span></button>
       <div id="versionFooter" style="text-align:center; margin-top:28px; margin-bottom:12px; font-size:12px; color:var(--hint);">
         <span>Версия: </span>
-        <a id="gitVersionLink" href="https://github.com/luksiko/OneCoinCamp/commit/2a4b6b4" target="_blank" rel="noopener noreferrer" style="color:var(--hint); text-decoration:none; border-bottom:1px dashed var(--hint); font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px;">git: <span id="gitCommitHash">2a4b6b4</span></a>
+        <a id="gitVersionLink" href="https://github.com/luksiko/OneCoinCamp/commit/0a8b0c0" target="_blank" rel="noopener noreferrer" style="color:var(--hint); text-decoration:none; border-bottom:1px dashed var(--hint); font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px;">git: <span id="gitCommitHash">0a8b0c0</span></a>
       </div>
     </div>
 
@@ -2006,8 +2019,14 @@
         };
       }
       try {
-        fetch('https://api.github.com/repos/luksiko/OneCoinCamp/commits/flatback')
-          .then(function (res) { return res.json(); })
+        fetch('https://api.github.com/repos/luksiko/OneCoinCamp/commits/flatback?_t=' + Date.now(), {
+          cache: 'no-cache',
+          headers: { 'Accept': 'application/vnd.github.v3+json' }
+        })
+          .then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+          })
           .then(function (data) {
             if (data && data.sha) {
               var shortSha = data.sha.substring(0, 7);
@@ -2039,11 +2058,6 @@
       document.getElementById('btnSave').onclick = saveSettings;
       var btnSaveMain = document.getElementById('btnSaveMain');
       if (btnSaveMain) btnSaveMain.onclick = saveSettings;
-      document.getElementById('btnReset').onclick = function () {
-        if (window.confirm('Отменить все несохранённые изменения?')) {
-          load();
-        }
-      };
       document.getElementById('telegramEnabled').onchange = function () {
         state.settings.telegram_enabled = this.checked;
       };
