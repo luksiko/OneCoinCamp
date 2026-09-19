@@ -462,7 +462,17 @@ function setUserFilters(telegramId, filters) {
 function hasAlertBeenSent(telegramId, fingerprint) {
   if (!fingerprint || fingerprint === 'undefined') return false;
   if (!isFirestoreConfigured_()) return false;
-  return firestoreGet('users/' + telegramId + '/sent_alerts/' + fingerprint) !== null;
+  const doc = firestoreGet('users/' + telegramId + '/sent_alerts/' + fingerprint);
+  if (!doc) return false;
+  // TTL check: if the alert was sent more than 48 hours ago, treat as expired
+  // so renewed or reappearing slots can notify the user again.
+  if (doc.sent_at) {
+    const sentTime = new Date(doc.sent_at).getTime();
+    if (!isNaN(sentTime) && (Date.now() - sentTime) > 48 * 60 * 60 * 1000) {
+      return false;
+    }
+  }
+  return true;
 }
 
 var cleanupUndefinedCache_ = {};

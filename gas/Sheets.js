@@ -170,27 +170,32 @@ function deleteArchiveRowsByFingerprints_(spreadsheet, fingerprintsSet) {
     return 0;
   }
 
-  const fpCol = ARCHIVE_HEADERS.indexOf('fingerprint') + 1; // 1-indexed for getRange
   const lastRow = sheet.getLastRow();
   const totalDataRows = lastRow - 1;
-  const fpValues = sheet.getRange(2, fpCol, totalDataRows, 1).getValues();
+  const numCols = ARCHIVE_HEADERS.length;
+  const fpColIndex = ARCHIVE_HEADERS.indexOf('fingerprint');
+  const allValues = sheet.getRange(2, 1, totalDataRows, numCols).getValues();
 
-  // Collect row indices to delete (1-indexed sheet rows), process bottom-to-top
-  // to avoid row-index shifting after each deletion.
-  const rowsToDelete = [];
-  for (let i = 0; i < fpValues.length; i++) {
-    const fp = String(fpValues[i][0] || '').trim();
+  const remainingValues = [];
+  let deletedCount = 0;
+  for (let i = 0; i < allValues.length; i++) {
+    const row = allValues[i];
+    const fp = String(row[fpColIndex] || '').trim();
     if (fp && fingerprintsSet.has(fp)) {
-      rowsToDelete.push(i + 2); // +2: 1-indexed + header row offset
+      deletedCount++;
+    } else {
+      remainingValues.push(row);
     }
   }
 
-  // Delete from bottom to top so row indices remain valid
-  for (let r = rowsToDelete.length - 1; r >= 0; r--) {
-    sheet.deleteRow(rowsToDelete[r]);
+  if (deletedCount > 0) {
+    sheet.getRange(2, 1, totalDataRows, numCols).clearContent();
+    if (remainingValues.length > 0) {
+      sheet.getRange(2, 1, remainingValues.length, numCols).setValues(remainingValues);
+    }
   }
 
-  return rowsToDelete.length;
+  return deletedCount;
 }
 
 
@@ -202,9 +207,24 @@ function deleteArchiveRowByFingerprint_(spreadsheet, fingerprint) {
   return deleted > 0;
 }
 
+function rotateRunsSheet_(sheet) {
+  try {
+    const lastRow = sheet.getLastRow();
+    const maxRows = 1000;
+    if (lastRow > maxRows) {
+      const rowsToDelete = lastRow - maxRows;
+      sheet.deleteRows(2, rowsToDelete);
+    }
+  } catch (e) {
+    console.warn('Failed to rotate Runs sheet:', e.message || e);
+  }
+}
+
 function appendRunRow_(spreadsheet, row) {
   const sheet = spreadsheet.getSheetByName(SHEET_NAMES.RUNS);
+  if (!sheet) return;
   sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
+  rotateRunsSheet_(sheet);
 }
 
 function logRun_(spreadsheet, run) {

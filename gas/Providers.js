@@ -1036,12 +1036,18 @@ function fetchIndieCampersOffers_(route, window) {
         meta: { current_route: 'rent-an-rv-search' }
       };
 
-      const res = fetchJson_('https://edge.indiecampers.com/api/v3/availability', {
-        method: 'post',
-        contentType: 'application/json',
-        payload: JSON.stringify(payload),
-        headers: { Origin: 'https://indiecampers.com' }
-      });
+      let res = null;
+      try {
+        res = fetchJson_('https://edge.indiecampers.com/api/v3/availability', {
+          method: 'post',
+          contentType: 'application/json',
+          payload: JSON.stringify(payload),
+          headers: { Origin: 'https://indiecampers.com' }
+        });
+      } catch (err) {
+        console.warn('IndieCampers availability fetch failed for ' + checkinCity + ' -> ' + dest.id + ':', err.message || err);
+        continue;
+      }
 
       const items = (res && res.data && Array.isArray(res.data.availability)) ? res.data.availability : [];
       const bookingUrl = 'https://indiecampers.com/rent-an-rv/search?from=' + checkinCity + '&to=' + dest.id + '&start=' + pickupDate + '&end=' + returnDate;

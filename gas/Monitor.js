@@ -137,6 +137,10 @@ function checkMonitorFreshness() {
   const freshness = getMonitorFreshness_(spreadsheet, settings);
   const props = PropertiesService.getScriptProperties();
   const alertActive = props.getProperty(PROPERTY_KEYS.MONITOR_FRESHNESS_ALERT_ACTIVE) === '1';
+  const lastAlertAtStr = props.getProperty('MONITOR_FRESHNESS_LAST_ALERT_AT');
+  const lastAlertAt = lastAlertAtStr ? new Date(lastAlertAtStr).getTime() : 0;
+  const now = Date.now();
+  const shouldReAlert = alertActive && (now - lastAlertAt) >= 60 * 60 * 1000;
   const secrets = getScriptSecrets();
 
   let repairNote = '';
@@ -162,17 +166,23 @@ function checkMonitorFreshness() {
     return freshness;
   }
 
-  if (freshness.isStale && !alertActive) {
+  if (freshness.isStale && (!alertActive || shouldReAlert)) {
+    const reasonMsg = freshness.failureReason ? ('\n⚠️ Причина: ' + freshness.failureReason) : '';
     sendTelegramMessage_(
       secrets,
-      '🔴 <b>Триггер мониторинга не выполнялся ' + freshness.ageMinutes + ' мин.</b>\n' +
+      '🔴 <b>Сбой мониторинга кемперов!</b>\n' +
+        (freshness.ageMinutes !== null ? ('Триггер не выполнялся успешно: ' + freshness.ageMinutes + ' мин.\n') : '') +
         'Порог: ' + freshness.thresholdMinutes + ' мин.' +
+        (freshness.consecutiveFailures > 0 ? ('\nПодряд сбоев: ' + freshness.consecutiveFailures) : '') +
+        reasonMsg +
         repairNote,
     );
     props.setProperty(PROPERTY_KEYS.MONITOR_FRESHNESS_ALERT_ACTIVE, '1');
+    props.setProperty('MONITOR_FRESHNESS_LAST_ALERT_AT', new Date().toISOString());
   } else if (!freshness.isStale && alertActive) {
     sendTelegramMessage_(secrets, '🟢 <b>Мониторинг восстановлен.</b> Последняя проверка: ' + freshness.ageMinutes + ' мин назад.');
     props.deleteProperty(PROPERTY_KEYS.MONITOR_FRESHNESS_ALERT_ACTIVE);
+    props.deleteProperty('MONITOR_FRESHNESS_LAST_ALERT_AT');
   }
 
   return freshness;
@@ -183,13 +193,41 @@ function getMonitorFreshness_(spreadsheet, settings, now) {
   const thresholdMinutes = intervalMinutes * 2;
   const runsSheet = spreadsheet.getSheetByName(SHEET_NAMES.RUNS);
   let lastRunAt = null;
+  let failureReason = null;
+  let consecutiveFailures = 0;
 
   if (runsSheet && runsSheet.getLastRow() >= 2) {
+    const lastRow = runsSheet.getLastRow();
     const headers = runsSheet.getRange(1, 1, 1, runsSheet.getLastColumn()).getValues()[0];
-    const values = runsSheet.getRange(runsSheet.getLastRow(), 1, 1, runsSheet.getLastColumn()).getValues()[0];
     const finishedAtIndex = headers.indexOf('finished_at');
     const startedAtIndex = headers.indexOf('started_at');
-    lastRunAt = values[finishedAtIndex] || values[startedAtIndex] || null;
+    const statusIndex = headers.indexOf('status');
+    const errorIndex = headers.indexOf('error_message');
+
+    // Inspect last up to 5 runs
+    const rowsToCheck = Math.min(5, lastRow - 1);
+    const startRow = lastRow - rowsToCheck + 1;
+    const values = runsSheet.getRange(startRow, 1, rowsToCheck, headers.length).getValues();
+
+    // Check from most recent (bottom) to oldest
+    for (let i = values.length - 1; i >= 0; i--) {
+      const row = values[i];
+      const status = String(row[statusIndex] || '').toUpperCase();
+      const runTime = row[finishedAtIndex] || row[startedAtIndex] || null;
+
+      if (!lastRunAt && runTime) {
+        lastRunAt = runTime;
+      }
+
+      if (status === 'ERROR' || status === 'SKIPPED') {
+        consecutiveFailures++;
+        if (!failureReason && row[errorIndex]) {
+          failureReason = String(row[errorIndex]).slice(0, 150);
+        }
+      } else if (status === 'OK' || status === 'PARTIAL') {
+        break; // Stop counting consecutive failures once a good run is found
+      }
+    }
   }
 
   let isInstalled = true;
@@ -204,10 +242,15 @@ function getMonitorFreshness_(spreadsheet, settings, now) {
     ? Math.max(0, Math.floor((nowDate.getTime() - lastRunDate.getTime()) / 60000))
     : null;
 
+  const isTimeStale = isInstalled && (ageMinutes === null || ageMinutes > thresholdMinutes);
+  const isStatusFailing = consecutiveFailures >= 3;
+
   return {
     ageMinutes: ageMinutes,
     thresholdMinutes: thresholdMinutes,
-    isStale: isInstalled && (ageMinutes === null || ageMinutes > thresholdMinutes),
+    consecutiveFailures: consecutiveFailures,
+    failureReason: failureReason,
+    isStale: isTimeStale || isStatusFailing,
   };
 }
 
@@ -342,6 +385,7 @@ function runMonitorOnce() {
     const secrets = getScriptSecrets();
     let telegramSentCount = 0;
     const failedFingerprints = new Set();
+    const alertedKeys = new Set();
 
     if (usersData.length > 0) {
       usersData.forEach(function (data) {
@@ -357,33 +401,40 @@ function runMonitorOnce() {
           if (typeof hasAlertBeenSent === 'function' && hasAlertBeenSent(user.telegram_id, fp)) return;
 
           let matchedRouteId = null;
-          for (let i = 0; i < userRoutes.length; i++) {
-            const r = userRoutes[i];
-            if (r.enabled && r.source === offer.source) {
-              // Simplified match since offer has only names
-              if ((!r.origin_name || r.origin_name === offer.origin) &&
-                  (!r.destination_name || r.destination_name === offer.destination)) {
-                matchedRouteId = r._id;
-                break;
+          if (userRoutes.length > 0) {
+            for (let i = 0; i < userRoutes.length; i++) {
+              const r = userRoutes[i];
+              if (r.enabled && r.source === offer.source) {
+                // Simplified match since offer has only names
+                if ((!r.origin_name || r.origin_name === offer.origin) &&
+                    (!r.destination_name || r.destination_name === offer.destination)) {
+                  matchedRouteId = r._id;
+                  break;
+                }
               }
             }
+            if (!matchedRouteId) return;
           }
 
           const sentAt = new Date();
           try {
+            const sh = filters.silent_hours;
+            const isSilentEnabled = Boolean(sh && sh.enabled !== false);
             const userSettings = Object.assign({}, settings, {
-              silent_hours_enabled: filters.silent_hours != null,
-              silent_hours_start: filters.silent_hours ? filters.silent_hours.from : null,
-              silent_hours_end: filters.silent_hours ? filters.silent_hours.to : null
+              silent_hours_enabled: isSilentEnabled,
+              silent_hours_start: sh ? (sh.start || sh.from || '23:00') : '23:00',
+              silent_hours_end: sh ? (sh.end || sh.to || '07:00') : '07:00'
             });
             sendTelegramOffer_(secrets, offer, item.route, matchedRouteId || item.routeIndex, userSettings, user.chat_id);
             telegramSentCount++;
+            alertedKeys.add(String(user.chat_id || user.telegram_id) + ':' + fp);
             known.add(fp);
             cache.put(fp, '1', 21600);
             if (item.rowIndex !== undefined && rowsToAppend[item.rowIndex]) {
               rowsToAppend[item.rowIndex][16] = formatIsoDate_(sentAt);
             }
           } catch (error) {
+            console.error('sendTelegramOffer_ failed for user ' + user.telegram_id + ' / ' + fp + ':', error.message || error);
             hasErrors = true;
             failedFingerprints.add(fp);
             return;
@@ -396,6 +447,53 @@ function runMonitorOnce() {
             });
           }
         });
+      });
+
+      // Also broadcast matching offers to global telegramChatId (channel/admin) if enabled and not already sent to this chat
+      if (isTruthy_(settings.telegram_enabled) && secrets.telegramBotToken && secrets.telegramChatId) {
+        const mainChatId = String(secrets.telegramChatId).trim();
+        newOffers.forEach(function (item) {
+          const offer = item.offer || item;
+          const fp = item.fingerprint || offer.fingerprint;
+          if (!fp || failedFingerprints.has(fp)) return;
+          if (alertedKeys.has(mainChatId + ':' + fp)) return;
+
+          const pickupDate = offer.pickupDate || settings.pickup_date;
+          const returnDate = offer.returnDate || settings.return_date;
+          const window = item.routeWindow || buildDateWindow_(settings, globalFilters, pickupDate, returnDate);
+          let shouldSend = false;
+          if (isTruthy_(settings.notify_all_by_price)) {
+            shouldSend = offerPriceMatches_(offer, settings.max_price_eur || globalFilters.max_price);
+          } else {
+            shouldSend = item.matches !== undefined ? item.matches : offerMatchesFilter_(offer, globalFilters, window);
+          }
+
+          if (shouldSend) {
+            try {
+              sendTelegramOffer_(secrets, offer, item.route, item.routeIndex, settings, secrets.telegramChatId);
+              telegramSentCount++;
+              alertedKeys.add(mainChatId + ':' + fp);
+              known.add(fp);
+              cache.put(fp, '1', 21600);
+              if (item.rowIndex !== undefined && rowsToAppend[item.rowIndex]) {
+                rowsToAppend[item.rowIndex][16] = formatIsoDate_(new Date());
+              }
+            } catch (e) {
+              console.error('sendTelegramOffer_ failed for main chat ' + secrets.telegramChatId + ' / ' + fp + ':', e.message || e);
+              hasErrors = true;
+              failedFingerprints.add(fp);
+            }
+          }
+        });
+      }
+
+      // Mark all processed valid offers as known and cached
+      newOffers.forEach(function (item) {
+        const fp = item.fingerprint || (item.offer && item.offer.fingerprint);
+        if (fp && !failedFingerprints.has(fp)) {
+          known.add(fp);
+          cache.put(fp, '1', 21600);
+        }
       });
     } else if (isTruthy_(settings.telegram_enabled) && secrets.telegramBotToken && secrets.telegramChatId) {
       newOffers.forEach(function (item) {
@@ -419,6 +517,7 @@ function runMonitorOnce() {
               rowsToAppend[item.rowIndex][16] = formatIsoDate_(new Date());
             }
           } catch (e) {
+            console.error('sendTelegramOffer_ failed for chat ' + secrets.telegramChatId + ' / ' + item.fingerprint + ':', e.message || e);
             hasErrors = true;
             failedFingerprints.add(item.fingerprint);
           }
