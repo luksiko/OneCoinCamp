@@ -83,8 +83,8 @@ function handleApiRequest_(e) {
 function doGet(e) {
   if (e && e.parameter && e.parameter.debug === 'runs') {
     try {
-      const sheet = getSpreadsheet().getSheetByName('Routes');
-      const data = sheet.getDataRange().getValues().filter(row => row[0] === true);
+      const sheet = getSpreadsheet().getSheetByName('Runs');
+      const data = sheet.getDataRange().getValues().slice(-50);
       return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
     } catch(err) {
       return ContentService.createTextOutput(err.toString());
