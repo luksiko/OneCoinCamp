@@ -196,7 +196,11 @@ function deleteArchiveRowsByFingerprints_(spreadsheet, fingerprintsSet) {
       sheet.getRange(2, 1, remainingValues.length, numCols).setValues(remainingValues);
     }
     if (totalDataRows > remainingValues.length) {
-      sheet.getRange(remainingValues.length + 2, 1, totalDataRows - remainingValues.length, numCols).clearContent();
+      if (typeof sheet.deleteRows === 'function') {
+        sheet.deleteRows(remainingValues.length + 2, totalDataRows - remainingValues.length);
+      } else {
+        sheet.getRange(remainingValues.length + 2, 1, totalDataRows - remainingValues.length, numCols).clearContent();
+      }
     }
   }
 
@@ -294,8 +298,10 @@ function saveRoutes_(spreadsheet, routes) {
       if (route.source !== 'roadsurfer') {
         return;
       }
-      if (!/^(\d+|\*|ALL|ANY)$/i.test(String(route.originId || '').trim()) ||
-          (String(route.destinationId || '').trim() && !/^(\d+|\*|ALL|ANY)$/i.test(String(route.destinationId).trim()))) {
+      const oId = route.originId != null ? route.originId : route.origin_id;
+      const dId = route.destinationId != null ? route.destinationId : route.destination_id;
+      if (!/^(\d+|\*|ALL|ANY)$/i.test(String(oId || '').trim()) ||
+          (String(dId || '').trim() && !/^(\d+|\*|ALL|ANY)$/i.test(String(dId).trim()))) {
         throw new Error('Маршрут Roadsurfer #' + (index + 1) + ': origin_id и destination_id должны быть числовыми ID станций или символом * (Все города).');
       }
     });

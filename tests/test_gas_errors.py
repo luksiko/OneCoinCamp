@@ -215,6 +215,11 @@ const TEST_ARCHIVE_HEADERS = [
   'booking_url', 'fingerprint', 'matches_filter', 'telegram_sent_at', 'raw_json'
 ];
 
+const TEST_ROUTES_HEADERS = [
+  'enabled', 'source', 'origin_name', 'origin_id', 'destination_name',
+  'destination_id', 'origin_country', 'destination_country', 'pickup_date', 'return_date'
+];
+
 if (testName === 'roadsurfer_429') {
   const { context } = setupGasContext(() => ({
     getResponseCode: () => 429,
@@ -1337,6 +1342,236 @@ if (testName === 'roadsurfer_429') {
   assert.strictEqual(context.hasAlertBeenSent(12345, 'undefined'), false);
   assert.strictEqual(context.hasAlertBeenSent(12345, null), false);
   assert.strictEqual(context.hasAlertBeenSent(12345, ''), false);
+} else if (testName === 'webapp_personal_routes_isolation') {
+  const { context, sheets, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+  scriptProps.FIREBASE_PROJECT_ID = 'test-proj';
+  scriptProps.FIREBASE_CLIENT_EMAIL = 'test@example.com';
+  scriptProps.FIREBASE_PRIVATE_KEY = 'test-key';
+
+  const userDoc = { telegram_id: 123456789, chat_id: 123456789 };
+  const userStore = {};
+  context.isFirestoreConfigured_ = () => true;
+  context.getUser = (id) => userStore[id] || userDoc;
+  context.firestoreUpdate = (path, data) => {
+    const parts = path.split('/');
+    if (parts[0] === 'users' && parts[1]) {
+      userStore[parts[1]] = Object.assign(userStore[parts[1]] || {}, data);
+    }
+    return { ok: true };
+  };
+  context.addUserRoute = (userId, route) => ({ ok: true });
+  context.getUserRoutes = () => [];
+  context.firestoreDelete = () => true;
+
+  // Initial Routes sheet has 2 routes
+  sheets.Routes.values = [
+    TEST_ROUTES_HEADERS,
+    [true, 'roadsurfer', '6', 'Berlin', 'DE', '35', 'Rome', 'IT', '', ''],
+    [true, 'movacar', '01JCRJ5NGV9E2YFNVSYKJR9W3J', 'Berlin', 'DE', '01JCRJ5NGV9E2YFNVSYKJR9W3K', 'Munich', 'DE', '', '']
+  ];
+
+  // Admin user saves empty personal routes in WebApp without explicit global flag
+  context.saveUiData({ routes: [] }, '');
+
+  // Verify the global Routes sheet was NOT cleared or changed
+  assert.strictEqual(sheets.Routes.values.length, 3);
+  assert.strictEqual(userStore['123456789'].routes_configured, true);
+} else if (testName === 'monitor_routes_union_and_self_heal') {
+  let polledSources = [];
+  const fetchMock = (url) => {
+    if (url.includes('roadsurfer')) polledSources.push('roadsurfer');
+    if (url.includes('movacar') || url.includes('europe-west1.run.app')) polledSources.push('movacar');
+    return {
+      getResponseCode: () => 200,
+      getContentText: () => '{"included":[]}'
+    };
+  };
+  const { context, sheets } = setupGasContext(fetchMock);
+  // Routes sheet is initially empty (only headers)
+  sheets.Routes.values = [TEST_ROUTES_HEADERS];
+
+  // An active user with one custom route
+  context.listActiveUsers = () => [{ telegram_id: 111, chat_id: 111 }];
+  context.getUserRoutes = () => [{
+    enabled: true,
+    source: 'movacar',
+    origin_id: 'ref_p',
+    origin_name: 'Paris',
+    destination_id: 'ref_m',
+    destination_name: 'Madrid',
+    origin_country: 'FR',
+    destination_country: 'ES'
+  }];
+
+  context.runMonitorOnce();
+
+  // 1. Routes sheet self-healed using DEFAULT_ROUTES
+  assert.strictEqual(sheets.Routes.values.length > 1, true);
+  // 2. Both roadsurfer (from DEFAULT_ROUTES) and movacar (from user route) are polled
+  assert.strictEqual(polledSources.includes('roadsurfer'), true);
+  assert.strictEqual(polledSources.includes('movacar'), true);
+} else if (testName === 'firestore_user_routes_configured_flag') {
+  const { context } = setupGasContext(() => ({}));
+  context.isFirestoreConfigured_ = () => true;
+  
+  let userDoc = { telegram_id: 222, routes_configured: true };
+  context.getUser = () => userDoc;
+  context.firestoreList = (path) => {
+    if (path === 'users/222/routes') return [];
+    if (path === 'users/999/routes') return [{ source: 'roadsurfer', origin_name: 'Berlin' }];
+    return [];
+  };
+
+  let devCloned = false;
+  context.addUserRoute = () => { devCloned = true; };
+
+  const routes = context.getUserRoutes(222);
+  assert.strictEqual(routes.length, 0);
+  assert.strictEqual(devCloned, false);
+} else if (testName === 'webapp_non_admin_cannot_overwrite_global_routes_or_filters') {
+  const { context, sheets, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '999999999';
+  scriptProps.WEBAPP_SKIP_AUTH = 'false';
+
+  context.authorizeWebAppRequest_ = () => ({ authenticated: true, user: { id: 888888888 } });
+  context.isFirestoreConfigured_ = () => true;
+
+  sheets.Routes.values = [
+    TEST_ROUTES_HEADERS,
+    [true, 'roadsurfer', 'Berlin', '6', 'Rome', '35', 'DE', 'IT', '', '']
+  ];
+  const initialRoutesCount = sheets.Routes.values.length;
+  const initialFilters = JSON.stringify(sheets.Filters.values);
+
+  context.saveUiData({
+    is_global_routes: true,
+    routes: [],
+    save_global_filters: true,
+    filters: { allowed_origin_countries: ['US'] }
+  }, 'dummy_init_data');
+
+  assert.strictEqual(sheets.Routes.values.length, initialRoutesCount);
+  assert.strictEqual(JSON.stringify(sheets.Filters.values), initialFilters);
+} else if (testName === 'webapp_admin_explicit_global_routes_does_not_wipe_personal_routes') {
+  const { context, sheets, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_BOT_TOKEN = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
+  scriptProps.TELEGRAM_CHAT_ID = '123456789';
+
+  context.authorizeWebAppRequest_ = () => ({ authenticated: true, user: { id: 123456789 } });
+  context.isFirestoreConfigured_ = () => true;
+
+  let personalRoutesWiped = false;
+  context.firestoreDelete = () => { personalRoutesWiped = true; };
+  context.deleteAllUserRoutes = () => { personalRoutesWiped = true; };
+  context.addUserRoute = () => { personalRoutesWiped = true; };
+
+  sheets.Routes.values = [TEST_ROUTES_HEADERS];
+
+  context.saveUiData({
+    is_global_routes: true,
+    routes: [
+      { enabled: true, source: 'roadsurfer', origin_id: '6', destination_id: '35', origin_country: 'DE', destination_country: 'IT' }
+    ]
+  }, 'dummy');
+
+  assert.strictEqual(sheets.Routes.values.length, 2);
+  assert.strictEqual(personalRoutesWiped, false);
+} else if (testName === 'user_without_routes_receives_matching_filter_alerts') {
+  let sentAlerts = [];
+  const fetchMock = (url) => {
+    if (url.includes('stations/6')) {
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({ routes: [{ id: 35, country: 'IT' }] })
+      };
+    }
+    if (url.includes('rally/search')) {
+      return {
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify([
+          {
+            id: 101,
+            vehicle_model_id: 1,
+            rental_days: 5,
+            time_slot: { from: '2026-10-26T10:00:00', to: '2026-10-31T10:00:00' },
+            pickup_station_id: 6,
+            dropoff_station_id: 35,
+            price: 1,
+            currency: 'EUR'
+          }
+        ])
+      };
+    }
+    return {
+      getResponseCode: () => 200,
+      getContentText: () => JSON.stringify({ included: [] })
+    };
+  };
+  const { context, sheets } = setupGasContext(fetchMock);
+  sheets.Routes.values = [
+    TEST_ROUTES_HEADERS,
+    [true, 'roadsurfer', 'Berlin', '6', 'Rome', '35', 'DE', 'IT', '', '']
+  ];
+
+  context.listActiveUsers = () => [{ telegram_id: 555, chat_id: 555 }];
+  context.getUserRoutes = () => [];
+  context.getUserFilters = () => ({
+    allowed_origin_countries: ['DE'],
+    allowed_destination_countries: ['IT'],
+    price_max: 50
+  });
+  context.sendTelegramOffer_ = (secrets, offer, route, routeIndex, settings, chatId) => {
+    sentAlerts.push({ chatId, offer });
+  };
+  context.hasAlertBeenSent = () => false;
+
+  context.runMonitorOnce();
+
+  assert.strictEqual(sentAlerts.length, 1);
+  assert.strictEqual(sentAlerts[0].chatId, 555);
+} else if (testName === 'telegram_callback_dis_r_non_admin_does_not_modify_sheet') {
+  const { context, sheets, scriptProps } = setupGasContext(() => ({}));
+  scriptProps.TELEGRAM_CHAT_ID = '999999999';
+
+  sheets.Routes.values = [
+    TEST_ROUTES_HEADERS,
+    [true, 'roadsurfer', 'Berlin', '6', 'Rome', '35', 'DE', 'IT', '', '']
+  ];
+
+  context.isFirestoreConfigured_ = () => true;
+  let userRouteDisabled = false;
+  context.firestoreUpdate = (path, data) => {
+    if (path.includes('routes') && data.enabled === false) userRouteDisabled = true;
+  };
+  context.answerTelegramCallbackQuery_ = () => {};
+
+  context.handleTelegramCallbackQuery_({
+    id: 'query_1',
+    data: 'dis_r:0:hash123',
+    from: { id: 777 },
+    message: { chat: { id: 777 }, message_id: 10 }
+  });
+
+  assert.strictEqual(sheets.Routes.values[1][0], true);
+  assert.strictEqual(userRouteDisabled, true);
+} else if (testName === 'firestore_empty_dev_routes_does_not_permanently_configure_user') {
+  const { context } = setupGasContext(() => ({}));
+  context.isFirestoreConfigured_ = () => true;
+
+  let userDoc = { telegram_id: 333 };
+  context.getUser = () => userDoc;
+  context.firestoreList = (path) => [];
+  let configuredUpdated = false;
+  context.firestoreUpdate = (path, data) => {
+    if (data.routes_configured) configuredUpdated = true;
+  };
+
+  const routes = context.getUserRoutes(333);
+  assert.strictEqual(routes.length, 0);
+  assert.strictEqual(configuredUpdated, false);
 } else {
   throw new Error('Unknown test: ' + testName);
 }
@@ -1401,6 +1636,14 @@ def run_node_test(test_name: str):
         "webapp_get_offers_sorting_and_sources",
         "webapp_save_routes_and_price_max_null",
         "firestore_sent_alerts_guards_against_undefined",
+        "webapp_personal_routes_isolation",
+        "monitor_routes_union_and_self_heal",
+        "firestore_user_routes_configured_flag",
+        "webapp_non_admin_cannot_overwrite_global_routes_or_filters",
+        "webapp_admin_explicit_global_routes_does_not_wipe_personal_routes",
+        "user_without_routes_receives_matching_filter_alerts",
+        "telegram_callback_dis_r_non_admin_does_not_modify_sheet",
+        "firestore_empty_dev_routes_does_not_permanently_configure_user",
     ],
 )
 def test_gas_node_suite(test_name: str):

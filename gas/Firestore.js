@@ -335,11 +335,22 @@ function firestoreList(collectionPath, pageSize) {
 
 function getUser(telegramId) {
   if (!isFirestoreConfigured_()) return null;
-  return firestoreGet('users/' + telegramId);
+  var cache = CacheService.getScriptCache();
+  var key = 'user_' + telegramId;
+  var cached = cache.get(key);
+  if (cached) {
+    try { return JSON.parse(cached); } catch(e) {}
+  }
+  var user = firestoreGet('users/' + telegramId);
+  if (user) {
+    try { cache.put(key, JSON.stringify(user), 240); } catch(e) {}
+  }
+  return user;
 }
 
 function upsertUser(telegramId, chatId, extra) {
   if (!isFirestoreConfigured_()) return null;
+  clearUserCache(telegramId);
   var data = Object.assign({
     telegram_id: telegramId,
     chat_id: chatId,
@@ -359,7 +370,10 @@ function upsertUser(telegramId, chatId, extra) {
 function getUserRoutes(telegramId) {
   if (!isFirestoreConfigured_()) return [];
   var routes = firestoreList('users/' + telegramId + '/routes') || [];
-  if ((!routes || routes.length === 0) && String(telegramId) !== '999') {
+  var userDoc = getUser(telegramId);
+  var isConfigured = Boolean(userDoc && userDoc.routes_configured);
+
+  if ((!routes || routes.length === 0) && !isConfigured && String(telegramId) !== '999') {
     try {
       var devRoutes = firestoreList('users/999/routes') || [];
       if (devRoutes && devRoutes.length > 0) {
@@ -369,7 +383,14 @@ function getUserRoutes(telegramId) {
           addUserRoute(telegramId, copy);
         });
         routes = firestoreList('users/' + telegramId + '/routes') || [];
+        firestoreUpdate('users/' + telegramId, { routes_configured: true });
+        clearUserCache(telegramId);
       }
+    } catch (e) {}
+  } else if (routes && routes.length > 0 && !isConfigured) {
+    try {
+      firestoreUpdate('users/' + telegramId, { routes_configured: true });
+      clearUserCache(telegramId);
     } catch (e) {}
   }
   
@@ -398,17 +419,30 @@ function getUserRoutes(telegramId) {
 }
 
 function clearUserCache(telegramId) {
-  var cache = CacheService.getScriptCache();
-  cache.removeAll(['routes_' + telegramId, 'filters_' + telegramId]);
+  try {
+    var cache = (typeof CacheService !== 'undefined' && CacheService.getScriptCache) ? CacheService.getScriptCache() : null;
+    if (cache) {
+      var keys = ['routes_' + telegramId, 'filters_' + telegramId, 'user_' + telegramId, 'active_users'];
+      if (typeof cache.removeAll === 'function') {
+        cache.removeAll(keys);
+      } else if (typeof cache.remove === 'function') {
+        keys.forEach(function(k) { cache.remove(k); });
+      }
+    }
+  } catch (e) {}
 }
 
 function deleteAllUserRoutes(telegramId) {
   if (!isFirestoreConfigured_()) return 0;
   clearUserCache(telegramId);
-  var routes = firestoreList('users/' + telegramId + '/routes');
+  var routes = firestoreList('users/' + telegramId + '/routes') || [];
   routes.forEach(function(r) {
-    firestoreDelete('users/' + telegramId + '/routes/' + r._id);
+    if (r && r._id) firestoreDelete('users/' + telegramId + '/routes/' + r._id);
   });
+  try {
+    firestoreUpdate('users/' + telegramId, { routes_configured: true });
+  } catch (e) {}
+  clearUserCache(telegramId);
   return routes.length;
 }
 
@@ -420,11 +454,20 @@ function addUserRoute(telegramId, route) {
   if (normalized.destinationName && !normalized.destination_name) normalized.destination_name = normalized.destinationName;
   if (normalized.originId && !normalized.origin_id) normalized.origin_id = normalized.originId;
   if (normalized.destinationId && !normalized.destination_id) normalized.destination_id = normalized.destinationId;
+  if (normalized.originCountry && !normalized.origin_country) normalized.origin_country = normalized.originCountry;
+  if (normalized.destinationCountry && !normalized.destination_country) normalized.destination_country = normalized.destinationCountry;
+
   if (normalized.origin_name && !normalized.originName) normalized.originName = normalized.origin_name;
   if (normalized.destination_name && !normalized.destinationName) normalized.destinationName = normalized.destination_name;
   if (normalized.origin_id && !normalized.originId) normalized.originId = normalized.origin_id;
   if (normalized.destination_id && !normalized.destinationId) normalized.destinationId = normalized.destination_id;
-  return firestoreAdd('users/' + telegramId + '/routes', normalized);
+  if (normalized.origin_country && !normalized.originCountry) normalized.originCountry = normalized.origin_country;
+  if (normalized.destination_country && !normalized.destinationCountry) normalized.destinationCountry = normalized.destination_country;
+  var added = firestoreAdd('users/' + telegramId + '/routes', normalized);
+  try {
+    firestoreUpdate('users/' + telegramId, { routes_configured: true });
+  } catch (e) {}
+  return added;
 }
 
 function getUserFilters(telegramId) {

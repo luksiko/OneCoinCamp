@@ -143,18 +143,34 @@ function getUiData(initData) {
   
   let filters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
   let routes = readRoutes_(spreadsheet);
+  if (!routes || routes.length === 0) {
+    try {
+      saveRoutes_(spreadsheet, DEFAULT_ROUTES);
+      routes = readRoutes_(spreadsheet);
+    } catch (e) {}
+    if (!routes || routes.length === 0) {
+      routes = DEFAULT_ROUTES;
+    }
+  }
   
   if (userId && typeof upsertUser === 'function') {
     try {
       upsertUser(userId, auth.chat ? auth.chat.id : userId, { username: (auth.user && auth.user.username) || '' });
     } catch (e) {}
+  }
+
+  if (userId) {
     try {
       const userFilters = (typeof getUserFilters === 'function') ? getUserFilters(userId) : null;
-      if (userFilters && Object.keys(userFilters).length > 0) {
-        if (userFilters.allowed_origin_countries !== undefined && userFilters.allowed_origin_countries !== null && userFilters.allowed_origin_countries !== '') {
+      if (userFilters) {
+        if (Array.isArray(userFilters.allowed_origin_countries)) {
+          filters.allowed_origin_countries = userFilters.allowed_origin_countries.join(',');
+        } else if (userFilters.allowed_origin_countries !== undefined && userFilters.allowed_origin_countries !== null && userFilters.allowed_origin_countries !== '') {
           filters.allowed_origin_countries = userFilters.allowed_origin_countries;
         }
-        if (userFilters.allowed_destination_countries !== undefined && userFilters.allowed_destination_countries !== null && userFilters.allowed_destination_countries !== '') {
+        if (Array.isArray(userFilters.allowed_destination_countries)) {
+          filters.allowed_destination_countries = userFilters.allowed_destination_countries.join(',');
+        } else if (userFilters.allowed_destination_countries !== undefined && userFilters.allowed_destination_countries !== null && userFilters.allowed_destination_countries !== '') {
           filters.allowed_destination_countries = userFilters.allowed_destination_countries;
         }
         if (userFilters.min_duration_days !== undefined && userFilters.min_duration_days !== null && userFilters.min_duration_days !== '') {
@@ -176,7 +192,8 @@ function getUiData(initData) {
     } catch (e) {}
     try {
       const uRoutes = (typeof getUserRoutes === 'function') ? getUserRoutes(userId) : null;
-      if (uRoutes && uRoutes.length > 0) {
+      const uDoc = (typeof getUser === 'function') ? getUser(userId) : null;
+      if (uRoutes && (uRoutes.length > 0 || (uDoc && uDoc.routes_configured))) {
         routes = uRoutes;
       }
     } catch (e) {}
@@ -538,7 +555,9 @@ function saveUiData(payload, initData) {
     }
   }
   if (payload.filters) {
-    if (userId && typeof setUserFilters === 'function') {
+    const isExplicitGlobalFilters = isAdmin && Boolean(payload.is_global_filters || payload.save_global_filters);
+    const hasFirestore = typeof isFirestoreConfigured_ === 'function' && isFirestoreConfigured_();
+    if (!isExplicitGlobalFilters && userId && typeof setUserFilters === 'function' && hasFirestore) {
       try {
         const f = payload.filters;
         const current = (typeof getUserFilters === 'function' ? getUserFilters(userId) : {}) || {};
@@ -558,14 +577,16 @@ function saveUiData(payload, initData) {
         console.error('Error saving user filters: ' + (e && e.message));
       }
     }
-    if (isAdmin || !userId || typeof setUserFilters !== 'function') {
+    if (isExplicitGlobalFilters || (!hasFirestore && (isAdmin || !userId))) {
       const currentFilters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
       const mergedFilters = Object.assign({}, currentFilters, payload.filters);
       writeKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, mergedFilters);
     }
   }
   if (Array.isArray(payload.routes)) {
-    if (userId && typeof addUserRoute === 'function') {
+    const isExplicitGlobalRoutes = isAdmin && Boolean(payload.is_global_routes || payload.save_global_routes);
+    const hasFirestore = typeof isFirestoreConfigured_ === 'function' && isFirestoreConfigured_();
+    if (!isExplicitGlobalRoutes && userId && typeof addUserRoute === 'function' && hasFirestore) {
       try {
         if (typeof clearUserCache === 'function') clearUserCache(userId);
         const oldRoutes = (typeof getUserRoutes === 'function' ? getUserRoutes(userId) : []) || [];
@@ -573,15 +594,20 @@ function saveUiData(payload, initData) {
           oldRoutes.forEach(function(r) { if (r && r._id) firestoreDelete('users/' + userId + '/routes/' + r._id); });
         }
         payload.routes.forEach(function(r) { 
-          delete r._id; 
-          delete r.window;
-          addUserRoute(userId, r); 
+          const copy = Object.assign({}, r);
+          delete copy._id; 
+          delete copy.window;
+          addUserRoute(userId, copy); 
         });
+        if (typeof firestoreUpdate === 'function') {
+          firestoreUpdate('users/' + userId, { routes_configured: true });
+        }
+        if (typeof clearUserCache === 'function') clearUserCache(userId);
       } catch (e) {
         console.error('Error saving user routes: ' + (e && e.message));
       }
     }
-    if (isAdmin || !userId || typeof addUserRoute !== 'function') {
+    if (isExplicitGlobalRoutes || (!hasFirestore && (isAdmin || !userId))) {
       saveRoutes_(spreadsheet, payload.routes);
     }
   }

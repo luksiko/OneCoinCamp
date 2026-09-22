@@ -220,8 +220,10 @@ function handleTelegramCallbackQuery_(callbackQuery) {
     const parts = routeParam.split(':');
     const telegramId = fromUser ? fromUser.id : null;
     let success = false;
+    const hasFirestore = typeof isFirestoreConfigured_ === 'function' && isFirestoreConfigured_();
+    const isAdmin = Boolean(!secrets.telegramChatId || (telegramId && (String(telegramId) === String(secrets.telegramChatId) || (secrets.telegramAllowedUsers && secrets.telegramAllowedUsers.indexOf(String(telegramId)) !== -1))));
 
-    if (parts.length >= 1 && !isNaN(Number(parts[0]))) {
+    if ((isAdmin || !hasFirestore) && parts.length >= 1 && !isNaN(Number(parts[0]))) {
       const idx = Number(parts[0]);
       try {
         const spreadsheet = ensureWorkbook_();
@@ -233,7 +235,7 @@ function handleTelegramCallbackQuery_(callbackQuery) {
       } catch (e) {}
     }
 
-    if (telegramId && typeof firestoreUpdate === 'function') {
+    if (telegramId && hasFirestore && typeof firestoreUpdate === 'function') {
       try {
         firestoreUpdate('users/' + telegramId + '/routes/' + routeParam, { enabled: false });
         if (typeof clearUserCache === 'function') clearUserCache(telegramId);
@@ -373,16 +375,20 @@ function buildActualOffersMessage_(spreadsheet, chatId) {
       continue;
     }
     
-    if (!matchesFirestoreFilter_(offer, filters, settings)) {
+    if (!offerMatchesFilter_(offer, filters, null, settings)) {
       continue;
     }
     
-    let matched = false;
-    for (let rIdx = 0; rIdx < enabledRoutes.length; rIdx++) {
-      const r = enabledRoutes[rIdx];
-      if (r.source === offer.source) {
-        if ((!r.origin_name || r.origin_name === offer.origin) &&
-            (!r.destination_name || r.destination_name === offer.destination)) {
+    let matched = (enabledRoutes.length === 0 && (!routes || routes.length === 0));
+    if (!matched) {
+      for (let rIdx = 0; rIdx < enabledRoutes.length; rIdx++) {
+        const r = enabledRoutes[rIdx];
+        const m = (typeof routeMatchesOffer_ === 'function')
+          ? routeMatchesOffer_(r, offer)
+          : (r.source === offer.source &&
+             (!r.origin_name || r.origin_name === '*' || r.origin_name.toLowerCase().trim() === String(offer.origin || '').toLowerCase().trim()) &&
+             (!r.destination_name || r.destination_name === '*' || r.destination_name.toLowerCase().trim() === String(offer.destination || '').toLowerCase().trim()));
+        if (m) {
           matched = true;
           break;
         }

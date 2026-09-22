@@ -51,9 +51,11 @@ function installMonitorTriggers_(settings) {
 
   const webhookActive = PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.TELEGRAM_WEBHOOK_ACTIVE) === '1';
 
+  if (typeof ScriptApp === 'undefined') return interval;
+
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     const fn = trigger.getHandlerFunction();
-    if (fn === 'runMonitorOnce' || fn === 'pollOnce' || fn === 'processTelegramUpdates' || fn === 'checkMonitorFreshness' || fn === 'checkOffersAvailability') {
+    if (fn === 'runMonitorOnce' || fn === 'pollOnce' || fn === 'processTelegramUpdates' || fn === 'checkMonitorFreshness' || fn === 'checkOffersAvailability' || fn === 'dispatchAlertsOnce' || fn === 'cleanupWebhookLogs_') {
       ScriptApp.deleteTrigger(trigger);
     }
   });
@@ -87,9 +89,15 @@ function ensureMonitorTriggers_() {
 
   const webhookActive = PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.TELEGRAM_WEBHOOK_ACTIVE) === '1';
 
+  if (typeof ScriptApp === 'undefined') return [];
+
   const existing = {};
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
-    existing[trigger.getHandlerFunction()] = true;
+    const fn = trigger.getHandlerFunction();
+    existing[fn] = true;
+    if (fn === 'dispatchAlertsOnce' || fn === 'cleanupWebhookLogs_') {
+      try { ScriptApp.deleteTrigger(trigger); } catch (e) {}
+    }
   });
   const created = [];
   if (!existing.runMonitorOnce) {
@@ -283,11 +291,44 @@ function runMonitorOnce() {
     const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
     const globalFilters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
     
-    // 1. Сбор маршрутов всех активных пользователей
-    // 1. Сбор маршрутов всех активных пользователей
+    // 1. Сбор маршрутов всех активных пользователей и системных маршрутов (union)
     const users = (typeof listActiveUsers === 'function') ? (listActiveUsers() || []) : [];
     const uniqueRoutesMap = {};
     const usersData = [];
+
+    function addRouteToMap_(route) {
+      if (!route || !route.enabled || !isProviderEnabled_(route.source, settings)) return;
+      const normalizedRoute = Object.assign({}, route, {
+        source: String(route.source || '').toLowerCase().trim(),
+        originId: route.originId != null ? route.originId : (route.origin_id != null ? String(route.origin_id) : ''),
+        origin_id: route.origin_id != null ? route.origin_id : (route.originId != null ? String(route.originId) : ''),
+        destinationId: route.destinationId != null ? route.destinationId : (route.destination_id != null ? String(route.destination_id) : ''),
+        destination_id: route.destination_id != null ? route.destination_id : (route.destinationId != null ? String(route.destinationId) : ''),
+        originCountry: String(route.originCountry || route.origin_country || '').toUpperCase().trim(),
+        origin_country: String(route.origin_country || route.originCountry || '').toUpperCase().trim(),
+        originName: route.originName || route.origin_name || '',
+        origin_name: route.origin_name || route.originName || '',
+        destinationName: route.destinationName || route.destination_name || '',
+        destination_name: route.destination_name || route.destinationName || '',
+        pickupDate: route.pickupDate || route.pickup_date || '',
+        pickup_date: route.pickup_date || route.pickupDate || '',
+        returnDate: route.returnDate || route.return_date || '',
+        return_date: route.return_date || route.returnDate || '',
+      });
+      const hashKey = [
+        normalizedRoute.source,
+        normalizedRoute.origin_id || normalizedRoute.origin_name || '',
+        normalizedRoute.destination_id || normalizedRoute.destination_name || '',
+        normalizedRoute.origin_country || '',
+        normalizedRoute.destination_country || '',
+        normalizedRoute.pickup_date || '',
+        normalizedRoute.return_date || ''
+      ].map(function(s) { return String(s).toLowerCase().trim(); }).join('|');
+      if (!uniqueRoutesMap[hashKey]) {
+        uniqueRoutesMap[hashKey] = normalizedRoute;
+      }
+    }
+
     users.forEach(function(user) {
       const userRoutes = (typeof getUserRoutes === 'function') ? (getUserRoutes(user.telegram_id) || []) : [];
       const userFilters = (typeof getUserFilters === 'function') ? getUserFilters(user.telegram_id) : null;
@@ -296,35 +337,25 @@ function runMonitorOnce() {
         routes: userRoutes,
         filters: userFilters
       });
-      userRoutes.forEach(function(route) {
-        if (!route.enabled || !isProviderEnabled_(route.source, settings)) return;
-        const normalizedRoute = Object.assign({}, route, {
-          originId: route.originId != null ? route.originId : (route.origin_id != null ? String(route.origin_id) : ''),
-          origin_id: route.origin_id != null ? route.origin_id : (route.originId != null ? String(route.originId) : ''),
-          destinationId: route.destinationId != null ? route.destinationId : (route.destination_id != null ? String(route.destination_id) : ''),
-          destination_id: route.destination_id != null ? route.destination_id : (route.destinationId != null ? String(route.destinationId) : ''),
-          originCountry: route.originCountry || route.origin_country || '',
-          origin_country: route.origin_country || route.originCountry || '',
-          originName: route.originName || route.origin_name || '',
-          origin_name: route.origin_name || route.originName || '',
-          destinationName: route.destinationName || route.destination_name || '',
-          destination_name: route.destination_name || route.destinationName || '',
-          pickupDate: route.pickupDate || route.pickup_date || '',
-          pickup_date: route.pickup_date || route.pickupDate || '',
-          returnDate: route.returnDate || route.return_date || '',
-          return_date: route.return_date || route.returnDate || '',
-        });
-        const hashKey = normalizedRoute.source + '|' + (normalizedRoute.origin_id || '') + '|' + (normalizedRoute.destination_id || '') + '|' + (normalizedRoute.origin_country || '') + '|' + (normalizedRoute.destination_country || '');
-        if (!uniqueRoutesMap[hashKey]) {
-          uniqueRoutesMap[hashKey] = normalizedRoute;
-        }
-      });
+      userRoutes.forEach(addRouteToMap_);
     });
-    let routes = Object.keys(uniqueRoutesMap).map(function(k) { return uniqueRoutesMap[k]; });
-    if (routes.length === 0) {
-      const sheetRoutes = readRoutes_(spreadsheet);
-      routes = sheetRoutes.filter(function(r) { return r.enabled && isProviderEnabled_(r.source, settings); });
+
+    // Baseline system routes: query spreadsheet routes or self-heal with DEFAULT_ROUTES
+    let sheetRoutes = readRoutes_(spreadsheet);
+    if (!sheetRoutes || sheetRoutes.length === 0) {
+      try {
+        saveRoutes_(spreadsheet, DEFAULT_ROUTES);
+      } catch (e) {}
+      sheetRoutes = DEFAULT_ROUTES;
     }
+    sheetRoutes.forEach(addRouteToMap_);
+
+    // Fail-safe: if uniqueRoutesMap is still empty (e.g. all sheet routes disabled), fall back to DEFAULT_ROUTES
+    if (Object.keys(uniqueRoutesMap).length === 0 && typeof DEFAULT_ROUTES !== 'undefined' && Array.isArray(DEFAULT_ROUTES)) {
+      DEFAULT_ROUTES.forEach(addRouteToMap_);
+    }
+
+    let routes = Object.keys(uniqueRoutesMap).map(function(k) { return uniqueRoutesMap[k]; });
 
     const known = readArchiveFingerprints_(spreadsheet);
     const cache = CacheService.getScriptCache();
@@ -409,13 +440,14 @@ function runMonitorOnce() {
           if (userRoutes.length > 0) {
             for (let i = 0; i < userRoutes.length; i++) {
               const r = userRoutes[i];
-              if (r.enabled && r.source === offer.source) {
-                // Simplified match since offer has only names
-                if ((!r.origin_name || r.origin_name === offer.origin) &&
-                    (!r.destination_name || r.destination_name === offer.destination)) {
-                  matchedRouteId = r._id;
-                  break;
-                }
+              const matches = (typeof routeMatchesOffer_ === 'function')
+                ? routeMatchesOffer_(r, offer)
+                : (r.enabled && String(r.source || '').toLowerCase().trim() === String(offer.source || '').toLowerCase().trim() &&
+                   (!r.origin_name || r.origin_name === '*' || r.origin_name.toLowerCase().trim() === String(offer.origin || '').toLowerCase().trim()) &&
+                   (!r.destination_name || r.destination_name === '*' || r.destination_name.toLowerCase().trim() === String(offer.destination || '').toLowerCase().trim()));
+              if (matches) {
+                matchedRouteId = r._id;
+                break;
               }
             }
             if (!matchedRouteId) return;
@@ -868,6 +900,22 @@ function checkOffersAvailability() {
       });
     }
     throw err;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function dispatchAlertsOnce() {
+  if (typeof ScriptApp === 'undefined') return;
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;
+  try {
+    const triggers = ScriptApp.getProjectTriggers();
+    for (let i = 0; i < triggers.length; i++) {
+      if (triggers[i].getHandlerFunction() === 'dispatchAlertsOnce') {
+        try { ScriptApp.deleteTrigger(triggers[i]); } catch (e) {}
+      }
+    }
   } finally {
     lock.releaseLock();
   }

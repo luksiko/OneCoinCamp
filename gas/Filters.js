@@ -101,31 +101,49 @@ function buildEffectiveWindow_(baseWindow, checkNeighbors) {
   };
 }
 
-function offerMatchesFilter_(offer, filters, window) {
+function offerMatchesFilter_(offer, filters, window, settings) {
+  if (!filters) return true;
+
   const origins = parseCountryList_(filters.allowed_origin_countries);
   const destinations = parseCountryList_(filters.allowed_destination_countries);
-  if (origins.length && offer.originCountry && origins.indexOf(offer.originCountry.toUpperCase()) === -1) {
+  
+  if (origins.length > 0 && offer.originCountry && origins.indexOf(offer.originCountry.toUpperCase()) === -1) {
     return false;
   }
-  if (
-    destinations.length &&
-    offer.destinationCountry &&
-    destinations.indexOf(offer.destinationCountry.toUpperCase()) === -1
-  ) {
+  if (destinations.length > 0 && offer.destinationCountry && destinations.indexOf(offer.destinationCountry.toUpperCase()) === -1) {
     return false;
   }
 
   const pickup = parseIsoDate_(offer.pickupDate);
   const dropoff = parseIsoDate_(offer.returnDate);
 
-  if (pickup && (pickup < window.start || pickup > window.end)) {
-    return false;
+  if (pickup) {
+    if (window && window.start && window.end) {
+      if (pickup < window.start || pickup > window.end) {
+        return false;
+      }
+    } else {
+      const windowDays = Number(filters.window_days);
+      if (!isNaN(windowDays) && windowDays > 0) {
+        let start;
+        if (filters.window_start_rule === 'today') {
+          start = new Date();
+          start.setHours(0, 0, 0, 0);
+        } else {
+          start = nextSunday_(settings && settings.timezone ? settings.timezone : DEFAULT_SETTINGS.timezone);
+        }
+        const end = addDays_(start, windowDays);
+        if (pickup < start || pickup > end) {
+          return false;
+        }
+      }
+    }
   }
 
   if (pickup && dropoff) {
     const durationDays = Math.round((dropoff.getTime() - pickup.getTime()) / (1000 * 60 * 60 * 24));
-    const minDays = Number(filters.min_trip_days);
-    const maxDays = Number(filters.max_trip_days);
+    const minDays = Number(filters.min_trip_days != null ? filters.min_trip_days : filters.min_duration_days);
+    const maxDays = Number(filters.max_trip_days != null ? filters.max_trip_days : filters.max_duration_days);
     if (!isNaN(minDays) && minDays > 0 && durationDays < minDays) {
       return false;
     }
@@ -134,7 +152,8 @@ function offerMatchesFilter_(offer, filters, window) {
     }
   }
 
-  if (!offerPriceMatches_(offer, filters && filters.max_price)) {
+  const maxPrice = filters.max_price != null ? filters.max_price : filters.price_max;
+  if (!offerPriceMatches_(offer, maxPrice)) {
     return false;
   }
 
@@ -207,45 +226,23 @@ function offerFingerprint_(offer) {
     .join('');
 }
 
-
 function matchesFirestoreFilter_(offer, filters, settings) {
-  const origins = filters.allowed_origin_countries || [];
-  const destinations = filters.allowed_destination_countries || [];
-  if (origins.length > 0 && offer.originCountry && origins.indexOf(offer.originCountry.toUpperCase()) === -1) {
-    return false;
-  }
-  if (destinations.length > 0 && offer.destinationCountry && destinations.indexOf(offer.destinationCountry.toUpperCase()) === -1) {
-    return false;
-  }
-  
-  const pickup = parseIsoDate_(offer.pickupDate);
-  const dropoff = parseIsoDate_(offer.returnDate);
+  return offerMatchesFilter_(offer, filters, null, settings);
+}
 
-  if (pickup && filters.window_days > 0) {
-    let start;
-    if (filters.window_start_rule === 'today') {
-      start = new Date();
-      start.setHours(0, 0, 0, 0);
-    } else {
-      start = nextSunday_(settings.timezone || DEFAULT_SETTINGS.timezone);
-    }
-    const end = addDays_(start, filters.window_days);
-    if (pickup < start || pickup > end) {
-      return false;
-    }
-  }
+function routeMatchesOffer_(route, offer) {
+  if (!route || !route.enabled || !offer) return false;
+  if (String(route.source || '').toLowerCase().trim() !== String(offer.source || '').toLowerCase().trim()) return false;
 
-  if (pickup && dropoff) {
-    const durationDays = Math.round((dropoff.getTime() - pickup.getTime()) / (1000 * 60 * 60 * 24));
-    const minDays = Number(filters.min_duration_days);
-    const maxDays = Number(filters.max_duration_days);
-    if (!isNaN(minDays) && minDays > 0 && durationDays < minDays) return false;
-    if (!isNaN(maxDays) && maxDays > 0 && durationDays > maxDays) return false;
-  }
-
-  if (!offerPriceMatches_(offer, filters.price_max)) {
+  function matchLoc_(routeLoc, offerLoc, routeId, offerId) {
+    const rLoc = String(routeLoc || '').trim();
+    if (!rLoc || rLoc === '*' || rLoc.toUpperCase() === 'ALL' || rLoc.toUpperCase() === 'ANY' || rLoc === 'Все города') return true;
+    if (routeId && offerId && String(routeId).trim() === String(offerId).trim()) return true;
+    if (offerLoc && rLoc.toLowerCase() === String(offerLoc).trim().toLowerCase()) return true;
     return false;
   }
 
-  return true;
+  const origMatch = matchLoc_(route.origin_name || route.originName, offer.origin, route.origin_id || route.originId, offer.originId);
+  const destMatch = matchLoc_(route.destination_name || route.destinationName, offer.destination, route.destination_id || route.destinationId, offer.destinationId);
+  return origMatch && destMatch;
 }
