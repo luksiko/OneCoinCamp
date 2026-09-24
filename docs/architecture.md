@@ -66,7 +66,7 @@ destination, destination_country, pickup_date, return_date,
 price, currency, booking_url, raw_json
 ```
 
-`fingerprint` вычисляется как SHA-256 от `source|offer_id|vehicle_id|origin|destination|pickup_date|return_date|price`.
+`fingerprint` вычисляется как SHA-256 от `source|offer_id|origin|destination|pickup_date|return_date|price` (формат GAS и Worker совпадает).
 
 ## Поток выполнения (Lifecycle)
 

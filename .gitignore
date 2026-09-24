@@ -11,3 +11,7 @@ config/routes.json
 gas/.clasp.json
 node_modules/
 .DS_Store
+firestore_export*.json
+worker/scripts/migration_data.sql
+.wrangler/
+worker/.wrangler/

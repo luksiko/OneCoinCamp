@@ -329,6 +329,29 @@ function firestoreList(collectionPath, pageSize) {
   return results;
 }
 
+/**
+ * Create a private Drive JSON snapshot for the D1 importer.
+ * Run from the Apps Script editor, then download the returned file.
+ */
+function exportFirestoreForCloudflare() {
+  if (!isFirestoreConfigured_()) throw new Error('Firestore is not configured');
+  var users = firestoreList('users');
+  if (!users.length) throw new Error('No Firestore users found; export cancelled');
+  var snapshot = users.map(function (user) {
+    var id = String(user.telegram_id || user._id);
+    return {
+      user: user,
+      routes: firestoreList('users/' + id + '/routes'),
+      filters: firestoreGet('users/' + id + '/settings/filters') || {},
+      sent_alerts: firestoreList('users/' + id + '/sent_alerts')
+    };
+  });
+  var stamp = Utilities.formatDate(new Date(), 'UTC', 'yyyyMMdd_HHmmss');
+  var file = DriveApp.createFile('firestore_export_' + stamp + '.json', JSON.stringify(snapshot), MimeType.PLAIN_TEXT);
+  Logger.log('Cloudflare export created: ' + file.getUrl());
+  return file.getUrl();
+}
+
 // ---------------------------------------------------------------------------
 // ПРОЕКТНЫЕ ХЕЛПЕРЫ (см. firestore-schema.md за описанием коллекций)
 // ---------------------------------------------------------------------------
@@ -601,5 +624,4 @@ function testFirestore() {
     Logger.log('❌ Ошибка getUser: ' + e.message);
   }
 }
-
 

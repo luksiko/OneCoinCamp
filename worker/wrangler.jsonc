@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "camper-monitor",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "camper_monitor_db",
+      "database_id": "f0e8c048-9f3c-4fcb-89d8-5228d47e69d5"
+    }
+  ],
+  "vars": {
+    "TELEGRAM_CHAT_ID": "5415085903"
+  },
+  "secrets": {
+    "required": ["TELEGRAM_BOT_TOKEN"]
+  }
+}

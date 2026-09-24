@@ -1,0 +1,21 @@
+{
+  "name": "camper-monitor-worker",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "d1:migrate:local": "wrangler d1 execute camper_monitor_db --local --file=schema.sql",
+    "d1:migrate:remote": "wrangler d1 execute camper_monitor_db --remote --file=schema.sql",
+    "migrate:firestore": "node scripts/migrate_firestore.js",
+    "migrate:firestore:apply": "node scripts/migrate_firestore.js --apply",
+    "test": "vitest run",
+    "test:migration": "node --test tests/migration_sql.node.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5",
+    "wrangler": "^4.138.0"
+  }
+}
