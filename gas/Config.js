@@ -70,8 +70,8 @@ const DEFAULT_FILTERS = {
   window_start_rule: 'next_sunday',
   window_days: 14,
   max_price: '',
-  only_campers: true,
-  vehicle_type: 'camper',
+  only_campers: false,
+  vehicle_type: 'all',
   allowed_operators: '',
 };
 

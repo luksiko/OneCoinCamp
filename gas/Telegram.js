@@ -17,6 +17,62 @@ function computeRouteHash_(route) {
   return hex.substring(0, 10);
 }
 
+const OPERATOR_INFO_MAP = {
+  'sixt': { name: 'Sixt', site: 'sixt.de' },
+  'roadsurfer': { name: 'Roadsurfer', site: 'roadsurfer.com' },
+  'indie campers': { name: 'Indie Campers', site: 'indiecampers.com' },
+  'indiecampers': { name: 'Indie Campers', site: 'indiecampers.com' },
+  'starcar': { name: 'Starcar', site: 'starcar.de' },
+  'europcar': { name: 'Europcar', site: 'europcar.de' },
+  'avis': { name: 'Avis', site: 'avis.de' },
+  'hertz': { name: 'Hertz', site: 'hertz.de' },
+  'imoova': { name: 'Imoova', site: 'imoova.com' },
+  'movacar': { name: 'Movacar', site: 'movacar.com' },
+};
+
+function getSourceAndPartnerDisplay_(offer, meta) {
+  const src = String(offer.source || '').toLowerCase().trim();
+  const op = String((meta && meta.operator) || offer.operator || '').trim();
+  const opKey = op.toLowerCase();
+  const opInfo = OPERATOR_INFO_MAP[opKey] || (op ? { name: op, site: op.toLowerCase() + '.com' } : null);
+
+  if (src === 'movacar') {
+    let partnerStr = '';
+    if (opInfo && opKey !== 'movacar') {
+      partnerStr = '\n🌐 Сайт предложения / партнёр: <b>' + escapeHtml_(opInfo.name) + '</b> (' + escapeHtml_(opInfo.site) + ')';
+    }
+    return {
+      headerSource: 'Movacar' + (opInfo && opKey !== 'movacar' ? ' (' + opInfo.name + ')' : ''),
+      sourceLine: '🏢 Агрегатор: <b>Movacar</b> (movacar.com)' + partnerStr,
+      shortLabel: 'Movacar' + (opInfo && opKey !== 'movacar' ? ' (' + opInfo.name + ' · ' + opInfo.site + ')' : ''),
+    };
+  } else if (src === 'roadsurfer') {
+    return {
+      headerSource: 'Roadsurfer Rally',
+      sourceLine: '🏢 Провайдер: <b>Roadsurfer</b> (roadsurfer.com)',
+      shortLabel: 'Roadsurfer (roadsurfer.com)',
+    };
+  } else if (src === 'indiecampers') {
+    return {
+      headerSource: 'Indie Campers',
+      sourceLine: '🏢 Провайдер: <b>Indie Campers</b> (indiecampers.com)',
+      shortLabel: 'Indie Campers (indiecampers.com)',
+    };
+  } else if (src === 'imoova') {
+    return {
+      headerSource: 'Imoova',
+      sourceLine: '🏢 Провайдер: <b>Imoova</b> (imoova.com)',
+      shortLabel: 'Imoova (imoova.com)',
+    };
+  } else {
+    return {
+      headerSource: escapeHtml_(offer.source),
+      sourceLine: '🏢 Источник: <b>' + escapeHtml_(offer.source) + '</b>',
+      shortLabel: escapeHtml_(offer.source),
+    };
+  }
+}
+
 function sendTelegramOffer_(secrets, offer, route, routeIndex, settings, chatId) {
   const targetChatId = chatId || secrets.telegramChatId;
   if (!secrets.telegramBotToken || !targetChatId) {
@@ -41,18 +97,7 @@ function sendTelegramOffer_(secrets, offer, route, routeIndex, settings, chatId)
   const isCamper = meta.vehicleType === 'camper';
   const icon = isCamper ? '🚐' : '🚗';
 
-  let sourceTitle = '';
-  if (offer.source === 'movacar') {
-    sourceTitle = 'Movacar' + (meta.operator && meta.operator !== 'Movacar' ? ' (' + meta.operator + ')' : '');
-  } else if (offer.source === 'roadsurfer') {
-    sourceTitle = 'Roadsurfer Rally';
-  } else if (offer.source === 'indiecampers') {
-    sourceTitle = 'Indie Campers';
-  } else if (offer.source === 'imoova') {
-    sourceTitle = 'Imoova';
-  } else {
-    sourceTitle = escapeHtml_(offer.source);
-  }
+  const displayInfo = getSourceAndPartnerDisplay_(offer, meta);
 
   const sleepingDesc = (isCamper && meta.sleeping) ? (' (спальных мест: ' + meta.sleeping + ')') : '';
   const typeDesc = isCamper
@@ -64,7 +109,8 @@ function sendTelegramOffer_(secrets, offer, route, routeIndex, settings, chatId)
   const buttonLabel = 'Забронировать оффер ➔';
 
   const text =
-    icon + ' <b>' + sourceTitle + ' — ' + (isCamper ? 'найден кемпер' : 'найден легковой перегон') + ' за 1€!</b>\n' +
+    icon + ' <b>' + displayInfo.headerSource + ' — ' + (isCamper ? 'найден кемпер' : 'найден легковой авто') + ' за 1€!</b>\n\n' +
+    displayInfo.sourceLine + '\n' +
     '📍 ' + escapeHtml_(offer.origin) + ' ➔ ' + escapeHtml_(offer.destination) + '\n' +
     '📅 ' + escapeHtml_(offer.pickupDate || '') + ' – ' + escapeHtml_(offer.returnDate || '') + durationDays + '\n' +
     '🏷 Тип: ' + typeDesc +
@@ -343,13 +389,12 @@ function buildDigestMessage_(spreadsheet) {
     const off = recentOffers[j];
     const meta = (typeof detectOfferVehicleMetadata_ === 'function')
       ? detectOfferVehicleMetadata_(off)
-      : { operator: off.source, vehicleType: 'camper' };
+      : { operator: off.operator || off.source, vehicleType: 'camper' };
     const icon = meta.vehicleType === 'camper' ? '🚐' : '🚗';
-    let sourceLabel = off.source === 'roadsurfer' ? 'Roadsurfer' : off.source;
-    if (off.source === 'movacar' && meta.operator && meta.operator !== 'Movacar') {
-      sourceLabel = 'Movacar (' + meta.operator + ')';
-    }
-    let itemLine = (j + 1) + '. ' + icon + ' <b>' + escapeHtml_(sourceLabel) + '</b>: ' +
+    const displayInfo = (typeof getSourceAndPartnerDisplay_ === 'function')
+      ? getSourceAndPartnerDisplay_(off, meta)
+      : { shortLabel: off.source };
+    let itemLine = (j + 1) + '. ' + icon + ' <b>' + escapeHtml_(displayInfo.shortLabel) + '</b>: ' +
       escapeHtml_(off.origin) + ' ➔ ' + escapeHtml_(off.destination);
     if (off.pickupDate && off.returnDate) {
       itemLine += ' (' + escapeHtml_(off.pickupDate) + ' – ' + escapeHtml_(off.returnDate) + ')';
@@ -410,12 +455,8 @@ function buildActualOffersMessage_(spreadsheet, chatId) {
       continue;
     }
     
-    if (!offerMatchesFilter_(offer, filters, null, settings)) {
-      continue;
-    }
-    
-    let matched = (enabledRoutes.length === 0 && (!routes || routes.length === 0));
-    if (!matched) {
+    let matchedRoute = null;
+    if (enabledRoutes.length > 0) {
       for (let rIdx = 0; rIdx < enabledRoutes.length; rIdx++) {
         const r = enabledRoutes[rIdx];
         const m = (typeof routeMatchesOffer_ === 'function')
@@ -424,15 +465,20 @@ function buildActualOffersMessage_(spreadsheet, chatId) {
              (!r.origin_name || r.origin_name === '*' || r.origin_name.toLowerCase().trim() === String(offer.origin || '').toLowerCase().trim()) &&
              (!r.destination_name || r.destination_name === '*' || r.destination_name.toLowerCase().trim() === String(offer.destination || '').toLowerCase().trim()));
         if (m) {
-          matched = true;
+          matchedRoute = r;
           break;
         }
       }
+      if (!matchedRoute) {
+        continue;
+      }
     }
     
-    if (matched) {
-      actualOffers.push(offer);
+    if (!offerMatchesFilter_(offer, filters, null, settings, matchedRoute)) {
+      continue;
     }
+    
+    actualOffers.push(offer);
   }
 
   if (actualOffers.length === 0) {
@@ -449,13 +495,12 @@ function buildActualOffersMessage_(spreadsheet, chatId) {
     const off = actualOffers[j];
     const meta = (typeof detectOfferVehicleMetadata_ === 'function')
       ? detectOfferVehicleMetadata_(off)
-      : { operator: off.source, vehicleType: 'camper' };
+      : { operator: off.operator || off.source, vehicleType: 'camper' };
     const icon = meta.vehicleType === 'camper' ? '🚐' : '🚗';
-    let sourceLabel = off.source === 'roadsurfer' ? 'Roadsurfer' : off.source;
-    if (off.source === 'movacar' && meta.operator && meta.operator !== 'Movacar') {
-      sourceLabel = 'Movacar (' + meta.operator + ')';
-    }
-    let itemLine = (j + 1) + '. ' + icon + ' <b>' + escapeHtml_(sourceLabel) + '</b>: ' +
+    const displayInfo = (typeof getSourceAndPartnerDisplay_ === 'function')
+      ? getSourceAndPartnerDisplay_(off, meta)
+      : { shortLabel: off.source };
+    let itemLine = (j + 1) + '. ' + icon + ' <b>' + escapeHtml_(displayInfo.shortLabel) + '</b>: ' +
       escapeHtml_(off.origin) + ' ➔ ' + escapeHtml_(off.destination);
     if (off.pickupDate && off.returnDate) {
       itemLine += ' (' + escapeHtml_(off.pickupDate) + ' – ' + escapeHtml_(off.returnDate) + ')';

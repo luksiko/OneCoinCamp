@@ -2513,6 +2513,19 @@
       badge.textContent = route.source;
       head.appendChild(badge);
 
+      var rVType = String(route.vehicle_type || route.vehicleType || 'all').toLowerCase().trim();
+      var vBadge = document.createElement('span');
+      vBadge.className = 'src';
+      vBadge.style.cssText = 'margin-left:6px;';
+      if (rVType === 'camper') {
+        vBadge.textContent = '🚐 кемперы';
+      } else if (rVType === 'car') {
+        vBadge.textContent = '🚗 легковые';
+      } else {
+        vBadge.textContent = '🚗🚐 все';
+      }
+      head.appendChild(vBadge);
+
       var provKey = 'provider_' + String(route.source || '').toLowerCase().trim() + '_enabled';
       var isProvEnabled = state.settings[provKey] !== undefined ? isTruthy(state.settings[provKey]) : true;
       if (!isProvEnabled) {
@@ -2597,6 +2610,26 @@
         route.source = v;
         renderRoutes();
       }));
+
+      var vTypes = [
+        { id: 'all', label: '🚗🚐 Все (кемперы и легковые)' },
+        { id: 'camper', label: '🚐 Только кемперы (дома на колёсах)' },
+        { id: 'car', label: '🚗 Только легковые авто' }
+      ];
+      wrap.appendChild(fieldLabel('Тип транспорта'));
+      var vTypeSelect = document.createElement('select');
+      vTypes.forEach(function(vt) {
+        var opt = document.createElement('option');
+        opt.value = vt.id;
+        opt.textContent = vt.label;
+        vTypeSelect.appendChild(opt);
+      });
+      vTypeSelect.value = route.vehicle_type || route.vehicleType || 'all';
+      vTypeSelect.onchange = function() {
+        route.vehicle_type = vTypeSelect.value;
+        route.vehicleType = vTypeSelect.value;
+      };
+      wrap.appendChild(vTypeSelect);
 
       var countries = document.createElement('div');
       countries.className = 'pair';
@@ -2757,6 +2790,8 @@
       var route = {
         enabled: true,
         source: 'roadsurfer',
+        vehicle_type: 'all',
+        vehicleType: 'all',
         originName: 'Все города',
         originId: '*',
         destinationName: 'Все города',

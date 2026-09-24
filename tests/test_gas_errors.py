@@ -1572,6 +1572,66 @@ if (testName === 'roadsurfer_429') {
   const routes = context.getUserRoutes(333);
   assert.strictEqual(routes.length, 0);
   assert.strictEqual(configuredUpdated, false);
+} else if (testName === 'route_vehicle_type_filtering') {
+  const { context } = setupGasContext(() => ({}));
+  const camperOffer = {
+    source: 'movacar',
+    origin: 'Berlin',
+    destination: 'Munich',
+    vehicleType: 'camper',
+    operator: 'Roadsurfer',
+    rawJson: JSON.stringify({ additional_info: 'crowd_additional_info_roadsurfer', category: 'Camper' })
+  };
+  const carOffer = {
+    source: 'movacar',
+    origin: 'Berlin',
+    destination: 'Munich',
+    vehicleType: 'car',
+    operator: 'Sixt',
+    rawJson: JSON.stringify({ additional_info: 'crowd_additional_info_sixt_proplus', category: 'Car' })
+  };
+
+  const camperRoute = { enabled: true, source: 'movacar', originName: 'Berlin', destinationName: 'Munich', vehicle_type: 'camper' };
+  const carRoute = { enabled: true, source: 'movacar', originName: 'Berlin', destinationName: 'Munich', vehicle_type: 'car' };
+  const allRoute = { enabled: true, source: 'movacar', originName: 'Berlin', destinationName: 'Munich', vehicle_type: 'all' };
+
+  assert.strictEqual(context.routeMatchesOffer_(camperRoute, camperOffer), true);
+  assert.strictEqual(context.routeMatchesOffer_(camperRoute, carOffer), false);
+
+  assert.strictEqual(context.routeMatchesOffer_(carRoute, carOffer), true);
+  assert.strictEqual(context.routeMatchesOffer_(carRoute, camperOffer), false);
+
+  assert.strictEqual(context.routeMatchesOffer_(allRoute, camperOffer), true);
+  assert.strictEqual(context.routeMatchesOffer_(allRoute, carOffer), true);
+} else if (testName === 'telegram_notification_shows_aggregator_and_partner_site') {
+  let sentPayload = null;
+  const { context, scriptProps } = setupGasContext((url, opts) => {
+    if (url.includes('sendMessage')) {
+      sentPayload = JSON.parse(opts.payload);
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ok: true }) };
+    }
+    return { getResponseCode: () => 200, getContentText: () => '{}' };
+  });
+  scriptProps.TELEGRAM_BOT_TOKEN = 'mock-bot-token';
+  scriptProps.TELEGRAM_CHAT_ID = 'mock-chat-id';
+
+  const movacarSixtOffer = {
+    source: 'movacar',
+    origin: 'Berlin',
+    destination: 'Munich',
+    pickupDate: '2026-10-01',
+    returnDate: '2026-10-03',
+    operator: 'Sixt',
+    vehicleType: 'car',
+    rawJson: JSON.stringify({ additional_info: 'crowd_additional_info_sixt_proplus' })
+  };
+
+  context.sendTelegramOffer_(context.getScriptSecrets(), movacarSixtOffer, null, null, {}, '12345');
+  assert.ok(sentPayload);
+  assert.ok(sentPayload.text.includes('Movacar'));
+  assert.ok(sentPayload.text.includes('movacar.com'));
+  assert.ok(sentPayload.text.includes('Sixt'));
+  assert.ok(sentPayload.text.includes('sixt.de'));
 } else {
   throw new Error('Unknown test: ' + testName);
 }
@@ -1644,6 +1704,8 @@ def run_node_test(test_name: str):
         "user_without_routes_receives_matching_filter_alerts",
         "telegram_callback_dis_r_non_admin_does_not_modify_sheet",
         "firestore_empty_dev_routes_does_not_permanently_configure_user",
+        "route_vehicle_type_filtering",
+        "telegram_notification_shows_aggregator_and_partner_site",
     ],
 )
 def test_gas_node_suite(test_name: str):

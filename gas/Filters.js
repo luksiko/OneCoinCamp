@@ -109,24 +109,27 @@ function offerMatchesFilter_(offer, filters, window, settings, matchedRoute) {
     : { operator: offer.operator || 'Unknown', vehicleType: offer.vehicleType || 'camper' };
 
   // 1. Vehicle type filter (only_campers or vehicle_type or vehicle_types)
-  const onlyCampers = filters.only_campers === true || filters.only_campers === 'true' || filters.only_campers === '1' || filters.vehicle_type === 'camper';
-  if (onlyCampers && meta.vehicleType !== 'camper') {
-    return false;
-  }
-  if (filters.vehicle_type && filters.vehicle_type !== 'all' && filters.vehicle_type !== '*' && filters.vehicle_type !== 'camper') {
-    if (String(filters.vehicle_type).toLowerCase() !== String(meta.vehicleType).toLowerCase()) {
+  // If matchedRoute is provided, route-level vehicle preference takes precedence (evaluated in routeMatchesOffer_).
+  if (!matchedRoute) {
+    const onlyCampers = filters.only_campers === true || filters.only_campers === 'true' || filters.only_campers === '1' || filters.vehicle_type === 'camper';
+    if (onlyCampers && meta.vehicleType !== 'camper') {
       return false;
     }
-  }
-  if (filters.vehicle_types) {
-    let allowedTypes = [];
-    if (Array.isArray(filters.vehicle_types)) {
-      allowedTypes = filters.vehicle_types.map(function(s) { return String(s).trim().toLowerCase(); });
-    } else if (typeof filters.vehicle_types === 'string') {
-      allowedTypes = filters.vehicle_types.split(',').map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean);
+    if (filters.vehicle_type && filters.vehicle_type !== 'all' && filters.vehicle_type !== '*' && filters.vehicle_type !== 'camper') {
+      if (String(filters.vehicle_type).toLowerCase() !== String(meta.vehicleType).toLowerCase()) {
+        return false;
+      }
     }
-    if (allowedTypes.length > 0 && allowedTypes.indexOf(meta.vehicleType.toLowerCase()) === -1) {
-      return false;
+    if (filters.vehicle_types) {
+      let allowedTypes = [];
+      if (Array.isArray(filters.vehicle_types)) {
+        allowedTypes = filters.vehicle_types.map(function(s) { return String(s).trim().toLowerCase(); });
+      } else if (typeof filters.vehicle_types === 'string') {
+        allowedTypes = filters.vehicle_types.split(',').map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean);
+      }
+      if (allowedTypes.length > 0 && allowedTypes.indexOf(meta.vehicleType.toLowerCase()) === -1) {
+        return false;
+      }
     }
   }
 
@@ -298,6 +301,18 @@ function matchesFirestoreFilter_(offer, filters, settings, matchedRoute) {
 function routeMatchesOffer_(route, offer) {
   if (!route || !route.enabled || !offer) return false;
   if (String(route.source || '').toLowerCase().trim() !== String(offer.source || '').toLowerCase().trim()) return false;
+
+  // 0. Vehicle type check per route: 'all' | 'camper' | 'car' (defaults to 'all' if ignored or empty)
+  const rVType = String(route.vehicle_type || route.vehicleType || 'all').toLowerCase().trim();
+  if (rVType && rVType !== 'all' && rVType !== '*' && rVType !== 'any') {
+    const meta = (typeof detectOfferVehicleMetadata_ === 'function')
+      ? detectOfferVehicleMetadata_(offer)
+      : { operator: offer.operator || 'Unknown', vehicleType: offer.vehicleType || 'camper' };
+    const offerVType = String(meta.vehicleType || offer.vehicleType || 'camper').toLowerCase().trim();
+    if (rVType === 'camper' && offerVType !== 'camper') return false;
+    if (rVType === 'car' && offerVType !== 'car') return false;
+    if (rVType !== 'camper' && rVType !== 'car' && rVType !== offerVType) return false;
+  }
 
   // 1. Country checks
   const rOrigCountry = String(route.origin_country || route.originCountry || '').trim().toUpperCase();

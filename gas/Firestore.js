@@ -402,8 +402,8 @@ function getUserRoutes(telegramId) {
     var oCountry = String(r.origin_country || r.originCountry || 'DE').toUpperCase().trim();
     var dCountry = String(r.destination_country || r.destinationCountry || '').toUpperCase().trim();
     var oCity = String(r.origin_name || r.originName || r.origin_id || r.originId || '*').toLowerCase().trim();
-    var dCity = String(r.destination_name || r.destinationName || r.destination_id || r.destinationId || '*').toLowerCase().trim();
-    var sig = src + '|' + oCountry + '|' + oCity + '|' + dCountry + '|' + dCity;
+    var vType = String(r.vehicle_type || r.vehicleType || 'all').toLowerCase().trim();
+    var sig = src + '|' + oCountry + '|' + oCity + '|' + dCountry + '|' + dCity + '|' + vType;
 
     if (!seen[sig]) {
       seen[sig] = true;
@@ -463,6 +463,8 @@ function addUserRoute(telegramId, route) {
   if (normalized.destination_id && !normalized.destinationId) normalized.destinationId = normalized.destination_id;
   if (normalized.origin_country && !normalized.originCountry) normalized.originCountry = normalized.origin_country;
   if (normalized.destination_country && !normalized.destinationCountry) normalized.destinationCountry = normalized.destination_country;
+  if (normalized.vehicleType && !normalized.vehicle_type) normalized.vehicle_type = normalized.vehicleType;
+  if (normalized.vehicle_type && !normalized.vehicleType) normalized.vehicleType = normalized.vehicle_type;
   var added = firestoreAdd('users/' + telegramId + '/routes', normalized);
   try {
     firestoreUpdate('users/' + telegramId, { routes_configured: true });

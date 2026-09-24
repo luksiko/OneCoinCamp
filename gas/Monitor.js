@@ -314,6 +314,8 @@ function runMonitorOnce() {
         pickup_date: route.pickup_date || route.pickupDate || '',
         returnDate: route.returnDate || route.return_date || '',
         return_date: route.return_date || route.returnDate || '',
+        vehicle_type: route.vehicle_type || route.vehicleType || 'all',
+        vehicleType: route.vehicleType || route.vehicle_type || 'all',
       });
       const hashKey = [
         normalizedRoute.source,
