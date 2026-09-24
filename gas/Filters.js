@@ -101,17 +101,19 @@ function buildEffectiveWindow_(baseWindow, checkNeighbors) {
   };
 }
 
-function offerMatchesFilter_(offer, filters, window, settings) {
+function offerMatchesFilter_(offer, filters, window, settings, matchedRoute) {
   if (!filters) return true;
 
-  const origins = parseCountryList_(filters.allowed_origin_countries);
-  const destinations = parseCountryList_(filters.allowed_destination_countries);
-  
-  if (origins.length > 0 && offer.originCountry && origins.indexOf(offer.originCountry.toUpperCase()) === -1) {
-    return false;
-  }
-  if (destinations.length > 0 && offer.destinationCountry && destinations.indexOf(offer.destinationCountry.toUpperCase()) === -1) {
-    return false;
+  if (!matchedRoute) {
+    const origins = parseCountryList_(filters.allowed_origin_countries);
+    const destinations = parseCountryList_(filters.allowed_destination_countries);
+    
+    if (origins.length > 0 && offer.originCountry && origins.indexOf(offer.originCountry.toUpperCase()) === -1) {
+      return false;
+    }
+    if (destinations.length > 0 && offer.destinationCountry && destinations.indexOf(offer.destinationCountry.toUpperCase()) === -1) {
+      return false;
+    }
   }
 
   const pickup = parseIsoDate_(offer.pickupDate);
@@ -122,6 +124,8 @@ function offerMatchesFilter_(offer, filters, window, settings) {
       if (pickup < window.start || pickup > window.end) {
         return false;
       }
+    } else if (matchedRoute && (matchedRoute.pickup_date || matchedRoute.pickupDate || matchedRoute.return_date || matchedRoute.returnDate)) {
+      // Per-route dates already validated in routeMatchesOffer_
     } else {
       const windowDays = Number(filters.window_days);
       if (!isNaN(windowDays) && windowDays > 0) {
@@ -226,14 +230,25 @@ function offerFingerprint_(offer) {
     .join('');
 }
 
-function matchesFirestoreFilter_(offer, filters, settings) {
-  return offerMatchesFilter_(offer, filters, null, settings);
+function matchesFirestoreFilter_(offer, filters, settings, matchedRoute) {
+  return offerMatchesFilter_(offer, filters, null, settings, matchedRoute);
 }
 
 function routeMatchesOffer_(route, offer) {
   if (!route || !route.enabled || !offer) return false;
   if (String(route.source || '').toLowerCase().trim() !== String(offer.source || '').toLowerCase().trim()) return false;
 
+  // 1. Country checks
+  const rOrigCountry = String(route.origin_country || route.originCountry || '').trim().toUpperCase();
+  if (rOrigCountry && rOrigCountry !== '*' && rOrigCountry !== 'ANY' && rOrigCountry !== 'ALL' && offer.originCountry) {
+    if (rOrigCountry !== String(offer.originCountry).trim().toUpperCase()) return false;
+  }
+  const rDestCountry = String(route.destination_country || route.destinationCountry || '').trim().toUpperCase();
+  if (rDestCountry && rDestCountry !== '*' && rDestCountry !== 'ANY' && rDestCountry !== 'ALL' && offer.destinationCountry) {
+    if (rDestCountry !== String(offer.destinationCountry).trim().toUpperCase()) return false;
+  }
+
+  // 2. City / Station checks
   function matchLoc_(routeLoc, offerLoc, routeId, offerId) {
     const rLoc = String(routeLoc || '').trim();
     if (!rLoc || rLoc === '*' || rLoc.toUpperCase() === 'ALL' || rLoc.toUpperCase() === 'ANY' || rLoc === 'Все города') return true;
@@ -244,5 +259,16 @@ function routeMatchesOffer_(route, offer) {
 
   const origMatch = matchLoc_(route.origin_name || route.originName, offer.origin, route.origin_id || route.originId, offer.originId);
   const destMatch = matchLoc_(route.destination_name || route.destinationName, offer.destination, route.destination_id || route.destinationId, offer.destinationId);
-  return origMatch && destMatch;
+  if (!origMatch || !destMatch) return false;
+
+  // 3. Date window check if route specified pickup_date or return_date
+  const rPickup = parseIsoDate_(route.pickup_date || route.pickupDate);
+  const rReturn = parseIsoDate_(route.return_date || route.returnDate);
+  const offerPickup = parseIsoDate_(offer.pickupDate);
+  if (offerPickup) {
+    if (rPickup && offerPickup < rPickup) return false;
+    if (rReturn && offerPickup > rReturn) return false;
+  }
+
+  return true;
 }

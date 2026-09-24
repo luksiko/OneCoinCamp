@@ -433,10 +433,9 @@ function runMonitorOnce() {
           const fp = item.fingerprint || offer.fingerprint;
           if (!fp) return;
           if (sentThisRun.has(fp)) return;
-          if (typeof matchesFirestoreFilter_ === 'function' && !matchesFirestoreFilter_(offer, filters, settings)) return;
           if (typeof hasAlertBeenSent === 'function' && hasAlertBeenSent(user.telegram_id, fp)) return;
 
-          let matchedRouteId = null;
+          let matchedRoute = null;
           if (userRoutes.length > 0) {
             for (let i = 0; i < userRoutes.length; i++) {
               const r = userRoutes[i];
@@ -446,12 +445,15 @@ function runMonitorOnce() {
                    (!r.origin_name || r.origin_name === '*' || r.origin_name.toLowerCase().trim() === String(offer.origin || '').toLowerCase().trim()) &&
                    (!r.destination_name || r.destination_name === '*' || r.destination_name.toLowerCase().trim() === String(offer.destination || '').toLowerCase().trim()));
               if (matches) {
-                matchedRouteId = r._id;
+                matchedRoute = r;
                 break;
               }
             }
-            if (!matchedRouteId) return;
+            if (!matchedRoute) return;
           }
+
+          if (typeof matchesFirestoreFilter_ === 'function' && !matchesFirestoreFilter_(offer, filters, settings, matchedRoute)) return;
+          const matchedRouteId = matchedRoute ? matchedRoute._id : null;
 
           const sentAt = new Date();
           try {

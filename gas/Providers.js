@@ -81,15 +81,21 @@ function fetchRoadsurferDestinations_(originId, filters) {
 
   if (!returnIds) {
     const url = 'https://booking.roadsurfer.com/api/en/rally/stations/' + encodeURIComponent(cleanOriginId);
-    const payload = fetchJson_(url, {
-      headers: {
-        Accept: 'application/json, text/plain, */*',
-        'X-Requested-Alias': 'rally.fetchRoutes',
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      retries: 1,
-    });
+    let payload = null;
+    try {
+      payload = fetchJson_(url, {
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          'X-Requested-Alias': 'rally.fetchRoutes',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        retries: 1,
+      });
+    } catch (e) {
+      console.warn('Roadsurfer destinations fetch failed for station ' + cleanOriginId + ':', e.message || e);
+      return [];
+    }
 
     if (payload && Array.isArray(payload.returns)) {
       returnIds = payload.returns;
@@ -201,7 +207,8 @@ function resolveRoadsurferPairsBatched_(route, filters) {
 
   const rawOriginCountry = String(route.originCountry || '').trim().toUpperCase();
   const targetOriginCountry = (rawOriginCountry === '*' || rawOriginCountry === 'ANY' || rawOriginCountry === 'ALL') ? '' : rawOriginCountry;
-  const targetDestCountry = String(route.destinationCountry || '').trim().toUpperCase();
+  const rawDestCountry = String(route.destinationCountry || '').trim().toUpperCase();
+  const targetDestCountry = (rawDestCountry === '*' || rawDestCountry === 'ANY' || rawDestCountry === 'ALL') ? '' : rawDestCountry;
   
   const allowedOriginCountries = targetOriginCountry
     ? [targetOriginCountry]
@@ -260,7 +267,7 @@ function resolveRoadsurferPairsBatched_(route, filters) {
 
 function roadsurferRadarBatchSize_(filters) {
   const raw = Number(filters && filters.roadsurfer_origins_per_run);
-  if (!isFinite(raw) || raw <= 0) return 15;
+  if (!isFinite(raw) || raw <= 0) return 30;
   return Math.max(1, Math.min(50, Math.floor(raw)));
 }
 
@@ -467,7 +474,7 @@ function fetchRoadsurferOffersForTimeframe_(pair, timeframe, route, searchRangeS
   const searchUrl = 'https://booking.roadsurfer.com/api/en/rally/search?stations=' +
     encodeURIComponent('[[' + origin.id + ',' + destination.id + ']]') +
     '&range=' + encodeURIComponent(JSON.stringify([rangeStart, rangeEnd])) +
-    '&currency=EUR&models=' + encodeURIComponent('[]');
+    '&currency=EUR';
 
   const cache = typeof CacheService !== 'undefined' && CacheService.getScriptCache ? CacheService.getScriptCache() : null;
   const cacheKey = 'roadsurfer:search:v1:' + origin.id + ':' + destination.id + ':' + rangeStart + ':' + rangeEnd;
