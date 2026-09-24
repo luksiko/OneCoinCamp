@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchJson, setGasProxyUrl, getGasProxyUrl } from '../src/utils/http';
+import { fetchJson, setGasProxyUrl, getGasProxyUrl, addKnownProxyDomain } from '../src/utils/http';
 
 describe('HTTP Client & GAS Proxy Fallback', () => {
   const originalFetch = globalThis.fetch;
@@ -26,8 +26,9 @@ describe('HTTP Client & GAS Proxy Fallback', () => {
     expect(globalThis.fetch).toHaveBeenCalledWith('https://api.movacar.de/offers', expect.anything());
   });
 
-  it('automatically routes known blocked hosts (roadsurfer) directly through GAS proxy', async () => {
+  it('automatically routes known blocked hosts directly through GAS proxy when added', async () => {
     setGasProxyUrl('https://script.google.com/macros/s/test/exec');
+    addKnownProxyDomain('blocked-domain.com');
 
     globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
       if (url.startsWith('https://script.google.com/macros/s/test/exec?proxy=1')) {
@@ -42,7 +43,7 @@ describe('HTTP Client & GAS Proxy Fallback', () => {
       throw new Error(`Unexpected direct call to ${url}`);
     });
 
-    const result = await fetchJson('https://booking.roadsurfer.com/api/en/rally/stations/6');
+    const result = await fetchJson('https://blocked-domain.com/api/en/rally/stations/6');
     expect(result).toEqual({ stations: [{ id: 6, name: 'Berlin' }] });
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     expect((globalThis.fetch as any).mock.calls[0][0]).toContain('https://script.google.com/macros/s/test/exec?proxy=1');

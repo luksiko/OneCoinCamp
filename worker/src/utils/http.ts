@@ -6,7 +6,7 @@ export interface FetchOptions extends RequestInit {
 }
 
 let globalGasProxyUrl: string | undefined = undefined;
-const KNOWN_PROXY_DOMAINS = new Set<string>(['booking.roadsurfer.com']);
+const KNOWN_PROXY_DOMAINS = new Set<string>();
 
 export function setGasProxyUrl(url?: string): void {
   globalGasProxyUrl = url ? url.trim() : undefined;
