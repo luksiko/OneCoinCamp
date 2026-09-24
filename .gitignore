@@ -15,3 +15,4 @@ firestore_export*.json
 worker/scripts/migration_data.sql
 .wrangler/
 worker/.wrangler/
+worker/public/

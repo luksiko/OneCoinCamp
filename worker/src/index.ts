@@ -5,39 +5,59 @@ import { handleRpcRequest } from './api/rpc';
 
 export interface Env {
   DB: D1Database;
-  TELEGRAM_BOT_TOKEN: string;
+  ASSETS: Fetcher;
+  TELEGRAM_BOT_TOKEN_SECRET: string;
   TELEGRAM_CHAT_ID?: string;
   TELEGRAM_WEBHOOK_SECRET?: string;
-  WEBAPP_SKIP_AUTH?: string;
+  ALERTS_ENABLED?: string;
+  WEBHOOK_CUTOVER?: string;
+  WORKER_PUBLIC_URL?: string;
 }
 
 export default {
-  // 1. Cron Trigger (Every 5 minutes)
+  // 1. Cron Trigger (Every 10 minutes)
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     const db = new DbClient(env.DB);
     const telegram = new TelegramService(
       {
-        botToken: env.TELEGRAM_BOT_TOKEN,
+        botToken: env.TELEGRAM_BOT_TOKEN_SECRET,
         chatId: env.TELEGRAM_CHAT_ID,
         webhookSecret: env.TELEGRAM_WEBHOOK_SECRET,
       },
       db
     );
 
-    ctx.waitUntil(runMonitorCycle(db, telegram));
+    ctx.waitUntil((async () => {
+      if (env.WEBHOOK_CUTOVER === 'true' && env.WORKER_PUBLIC_URL) {
+        try {
+          const settings = await db.getSettings();
+          if (settings.webhook_cutover_complete !== true) {
+            await telegram.registerWebhook(`${env.WORKER_PUBLIC_URL}/webhook/telegram`);
+            await db.setSetting('webhook_cutover_complete', true);
+            console.log('Telegram webhook moved to Cloudflare Worker.');
+          }
+        } catch (error) {
+          console.error('Telegram webhook cutover failed:', error);
+        }
+      }
+      await runMonitorCycle(db, telegram, env.ALERTS_ENABLED === 'true');
+    })());
   },
 
   // 2. HTTP Request Handler (Telegram Webhook & Mini App RPC)
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-
-    // CORS preflight
-    if (request.method === 'OPTIONS') {
+    const legacyUiOrigin = 'https://luksiko.github.io';
+    const origin = request.headers.get('Origin');
+    if (request.method === 'OPTIONS' && url.pathname === '/api/rpc') {
+      if (origin !== legacyUiOrigin) return new Response('Forbidden', { status: 403 });
       return new Response(null, {
+        status: 204,
         headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, X-Telegram-Init-Data, Authorization',
+          'Access-Control-Allow-Origin': legacyUiOrigin,
+          'Access-Control-Allow-Methods': 'POST',
+          'Access-Control-Allow-Headers': 'Content-Type, X-Telegram-Init-Data',
+          Vary: 'Origin',
         },
       });
     }
@@ -45,14 +65,14 @@ export default {
     const db = new DbClient(env.DB);
     const telegram = new TelegramService(
       {
-        botToken: env.TELEGRAM_BOT_TOKEN,
+        botToken: env.TELEGRAM_BOT_TOKEN_SECRET,
         chatId: env.TELEGRAM_CHAT_ID,
         webhookSecret: env.TELEGRAM_WEBHOOK_SECRET,
       },
       db
     );
 
-    const triggerMonitorFn = () => runMonitorCycle(db, telegram);
+    const triggerMonitorFn = () => runMonitorCycle(db, telegram, env.ALERTS_ENABLED === 'true');
 
     // Telegram Bot Webhook
     if (url.pathname === '/webhook/telegram' || url.pathname === '/webhook') {
@@ -64,27 +84,23 @@ export default {
 
     // Mini App API / RPC endpoint
     if (url.pathname === '/api/rpc' || url.searchParams.get('api') === '1') {
-      return handleRpcRequest(request, {
+      const response = await handleRpcRequest(request, {
         db,
         telegram,
-        botToken: env.TELEGRAM_BOT_TOKEN,
+        botToken: env.TELEGRAM_BOT_TOKEN_SECRET,
         chatId: env.TELEGRAM_CHAT_ID,
-        skipAuth: env.WEBAPP_SKIP_AUTH === '1',
         workerUrl: `${url.protocol}//${url.host}`,
         triggerMonitorFn,
       });
-    }
-
-    // Manual monitor trigger endpoint (for manual testing via browser or curl)
-    if (url.pathname === '/run' || url.pathname === '/check') {
-      const res = await triggerMonitorFn();
-      return new Response(JSON.stringify(res, null, 2), {
-        headers: { 'Content-Type': 'application/json' },
-      });
+      if (origin !== legacyUiOrigin) return response;
+      const headers = new Headers(response.headers);
+      headers.set('Access-Control-Allow-Origin', legacyUiOrigin);
+      headers.set('Vary', 'Origin');
+      return new Response(response.body, { status: response.status, headers });
     }
 
     // Health check
-    if (url.pathname === '/' || url.pathname === '/health') {
+    if (url.pathname === '/health') {
       return new Response(
         JSON.stringify({
           status: 'ok',
@@ -97,6 +113,7 @@ export default {
       );
     }
 
+    if (request.method === 'GET' || request.method === 'HEAD') return env.ASSETS.fetch(request);
     return new Response('Not Found', { status: 404 });
   },
 };

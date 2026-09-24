@@ -4,6 +4,20 @@ import { DEFAULT_SETTINGS, DEFAULT_FILTERS } from '../config';
 export class DbClient {
   constructor(private db: D1Database) {}
 
+  async acquireMonitorLock(owner: string): Promise<boolean> {
+    const now = Math.floor(Date.now() / 1000);
+    const result = await this.db.prepare(
+      `INSERT INTO monitor_locks (name, owner, expires_at) VALUES ('scan', ?, ?)
+       ON CONFLICT(name) DO UPDATE SET owner = excluded.owner, expires_at = excluded.expires_at
+       WHERE monitor_locks.expires_at <= ?`
+    ).bind(owner, now + 900, now).run();
+    return (result.meta.changes || 0) > 0;
+  }
+
+  async releaseMonitorLock(owner: string): Promise<void> {
+    await this.db.prepare("DELETE FROM monitor_locks WHERE name = 'scan' AND owner = ?").bind(owner).run();
+  }
+
   async getUser(telegramId: string | number): Promise<User | null> {
     const id = String(telegramId);
     const row = await this.db
@@ -40,6 +54,10 @@ export class DbClient {
       .prepare("SELECT * FROM users WHERE status = 'active'")
       .all<any>();
     return (results || []) as User[];
+  }
+
+  async setUserLanguage(telegramId: string, language: string): Promise<void> {
+    await this.db.prepare('UPDATE users SET language = ? WHERE telegram_id = ?').bind(language, telegramId).run();
   }
 
   async getUserRoutes(telegramId: string | number): Promise<UserRoute[]> {
@@ -98,6 +116,12 @@ export class DbClient {
       .bind(routeId, tId)
       .run();
     return (res.meta.changes || 0) > 0;
+  }
+
+  async clearUserRoutes(telegramId: string | number): Promise<number> {
+    const result = await this.db.prepare('DELETE FROM user_routes WHERE telegram_id = ?')
+      .bind(String(telegramId)).run();
+    return result.meta.changes || 0;
   }
 
   async getUserFilters(telegramId: string | number): Promise<UserFilters> {
@@ -212,7 +236,7 @@ export class DbClient {
           booking_url, raw_json, is_active, found_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
         ON CONFLICT(fingerprint) DO UPDATE SET
-          is_active = 1,
+          is_active = CASE WHEN offers.is_dismissed = 1 THEN 0 ELSE 1 END,
           price = excluded.price,
           booking_url = excluded.booking_url`
       )
@@ -262,11 +286,29 @@ export class DbClient {
     }));
   }
 
+  async getOfferArchive(telegramId: string): Promise<any[]> {
+    const { results } = await this.db.prepare(
+      `SELECT o.*, COALESCE(a.sent_at, o.archived_telegram_sent_at) AS telegram_sent_at
+       FROM offers o LEFT JOIN sent_alerts a
+         ON a.fingerprint = o.fingerprint AND a.telegram_id = ?
+       WHERE o.is_active = 1 ORDER BY o.found_at DESC LIMIT 2000`
+    ).bind(telegramId).all<any>();
+    return results || [];
+  }
+
   async deleteOffer(fingerprint: string): Promise<void> {
     await this.db
-      .prepare('UPDATE offers SET is_active = 0 WHERE fingerprint = ?')
+      .prepare('UPDATE offers SET is_active = 0, is_dismissed = 1 WHERE fingerprint = ?')
       .bind(fingerprint)
       .run();
+  }
+
+  async expirePastOffers(): Promise<{ checked: number; removed: number }> {
+    const total = await this.db.prepare('SELECT COUNT(*) AS count FROM offers WHERE is_active = 1').first<{ count: number }>();
+    const result = await this.db.prepare(
+      "UPDATE offers SET is_active = 0 WHERE is_active = 1 AND pickup_date IS NOT NULL AND pickup_date < date('now')"
+    ).run();
+    return { checked: total?.count || 0, removed: result.meta.changes || 0 };
   }
 
   async logRun(run: RunLog): Promise<void> {
@@ -293,7 +335,7 @@ export class DbClient {
 
   async getLatestRun(): Promise<RunLog | null> {
     const row = await this.db
-      .prepare('SELECT * FROM runs ORDER BY id DESC LIMIT 1')
+      .prepare('SELECT * FROM runs ORDER BY datetime(started_at) DESC, id DESC LIMIT 1')
       .first<any>();
     return row ? (row as RunLog) : null;
   }

@@ -1,60 +1,14 @@
-# Camper monitor
+# Camper Monitor
 
-Google Apps Script мониторит JSON API провайдеров перегонов кемперов за 1€ (Roadsurfer Rally, Movacar, Indie Campers, Imoova).
-Google Sheets используется как архив и глобальный конфиг, а Cloud Firestore — для многопользовательского хранения (пользователи, персональные маршруты, фильтры и история отправленных алертов). Telegram-бот отправляет уведомления о новых слотах, поддерживает Telegram Mini App и интерактивные команды.
+Cloudflare Worker monitors Roadsurfer, Movacar, Indie Campers and Imoova relocation offers, stores routes, filters, offers and run history in Cloudflare D1, and serves a Telegram bot and Mini App. Scheduled scans use Cloudflare Cron Triggers. No LLM is used at runtime.
 
-LLM в рантайме нет.
+## Layout
 
-## Стек
+- `worker/` — Worker code, D1 schema and migrations, Wrangler configuration, import scripts
+- `docs/index.html` — Mini App source bundled as a Worker static asset
+- `gas/` — legacy Google Apps Script kept for migration and rollback
+- `docs/cloudflare-deploy.md` — deployment and historical import instructions
 
-- `gas/` — Google Apps Script, деплой через `clasp`
-- Google Sheets: `Settings`, `Routes`, `Filters`, `OffersArchive`, `Runs`
-- Google Cloud Firestore (REST API v1 через Service Account JWT)
-- Telegram Bot API (Webhook + Polling fallback, Telegram Mini App)
+The current production Worker is [camper-monitor.luksiko90.workers.dev](https://camper-monitor.luksiko90.workers.dev). Telegram Bot API credentials are Worker secrets. The rollout flag `ALERTS_ENABLED` in `worker/wrangler.jsonc` controls notification dispatch while scanner output is verified.
 
-## Провайдеры
-
-- **Roadsurfer Rally** — поиск станций, доступных временных окон и конкретных офферов.
-- **Movacar** — поиск локаций по странам/городам, парсинг конкретных офферов и направлений (поддержка wildcard `*`).
-- **Indie Campers** — проверка доступности кемперов (`availability API`).
-- **Imoova** — GraphQL API для получения списка релокаций (`GetRelocations`).
-
-## Возможности
-
-- 🤖 **Telegram-бот**:
-  - `/start` — приветствие и список возможностей
-  - `/status` — статус мониторинга, время последнего прогона и статистика
-  - `/digest` — сводный дайджест найденных офферов за 24 часа
-  - `/actual` — актуальные предложения по персональным фильтрам пользователя
-  - `/silent [on|off|HH:MM-HH:MM]` — управление режимом тихих часов
-  - `/check` — принудительный запуск сканирования
-  - `/routes` — список отслеживаемых направлений
-  - `/help` — справка по командам
-  - Кнопки под уведомлениями: «Забронировать оффер ➔» и «🚫 Отключить этот маршрут»
-- 📱 **Telegram Mini App (Web App)**:
-  - Управление маршрутами и фильтрами с автоподгрузкой городов/направлений
-  - Мониторинг здоровья провайдеров (health check)
-  - Просмотр и фильтрация найденных офферов
-- 🛡 **Отказоустойчивость**:
-  - Дедупликация офферов по SHA-256 fingerprint в Sheets и Firestore
-  - Автоматическое продление и проверка триггеров (self-healing)
-  - Поддержка Telegram Webhook с валидацией секретного токена (`X-Telegram-Bot-Api-Secret-Token`)
-
-## Документация
-
-- [docs/architecture.md](docs/architecture.md) — общая архитектура системы и поток данных
-- [docs/clasp-setup.md](docs/clasp-setup.md) — пошаговая инструкция по настройке и деплою
-- [docs/network-api.md](docs/network-api.md) — спецификация внешних API провайдеров и эндпоинтов
-- [docs/implementation-plan.md](docs/implementation-plan.md) — статус реализации и бэклог
-- [firestore-schema.md](firestore-schema.md) — схема коллекций Firestore и настройка Service Account
-
-## Перенос Firestore в Cloudflare D1
-
-1. Обновите код Apps Script, затем запустите из редактора функцию `exportFirestoreForCloudflare()`. Она создаёт приватный JSON-файл в Google Drive и возвращает ссылку на него. При первом запуске потребуется разрешить доступ к Drive.
-2. Перед финальным экспортом остановите старый триггер мониторинга GAS, чтобы данные и история отправленных уведомлений не менялись во время переключения.
-3. Скачайте файл как `firestore_export.json` в корень проекта (`flatback/`). Он содержит персональные данные и исключён из Git.
-4. В каталоге `worker/` выполните `npm run migrate:firestore`. Команда только проверит полный экспорт и покажет число пользователей, фильтров, маршрутов и отправленных уведомлений. Старый экспорт без `sent_alerts` будет отклонён.
-5. Выполните `npm run migrate:firestore:apply` для импорта в удалённую D1. Повторяйте импорт только до запуска Worker: существующие пользователи, фильтры и маршруты обновляются из снимка Firestore, а уже записанные в D1 алерты сохраняются. Временный SQL удаляется после выполнения.
-6. Сверьте количества в D1 с итогами предварительной проверки. После этого настройте секрет Worker, разверните Worker и переведите Telegram webhook на него. Старый триггер GAS оставьте выключенным.
-
-Документы `sent_alerts` переносятся вместе с пользователями. Для их внешнего ключа мигратор создаёт неактивные записи офферов, которые не показываются в списке актуальных предложений.
+For a local deployment, run `npm ci` and `npm run deploy` in `worker/`. A GitHub Actions workflow can deploy changes pushed to `flatback` after `CLOUDFLARE_API_TOKEN` is configured as a repository secret.

@@ -1233,8 +1233,7 @@
 
   <div id="toast"></div>
   <script>
-    // --- ПОЛИФИЛЛ ДЛЯ google.script.run ---
-    // ВАЖНО: ЗАМЕНИТЕ ЭТУ ССЫЛКУ НА URL ВАШЕГО РАЗВЕРНУТОГО APPS SCRIPT WEB APP!
+    // Cloudflare Worker API for the existing GitHub Pages deployment.
     var APPS_SCRIPT_URL = 'https://camper-monitor.luksiko90.workers.dev';
 
     var google = {
@@ -1259,10 +1258,13 @@
           
           return function() {
             var args = Array.prototype.slice.call(arguments);
-            fetch(APPS_SCRIPT_URL + '?api=1', {
+            fetch(APPS_SCRIPT_URL + '/api/rpc', {
               method: 'POST',
               body: JSON.stringify({ method: method, args: args }),
-              headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Telegram-Init-Data': getInitData()
+              }
             })
             .then(function(res) { return res.json(); })
             .then(function(data) {

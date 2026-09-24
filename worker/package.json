@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "build:assets": "node scripts/build_assets.js",
+    "deploy": "npm run build:assets && wrangler deploy",
     "d1:migrate:local": "wrangler d1 execute camper_monitor_db --local --file=schema.sql",
     "d1:migrate:remote": "wrangler d1 execute camper_monitor_db --remote --file=schema.sql",
     "migrate:firestore": "node scripts/migrate_firestore.js",

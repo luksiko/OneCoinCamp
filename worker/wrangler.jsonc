@@ -2,10 +2,15 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "camper-monitor",
   "main": "src/index.ts",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/webhook*", "/health", "/run", "/check"]
+  },
   "compatibility_date": "2026-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "triggers": {
-    "crons": ["*/5 * * * *"]
+    "crons": ["*/10 * * * *"]
   },
   "d1_databases": [
     {
@@ -15,9 +20,12 @@
     }
   ],
   "vars": {
-    "TELEGRAM_CHAT_ID": "5415085903"
+    "TELEGRAM_CHAT_ID": "369796958",
+    "ALERTS_ENABLED": "false",
+    "WEBHOOK_CUTOVER": "false",
+    "WORKER_PUBLIC_URL": "https://camper-monitor.luksiko90.workers.dev"
   },
   "secrets": {
-    "required": ["TELEGRAM_BOT_TOKEN"]
+    "required": ["TELEGRAM_BOT_TOKEN_SECRET", "TELEGRAM_WEBHOOK_SECRET"]
   }
 }

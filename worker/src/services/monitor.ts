@@ -7,8 +7,14 @@ import { NormalizedOffer, UserRoute, UserFilters, RunLog } from '../types';
 
 export async function runMonitorCycle(
   db: DbClient,
-  telegram: TelegramService
+  telegram: TelegramService,
+  sendAlerts = false
 ): Promise<{ offersFound: number; alertsSent: number }> {
+  const lockOwner = crypto.randomUUID();
+  if (!(await db.acquireMonitorLock(lockOwner))) {
+    console.log('Monitor scan already active; skipping duplicate invocation.');
+    return { offersFound: 0, alertsSent: 0 };
+  }
   const startedAt = new Date().toISOString();
   let offersFoundCount = 0;
   let alertsSentCount = 0;
@@ -50,7 +56,9 @@ export async function runMonitorCycle(
 
     // Deduplicate routes to avoid redundant HTTP requests
     const uniqueRouteKey = (r: UserRoute) =>
-      `${r.source}|${r.origin_id || '*'}|${r.origin_country || ''}|${r.destination_id || '*'}|${r.destination_country || ''}`;
+      r.source === 'movacar' && (!r.destination_id || r.destination_id === '*')
+        ? `${r.source}|${r.origin_id || '*'}|${r.origin_country || ''}|*|*`
+        : `${r.source}|${r.origin_id || '*'}|${r.origin_country || ''}|${r.destination_id || '*'}|${r.destination_country || ''}`;
     const seenRoutes = new Set<string>();
     const routesToScan: UserRoute[] = [];
 
@@ -62,7 +70,9 @@ export async function runMonitorCycle(
       const key = uniqueRouteKey(r);
       if (!seenRoutes.has(key)) {
         seenRoutes.add(key);
-        routesToScan.push(r);
+        routesToScan.push(r.source === 'movacar' && (!r.destination_id || r.destination_id === '*')
+          ? { ...r, destination_country: '' }
+          : r);
       }
     }
 
@@ -98,6 +108,7 @@ export async function runMonitorCycle(
         const matchesFilters = offerMatchesUserFilters(offer, userContext.filters, matchedRoute);
         if (!matchesFilters) continue;
 
+        if (!sendAlerts) continue;
         const alreadySent = await db.hasAlertBeenSent(telegramId, fingerprint);
         if (alreadySent) continue;
 
@@ -126,17 +137,21 @@ export async function runMonitorCycle(
     console.error('Monitor cycle failed:', err);
   } finally {
     const finishedAt = new Date().toISOString();
-    await db.logRun({
-      started_at: startedAt,
-      finished_at: finishedAt,
-      source: 'all',
-      request_count: requestCount,
-      offers_found: offersFoundCount,
-      archived: offersFoundCount,
-      alerts_sent: alertsSentCount,
-      status,
-      error: errorMsg,
-    });
+    try {
+      await db.logRun({
+        started_at: startedAt,
+        finished_at: finishedAt,
+        source: 'all',
+        request_count: requestCount,
+        offers_found: offersFoundCount,
+        archived: offersFoundCount,
+        alerts_sent: alertsSentCount,
+        status,
+        error: errorMsg,
+      });
+    } finally {
+      await db.releaseMonitorLock(lockOwner);
+    }
   }
 
   return { offersFound: offersFoundCount, alertsSent: alertsSentCount };

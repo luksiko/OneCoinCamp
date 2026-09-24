@@ -1,30 +1,19 @@
 import { NormalizedOffer, UserRoute } from '../types';
 import { fetchJson } from '../utils/http';
+import countryMap from './movacar-countries.json';
 
-export const MOVACAR_COUNTRIES: Record<string, string> = {
-  'Berlin': 'DE', 'Munich': 'DE', 'München': 'DE', 'Hamburg': 'DE', 'Frankfurt': 'DE',
-  'Cologne': 'DE', 'Köln': 'DE', 'Stuttgart': 'DE', 'Düsseldorf': 'DE', 'Dusseldorf': 'DE',
-  'Leipzig': 'DE', 'Dresden': 'DE', 'Hannover': 'DE', 'Nürnberg': 'DE', 'Nuremberg': 'DE',
-  'Bremen': 'DE', 'Bonn': 'DE', 'Essen': 'DE', 'Dortmund': 'DE', 'Karlsruhe': 'DE',
-  'Freiburg': 'DE', 'Mannheim': 'DE', 'Augsburg': 'DE', 'Regensburg': 'DE',
-  'Wien': 'AT', 'Vienna': 'AT', 'Salzburg': 'AT', 'Innsbruck': 'AT', 'Graz': 'AT', 'Linz': 'AT',
-  'Zürich': 'CH', 'Zurich': 'CH', 'Genf': 'CH', 'Geneva': 'CH', 'Basel': 'CH', 'Bern': 'CH',
-  'Paris': 'FR', 'Lyon': 'FR', 'Marseille': 'FR', 'Nice': 'FR', 'Nizza': 'FR', 'Bordeaux': 'FR',
-  'Toulouse': 'FR', 'Strasbourg': 'FR', 'Straßburg': 'FR', 'Nantes': 'FR',
-  'Rom': 'IT', 'Rome': 'IT', 'Roma': 'IT', 'Mailand': 'IT', 'Milan': 'IT', 'Milano': 'IT',
-  'Florenz': 'IT', 'Florence': 'IT', 'Firenze': 'IT', 'Neapel': 'IT', 'Naples': 'IT', 'Napoli': 'IT',
-  'Venedig': 'IT', 'Venice': 'IT', 'Venezia': 'IT', 'Turin': 'IT', 'Torino': 'IT', 'Bologna': 'IT',
-  'Madrid': 'ES', 'Barcelona': 'ES', 'Sevilla': 'ES', 'Seville': 'ES', 'Valencia': 'ES', 'Malaga': 'ES',
-  'Lissabon': 'PT', 'Lisbon': 'PT', 'Lisboa': 'PT', 'Porto': 'PT', 'Faro': 'PT',
-  'Amsterdam': 'NL', 'Rotterdam': 'NL', 'Den Haag': 'NL', 'Utrecht': 'NL', 'Eindhoven': 'NL',
-  'Brüssel': 'BE', 'Brussels': 'BE', 'Bruxelles': 'BE', 'Antwerpen': 'BE', 'Gent': 'BE',
-  'Kopenhagen': 'DK', 'Copenhagen': 'DK', 'Aarhus': 'DK',
-  'Warschau': 'PL', 'Warsaw': 'PL', 'Krakau': 'PL', 'Krakow': 'PL', 'Danzig': 'PL', 'Gdansk': 'PL',
-  'Prag': 'CZ', 'Prague': 'CZ', 'Brünn': 'CZ', 'Brno': 'CZ',
-  'Zagreb': 'HR', 'Split': 'HR', 'Dubrovnik': 'HR', 'Zadar': 'HR', 'Pula': 'HR',
-  'Ljubljana': 'SI', 'Maribor': 'SI',
-  'Budapest': 'HU',
-};
+export const MOVACAR_COUNTRIES: Record<string, string> = countryMap;
+
+export async function getMovacarAllStations(): Promise<{ id: string; name: string; country: string }[]> {
+  const payload = await fetchJson<any>('https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de', {
+    headers: { Accept: 'application/vnd.api+json', Origin: 'https://movacar.com', Referer: 'https://movacar.com/' },
+    retries: 1,
+  });
+  const stations = (payload?.included || [])
+    .filter((item: any) => item.type === 'locationsummary' && item.attributes?.location_type === 'origin' && item.attributes?.reference)
+    .map((item: any) => ({ id: String(item.attributes.reference), name: String(item.attributes.name || ''), country: MOVACAR_COUNTRIES[item.attributes.name] || '' }));
+  return [...new Map<string, { id: string; name: string; country: string }>(stations.map((station: { id: string; name: string; country: string }) => [station.id, station])).values()];
+}
 
 export async function fetchMovacarOffers(
   route: UserRoute,
@@ -32,48 +21,36 @@ export async function fetchMovacarOffers(
 ): Promise<NormalizedOffer[]> {
   const isWildOrigin = !route.origin_id || route.origin_id === '*';
   const isWildDest = !route.destination_id || route.destination_id === '*';
-
-  let url = 'https://crowd-api-production-615013621295.europe-west1.run.app/v1/offers?locale=en';
-  if (!isWildOrigin && route.origin_id) {
-    url += `&origin=${encodeURIComponent(route.origin_id)}`;
-  }
-  if (!isWildDest && route.destination_id) {
-    url += `&destination=${encodeURIComponent(route.destination_id)}`;
-  }
-  if (windowDates.start) {
-    url += `&pickup_date_from=${encodeURIComponent(windowDates.start)}`;
-  }
-
-  let payload: any = null;
-  try {
-    payload = await fetchJson<any>(url, {
-      headers: {
-        Accept: 'application/vnd.api+json',
-        Origin: 'https://movacar.com',
-        Referer: 'https://movacar.com/',
-      },
-      retries: 1,
-    });
-  } catch (err) {
-    return [];
-  }
-
-  const included = payload?.included || [];
-  const stations: Record<string, any> = {};
-  const prices: Record<string, any> = {};
-
-  for (const item of included) {
-    if (item.type === 'station') {
-      stations[item.id] = item.attributes;
-    } else if (item.type === 'monetary_amount') {
-      prices[item.id] = item.attributes;
-    }
-  }
-
-  const data = payload?.data || [];
   const offers: NormalizedOffer[] = [];
+  let origins: { id: string; name: string; country: string }[];
+  if (isWildOrigin) {
+    origins = (await getMovacarAllStations()).filter((station) => !route.origin_country || station.country === route.origin_country.toUpperCase());
+  } else {
+    origins = [{ id: String(route.origin_id), name: route.origin_name || '', country: route.origin_country || '' }];
+  }
 
-  for (const item of data) {
+  for (const origin of origins) {
+    let url = `https://crowd-api-production-615013621295.europe-west1.run.app/v1/offers?locale=en&origin=${encodeURIComponent(origin.id)}`;
+    if (!isWildDest && route.destination_id) url += `&destination=${encodeURIComponent(route.destination_id)}`;
+    if (windowDates.start) url += `&pickup_date_from=${encodeURIComponent(windowDates.start)}`;
+    let payload: any;
+    try {
+      payload = await fetchJson<any>(url, {
+        headers: { Accept: 'application/vnd.api+json', Origin: 'https://movacar.com', Referer: 'https://movacar.com/' },
+        retries: 1,
+      });
+    } catch (error) {
+      console.warn('Movacar origin fetch failed', origin.id, error);
+      continue;
+    }
+    const stations: Record<string, any> = {};
+    const prices: Record<string, any> = {};
+    for (const item of payload?.included || []) {
+      if (item.type === 'station') stations[item.id] = item.attributes;
+      else if (item.type === 'monetary_amount') prices[item.id] = item.attributes;
+    }
+
+  for (const item of payload?.data || []) {
     if (item.type !== 'offer') continue;
 
     const attrs = item.attributes || {};
@@ -81,8 +58,8 @@ export async function fetchMovacarOffers(
 
     const originData = rels.origin?.data || {};
     const originStation = stations[originData.id] || {};
-    const originCity = originStation.city || originStation.alternative_city || route.origin_name || 'Unknown';
-    const originCountry = MOVACAR_COUNTRIES[originCity] || route.origin_country || '';
+    const originCity = originStation.city || originStation.alternative_city || origin.name || 'Unknown';
+    const originCountry = MOVACAR_COUNTRIES[originCity] || origin.country || route.origin_country || '';
 
     const destData = rels.destination?.data || {};
     const destStation = stations[destData.id] || {};
@@ -112,7 +89,7 @@ export async function fetchMovacarOffers(
     const pickupDate = attrs.start_date || windowDates.start;
     const returnDate = attrs.end_date || windowDates.end;
 
-    const bookingUrl = `https://www.movacar.com/offers?origin=${encodeURIComponent(originCity)}&destination=${encodeURIComponent(destCity)}`;
+    const bookingUrl = `https://www.movacar.com/offers?origin=${encodeURIComponent(originCity)}&oid=${encodeURIComponent(origin.id)}&destination=${encodeURIComponent(destCity)}${destStation.reference ? `&did=${encodeURIComponent(destStation.reference)}` : ''}`;
 
     offers.push({
       source: 'movacar',
@@ -131,6 +108,7 @@ export async function fetchMovacarOffers(
       operator_name: attrs.partner_name || 'Movacar',
       raw_json: JSON.stringify(item),
     });
+  }
   }
 
   return offers;

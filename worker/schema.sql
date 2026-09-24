@@ -65,6 +65,9 @@ CREATE TABLE IF NOT EXISTS offers (
     booking_url TEXT,
     raw_json TEXT,
     is_active BOOLEAN DEFAULT 1,
+    is_dismissed BOOLEAN DEFAULT 0,
+    matches_filter BOOLEAN,
+    archived_telegram_sent_at TEXT,
     found_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_offers_source ON offers(source);
@@ -98,14 +101,20 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS monitor_locks (
+    name TEXT PRIMARY KEY,
+    owner TEXT NOT NULL,
+    expires_at INTEGER NOT NULL
+);
+
 -- Seed default global settings
 INSERT OR IGNORE INTO settings (key, value) VALUES
-    ('poll_interval_minutes', '5'),
+    ('poll_interval_minutes', '10'),
     ('availability_check_interval_minutes', '60'),
     ('window_days', '14'),
     ('timezone', 'Europe/Berlin'),
     ('telegram_enabled', 'true'),
     ('provider_roadsurfer_enabled', 'true'),
     ('provider_movacar_enabled', 'true'),
-    ('provider_indiecampers_enabled', 'true'),
-    ('provider_imoova_enabled', 'true');
+    ('provider_indiecampers_enabled', 'false'),
+    ('provider_imoova_enabled', 'false');

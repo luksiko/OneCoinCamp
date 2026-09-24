@@ -8,7 +8,7 @@ export const SUPPORTED_PROVIDERS = [
 ];
 
 export const DEFAULT_SETTINGS: GlobalSettings = {
-  poll_interval_minutes: 5,
+  poll_interval_minutes: 10,
   availability_check_interval_minutes: 60,
   window_days: 14,
   timezone: 'Europe/Berlin',

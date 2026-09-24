@@ -13,6 +13,21 @@ export interface TelegramSecrets {
 export class TelegramService {
   constructor(private secrets: TelegramSecrets, private db: DbClient) {}
 
+  getWebhookSecret(): string {
+    if (!this.secrets.webhookSecret) throw new Error('Webhook secret not configured');
+    return this.secrets.webhookSecret;
+  }
+
+  async registerWebhook(webhookUrl: string): Promise<void> {
+    const response = await fetchJson<any>(this.apiUrl('setWebhook'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: webhookUrl, secret_token: this.getWebhookSecret() }),
+      retries: 1,
+    });
+    if (!response?.ok) throw new Error(response?.description || 'Telegram rejected webhook');
+  }
+
   private apiUrl(method: string): string {
     return `https://api.telegram.org/bot${this.secrets.botToken}/${method}`;
   }
@@ -111,7 +126,13 @@ export class TelegramService {
 
   async handleWebhook(request: Request, triggerMonitorFn: () => Promise<any>): Promise<Response> {
     const secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token');
-    if (this.secrets.webhookSecret && secret && secret !== this.secrets.webhookSecret) {
+    if (!this.secrets.webhookSecret) return new Response('Webhook secret not configured', { status: 503 });
+    const encoder = new TextEncoder();
+    const [actual, expected] = await Promise.all([
+      crypto.subtle.digest('SHA-256', encoder.encode(secret || '')),
+      crypto.subtle.digest('SHA-256', encoder.encode(this.secrets.webhookSecret)),
+    ]);
+    if (!secret || !crypto.subtle.timingSafeEqual(actual, expected)) {
       return new Response('Unauthorized', { status: 403 });
     }
 
@@ -189,6 +210,35 @@ export class TelegramService {
         resp += `${statusIcon} ${r.source}: ${r.origin_name || '*'} (${r.origin_country || '*'}) ➔ ${r.destination_name || '*'} (${r.destination_country || '*'})\n`;
       }
       await this.sendMessage(chatId, resp);
+      return;
+    }
+
+    if (text.startsWith('/clear_routes') || text.startsWith('/reset_routes')) {
+      const removed = await this.db.clearUserRoutes(telegramId);
+      await this.sendMessage(chatId, `Удалено маршрутов: ${removed}.`);
+      return;
+    }
+
+    if (text.startsWith('/digest')) {
+      const userFilters = await this.db.getUserFilters(telegramId);
+      const userRoutes = await this.db.getUserRoutes(telegramId);
+      const since = Date.now() - 24 * 60 * 60 * 1000;
+      const archive = await this.db.getOfferArchive(telegramId);
+      const recent = archive.filter((offer) => {
+        if (Date.parse(offer.found_at || '') < since) return false;
+        const route = userRoutes.find((item) => routeMatchesOffer(item, offer));
+        return route && offerMatchesUserFilters(offer, userFilters, route);
+      });
+      if (recent.length === 0) {
+        await this.sendMessage(chatId, '📋 За последние 24 часа новых подходящих офферов не найдено.');
+        return;
+      }
+      const lines = [`📋 <b>Дайджест за 24 часа: ${recent.length}</b>`];
+      for (const offer of recent.slice(0, 10)) {
+        lines.push(`${escapeHtml(offer.origin)} → ${escapeHtml(offer.destination)} · ${offer.price} € · ${escapeHtml(offer.pickup_date)}`);
+      }
+      if (recent.length > 10) lines.push(`И ещё ${recent.length - 10} в архиве.`);
+      await this.sendMessage(chatId, lines.join('\n'));
       return;
     }
 
