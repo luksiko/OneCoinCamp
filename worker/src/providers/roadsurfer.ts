@@ -197,8 +197,8 @@ export async function fetchRoadsurferTimeframes(
           end = parts[1].slice(0, 10);
         }
       } else if (item && typeof item === 'object') {
-        start = String(item.start || item.start_date || item.pickup_date || item.from || '').slice(0, 10);
-        end = String(item.end || item.end_date || item.return_date || item.to || '').slice(0, 10);
+        start = String(item.start || item.start_date || item.startDate || item.pickup_date || item.pickupDate || item.from || '').slice(0, 10);
+        end = String(item.end || item.end_date || item.endDate || item.return_date || item.returnDate || item.to || '').slice(0, 10);
       }
 
       if (start && end && start <= end) {
@@ -289,7 +289,12 @@ export async function fetchRoadsurferOffers(
             )
           : [{ start: windowDates.start, end: windowDates.end }];
 
-      for (const tf of activeTf.slice(0, 3)) {
+      if (timeframes.length > 0 && activeTf.length === 0) {
+        // Known timeframes exist but none fall within requested window
+        continue;
+      }
+
+      for (const tf of activeTf.slice(0, 5)) {
         const searchUrl = `https://booking.roadsurfer.com/api/en/rally/search?stations=${encodeURIComponent(
           `[[${origin.id},${destination.id}]]`
         )}&range=${encodeURIComponent(JSON.stringify([tf.start, tf.end]))}&currency=EUR`;
@@ -310,7 +315,7 @@ export async function fetchRoadsurferOffers(
             : (payload && (payload.results || payload.data)) || [];
 
           for (const item of items) {
-            if (!item || item.available === false) continue;
+            if (!item || item.available === false || String(item.id).endsWith('-empty')) continue;
 
             const model = item.model || {};
             const avail = item.availability || {};

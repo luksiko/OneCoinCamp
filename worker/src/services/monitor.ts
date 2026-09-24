@@ -2,7 +2,7 @@ import { DbClient } from '../db/client';
 import { TelegramService } from './telegram';
 import { fetchOffersForRoute } from '../providers';
 import { computeOfferFingerprint } from '../utils/crypto';
-import { routeMatchesOffer, offerMatchesUserFilters, isSilentHoursActive, formatIsoDate, addDays } from './filters';
+import { routeMatchesOffer, offerMatchesUserFilters, isSilentHoursActive, formatIsoDate, addDays, parseIsoDate } from './filters';
 import { NormalizedOffer, UserRoute, UserFilters, RunLog } from '../types';
 import { setGasProxyUrl } from '../utils/http';
 
@@ -52,18 +52,18 @@ export async function runMonitorCycle(
       allRoutes.push(...enabledRoutes);
     }
 
-    // Default window dates (today + 14 days)
+    // Default window dates (fallback looking ahead at least 35 days for roadsurfer rally timeframes)
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const windowStart = formatIsoDate(today);
-    const windowEnd = formatIsoDate(addDays(today, settings.window_days || 14));
-    const windowDates = { start: windowStart, end: windowEnd };
+    const defaultWindowEnd = formatIsoDate(addDays(today, Math.max(settings.window_days || 14, 35)));
 
     // Deduplicate routes to avoid redundant HTTP requests
     const uniqueRouteKey = (r: UserRoute) =>
       r.source === 'movacar' && (!r.destination_id || r.destination_id === '*')
         ? `${r.source}|${r.origin_id || '*'}|${r.origin_country || ''}|*|*`
         : `${r.source}|${r.origin_id || '*'}|${r.origin_country || ''}|${r.destination_id || '*'}|${r.destination_country || ''}`;
-    const seenRoutes = new Set<string>();
+    const routeIndexMap = new Map<string, number>();
     const routesToScan: UserRoute[] = [];
 
     for (const r of allRoutes) {
@@ -72,11 +72,20 @@ export async function runMonitorCycle(
       if (settings[provKey] === false) continue;
 
       const key = uniqueRouteKey(r);
-      if (!seenRoutes.has(key)) {
-        seenRoutes.add(key);
+      const existingIdx = routeIndexMap.get(key);
+      if (existingIdx === undefined) {
+        routeIndexMap.set(key, routesToScan.length);
         routesToScan.push(r.source === 'movacar' && (!r.destination_id || r.destination_id === '*')
           ? { ...r, destination_country: '' }
-          : r);
+          : { ...r });
+      } else {
+        const existing = routesToScan[existingIdx];
+        if (r.pickup_date && (!existing.pickup_date || r.pickup_date < existing.pickup_date)) {
+          existing.pickup_date = r.pickup_date;
+        }
+        if (r.return_date && (!existing.return_date || r.return_date > existing.return_date)) {
+          existing.return_date = r.return_date;
+        }
       }
     }
 
@@ -87,6 +96,12 @@ export async function runMonitorCycle(
     for (const route of routesToScan) {
       requestCount++;
       try {
+        const rPickup = parseIsoDate(route.pickup_date);
+        const rReturn = parseIsoDate(route.return_date);
+        const routeStart = (rPickup && rPickup > today) ? formatIsoDate(rPickup) : windowStart;
+        const routeEnd = rReturn ? formatIsoDate(rReturn) : defaultWindowEnd;
+        const windowDates = { start: routeStart, end: routeEnd };
+
         const offers = await fetchOffersForRoute(route, windowDates, undefined, db);
         foundOffers.push(...offers);
       } catch (err: any) {

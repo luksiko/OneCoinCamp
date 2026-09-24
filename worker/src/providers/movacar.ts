@@ -59,12 +59,23 @@ export async function fetchMovacarOffers(
     const originData = rels.origin?.data || {};
     const originStation = stations[originData.id] || {};
     const originCity = originStation.city || originStation.alternative_city || origin.name || 'Unknown';
-    const originCountry = MOVACAR_COUNTRIES[originCity] || origin.country || route.origin_country || '';
+    const originCountry =
+      MOVACAR_COUNTRIES[originCity] ||
+      (originStation.city && MOVACAR_COUNTRIES[originStation.city]) ||
+      (originStation.alternative_city && MOVACAR_COUNTRIES[originStation.alternative_city]) ||
+      origin.country ||
+      route.origin_country ||
+      '';
 
     const destData = rels.destination?.data || {};
     const destStation = stations[destData.id] || {};
     const destCity = destStation.city || destStation.alternative_city || route.destination_name || 'Unknown';
-    const destCountry = MOVACAR_COUNTRIES[destCity] || route.destination_country || '';
+    const destCountry =
+      MOVACAR_COUNTRIES[destCity] ||
+      (destStation.city && MOVACAR_COUNTRIES[destStation.city]) ||
+      (destStation.alternative_city && MOVACAR_COUNTRIES[destStation.alternative_city]) ||
+      route.destination_country ||
+      '';
 
     // Country filters
     if (route.origin_country && originCountry && originCountry.toUpperCase() !== route.origin_country.toUpperCase()) {
