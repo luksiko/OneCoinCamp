@@ -565,7 +565,6 @@ function handleTelegramUpdate_(update) {
       '📊 /status — статус мониторинга и статистика\n' +
       '📋 /digest — сводный дайджест офферов за 24ч\n' +
       '🎯 /actual — актуальные предложения по вашим фильтрам\n' +
-      '🚐 /campers — фильтр (только кемперы или все авто)\n' +
       '🌙 /silent — настройки режима тихих часов\n' +
       '🔍 /check — принудительный запуск сканирования\n' +
       '🚗 /routes — список отслеживаемых маршрутов\n' +
@@ -583,7 +582,6 @@ function handleTelegramUpdate_(update) {
       '/status — время последнего опроса, интервал, статистика за 24ч\n' +
       '/digest — сводный дайджест найденных офферов за 24ч\n' +
       '/actual — актуальные предложения по вашим фильтрам и маршрутам\n' +
-      '/campers [on|off] — только дома на колёсах (on) или все включая легковые (off)\n' +
       '/silent [on|off|HH:MM-HH:MM] — режим тихих часов (без звука)\n' +
       '/check — запустить проверку прямо сейчас\n' +
       '/routes — список активных направлений\n\n' +
@@ -647,32 +645,7 @@ function handleTelegramUpdate_(update) {
       sendTelegramMessage_(secrets, msg, chatId);
     }
   } else if (command === '/campers' || command === '/vehicle') {
-    let filters = (typeof getUserFilters === 'function' ? getUserFilters(userId) : null) || {};
-    const parts = text.split(/\s+/);
-    if (parts.length > 1) {
-      const mode = parts[1].toLowerCase();
-      if (mode === 'on' || mode === 'campers' || mode === '1' || mode === 'true') {
-        filters.only_campers = true;
-        filters.vehicle_type = 'camper';
-        if (typeof setUserFilters === 'function') setUserFilters(userId, filters);
-        sendTelegramMessage_(secrets, '🚐 <b>Фильтр включен:</b> присылать только дома на колёсах (кемперы). Легковые авто отсекаются.', chatId);
-      } else if (mode === 'off' || mode === 'all' || mode === '0' || mode === 'false') {
-        filters.only_campers = false;
-        filters.vehicle_type = 'all';
-        if (typeof setUserFilters === 'function') setUserFilters(userId, filters);
-        sendTelegramMessage_(secrets, '🚗 <b>Фильтр отключен:</b> присылать все типы (дома на колёсах + легковые авто).', chatId);
-      } else {
-        sendTelegramMessage_(secrets, 'Использование:\n• <code>/campers on</code> — только дома на колёсах\n• <code>/campers off</code> — все авто (включая легковые)', chatId);
-      }
-    } else {
-      const isOnlyCampers = filters.only_campers !== false && filters.vehicle_type !== 'all';
-      let msg = '🚐 <b>Фильтр типов автомобилей</b>\n\n' +
-        'Текущий режим: <b>' + (isOnlyCampers ? 'ТОЛЬКО ДОМА НА КОЛЁСАХ' : 'ВСЕ АВТО (включая легковые)') + '</b>\n\n' +
-        'Управление:\n' +
-        '• <code>/campers on</code> — только кемперы/дома на колёсах\n' +
-        '• <code>/campers off</code> — все авто (включая легковые Sixt)';
-      sendTelegramMessage_(secrets, msg, chatId);
-    }
+    sendTelegramMessage_(secrets, '🚐 <b>Тип транспорта</b> теперь настраивается индивидуально в каждом маршруте (в приложении на вкладке «Маршруты» или командой /routes). Вы можете выбрать: только кемперы, только легковые или все.', chatId);
   } else if (command === '/actual') {
     const spreadsheet = ensureWorkbook_();
     const actualText = buildActualOffersMessage_(spreadsheet, userId);

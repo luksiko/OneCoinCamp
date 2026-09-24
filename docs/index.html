@@ -960,20 +960,9 @@
       </div>
 
       <div class="card" id="cardFilters">
-        <div class="card-title">🌍 Фильтры стран и типов ТС</div>
+        <div class="card-title">🌍 Фильтры стран</div>
         <div style="font-size:12px;color:var(--hint);margin-bottom:12px;">
           Эти фильтры применяются синхронно и для приложения, и для Telegram-бота
-        </div>
-
-        <div class="field" style="margin-bottom:14px;">
-          <span class="field-label">🚐 Тип транспорта</span>
-          <div style="display:flex; gap:8px;">
-            <button type="button" class="btn-chip-action vehicle-type-btn" id="btnTypeCampers" style="flex:1; padding:8px 10px; font-weight:600; border-radius:8px;">🚐 Только кемперы</button>
-            <button type="button" class="btn-chip-action vehicle-type-btn" id="btnTypeAll" style="flex:1; padding:8px 10px; font-weight:600; border-radius:8px;">🚗 Все (вкл. легковые)</button>
-          </div>
-          <div style="font-size:11px;color:var(--hint);margin-top:4px;" id="vehicleTypeHelp">
-            Режим «Кемперы» отсекает обычные легковые авто (Sixt) и оставляет только дома на колёсах
-          </div>
         </div>
 
         <div class="field" style="margin-bottom:14px;">
@@ -2401,43 +2390,6 @@
         };
       }
 
-      function updateVehicleTypeButtons() {
-        var isOnlyCampers = state.filters && state.filters.only_campers !== false && state.filters.vehicle_type !== 'all';
-        var bCampers = document.getElementById('btnTypeCampers');
-        var bAll = document.getElementById('btnTypeAll');
-        if (bCampers && bAll) {
-          if (isOnlyCampers) {
-            bCampers.style.background = 'var(--accent)';
-            bCampers.style.color = 'var(--accent-text)';
-            bAll.style.background = 'var(--section)';
-            bAll.style.color = 'var(--text)';
-          } else {
-            bAll.style.background = 'var(--accent)';
-            bAll.style.color = 'var(--accent-text)';
-            bCampers.style.background = 'var(--section)';
-            bCampers.style.color = 'var(--text)';
-          }
-        }
-      }
-      var bCampers = document.getElementById('btnTypeCampers');
-      var bAll = document.getElementById('btnTypeAll');
-      if (bCampers) {
-        bCampers.onclick = function() {
-          if (!state.filters) state.filters = {};
-          state.filters.only_campers = true;
-          state.filters.vehicle_type = 'camper';
-          updateVehicleTypeButtons();
-        };
-      }
-      if (bAll) {
-        bAll.onclick = function() {
-          if (!state.filters) state.filters = {};
-          state.filters.only_campers = false;
-          state.filters.vehicle_type = 'all';
-          updateVehicleTypeButtons();
-        };
-      }
-      updateVehicleTypeButtons();
       var providers = [
         { id: 'providerRoadsurfer', key: 'provider_roadsurfer_enabled' },
         { id: 'providerMovacar', key: 'provider_movacar_enabled' },
