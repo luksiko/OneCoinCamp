@@ -237,8 +237,13 @@ function offerPriceMatches_(offer, maxPriceSetting) {
   }
   if (offer && offer.price != null && offer.price !== '') {
     const p = Number(offer.price);
+    const total = (offer.totalPrice != null && offer.totalPrice !== '') ? Number(offer.totalPrice) : p;
     if (!isNaN(p)) {
-      return p <= max;
+      if (max <= 50) {
+        return p <= max;
+      } else {
+        return (!isNaN(total) ? total <= max : p <= max);
+      }
     }
   }
   return true;

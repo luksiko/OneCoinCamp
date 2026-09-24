@@ -105,11 +105,30 @@ function sendTelegramOffer_(secrets, offer, route, routeIndex, settings, chatId)
     : '🚗 <b>Легковой авто (' + escapeHtml_(meta.operator || 'Sixt') + ', без спальных мест)</b>';
 
   const vehicleLine = offer.vehicle ? ('\n' + icon + ' Модель: <b>' + escapeHtml_(offer.vehicle) + '</b>') : '';
-  const priceLine = offer.price ? '\n💶 Цена: <b>' + escapeHtml_(String(offer.price)) + '</b> € / сутки' : '';
+  
+  let priceLine = '';
+  let priceSuffix = '!';
+  if (offer.price !== '' && offer.price != null) {
+    const numPrice = Number(offer.price);
+    const numTotal = (offer.totalPrice != null && offer.totalPrice !== '') ? Number(offer.totalPrice) : null;
+    if (!isNaN(numPrice)) {
+      if (numPrice === 1 && (!numTotal || numTotal === 1)) {
+        priceSuffix = ' за 1€!';
+        priceLine = '\n💶 Цена: <b>1 €</b>';
+      } else if (numTotal && numTotal !== numPrice) {
+        priceSuffix = ' от ' + numPrice + '€/сутки!';
+        priceLine = '\n💶 Цена: <b>' + escapeHtml_(String(numPrice)) + '</b> € / сутки (всего: <b>' + escapeHtml_(String(numTotal)) + '</b> €)';
+      } else {
+        priceSuffix = ' за ' + numPrice + '€!';
+        priceLine = '\n💶 Цена: <b>' + escapeHtml_(String(numPrice)) + '</b> €';
+      }
+    }
+  }
+
   const buttonLabel = 'Забронировать оффер ➔';
 
   const text =
-    icon + ' <b>' + displayInfo.headerSource + ' — ' + (isCamper ? 'найден кемпер' : 'найден легковой авто') + ' за 1€!</b>\n\n' +
+    icon + ' <b>' + displayInfo.headerSource + ' — ' + (isCamper ? 'найден кемпер' : 'найден легковой авто') + priceSuffix + '</b>\n\n' +
     displayInfo.sourceLine + '\n' +
     '📍 ' + escapeHtml_(offer.origin) + ' ➔ ' + escapeHtml_(offer.destination) + '\n' +
     '📅 ' + escapeHtml_(offer.pickupDate || '') + ' – ' + escapeHtml_(offer.returnDate || '') + durationDays + '\n' +

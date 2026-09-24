@@ -517,11 +517,48 @@ function fetchRoadsurferOffersForTimeframe_(pair, timeframe, route, searchRangeS
     if (!item || item.available === false) continue;
 
     const model = item.model || {};
-    const price = firstDefined_(item.price, item.total_price, item.totalPrice, item.amount);
+    const avail = item.availability || {};
+    const priceDetails = avail.price_details || {};
+    const rentalItem = (priceDetails.rentals && priceDetails.rentals[0]) || {};
+
+    let pricePerDay = firstDefined_(
+      rentalItem.value,
+      priceDetails.rental_per_day,
+      item.price_per_day,
+      item.daily_price
+    );
+    let totalPrice = firstDefined_(
+      priceDetails.final,
+      priceDetails.gross,
+      priceDetails.booking,
+      priceDetails.total,
+      priceDetails.rental,
+      rentalItem.total,
+      avail.total,
+      item.price,
+      item.total_price,
+      item.totalPrice,
+      item.amount
+    );
     
     // Fix: the user requested to parse roadsurferIsoDate_ but fallback to searchRange if empty, not the exact timeframe start
-    const pickupDate = roadsurferIsoDate_(firstDefined_(item.pickup_date, item.pickupDate, rangeStart)) || rangeStart;
-    const returnDate = roadsurferIsoDate_(firstDefined_(item.return_date, item.returnDate, rangeEnd)) || rangeEnd;
+    const pickupDate = roadsurferIsoDate_(firstDefined_(item.pickup_date, item.pickupDate, avail.pickup_date, rangeStart)) || rangeStart;
+    const returnDate = roadsurferIsoDate_(firstDefined_(item.return_date, item.returnDate, avail.return_date, rangeEnd)) || rangeEnd;
+
+    let numDays = 1;
+    if (pickupDate && returnDate) {
+      const p = parseIsoDate_(pickupDate);
+      const r = parseIsoDate_(returnDate);
+      if (p && r) {
+        numDays = Math.max(1, Math.round((r.getTime() - p.getTime()) / 86400000));
+      }
+    }
+
+    if (pricePerDay == null && totalPrice != null) {
+      pricePerDay = Number((Number(totalPrice) / numDays).toFixed(2));
+    } else if (totalPrice == null && pricePerDay != null) {
+      totalPrice = Number((Number(pricePerDay) * numDays).toFixed(2));
+    }
     
     // Check if the actual offer falls into user's overall search window
     if (pickupDate > searchRangeEnd || returnDate < searchRangeStart) {
@@ -548,7 +585,8 @@ function fetchRoadsurferOffersForTimeframe_(pair, timeframe, route, searchRangeS
       destinationCountry: destination.country || route.destinationCountry || '',
       pickupDate: pickupDate,
       returnDate: returnDate,
-      price: price == null ? '' : Number(price),
+      price: pricePerDay != null ? Number(pricePerDay) : (totalPrice != null ? Number(totalPrice) : ''),
+      totalPrice: totalPrice != null ? Number(totalPrice) : '',
       currency: String(firstDefined_(item.currency, 'EUR')),
       bookingUrl: bookingUrl,
       operator: 'Roadsurfer',
