@@ -351,6 +351,16 @@ function getUiData(initData) {
   selfHealMonitorFromWebApp_(spreadsheet, settings);
   const dateWindow = buildDateWindow_(settings, filters, settings.pickup_date, settings.return_date);
   return {
+    language: (function() {
+      try {
+        const uDoc = (userId && typeof isFirestoreConfigured_ === 'function' && isFirestoreConfigured_() && typeof getUser === 'function') ? getUser(userId) : null;
+        if (uDoc && uDoc.language) return uDoc.language;
+      } catch (e) {}
+      if (auth.user && auth.user.language_code) {
+        return typeof normalizeLanguage_ === 'function' ? normalizeLanguage_(auth.user.language_code) : auth.user.language_code;
+      }
+      return 'ru';
+    })(),
     settings: {
       poll_interval_minutes: settings.poll_interval_minutes,
       window_days: settings.window_days,
@@ -721,6 +731,11 @@ function saveUiData(payload, initData) {
 
   const spreadsheet = getSpreadsheet();
   const isAdmin = Boolean(secrets.webAppSkipAuth || !secrets.telegramChatId || (userId && (String(userId) === String(secrets.telegramChatId) || (secrets.telegramAllowedUsers && secrets.telegramAllowedUsers.indexOf(userId) !== -1))));
+  if (payload.language && userId && typeof setUserLanguage === 'function') {
+    try {
+      setUserLanguage(userId, payload.language);
+    } catch (e) {}
+  }
   if (payload.settings && isAdmin) {
     const currentSettings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
     const mergedSettings = Object.assign({}, currentSettings, payload.settings);

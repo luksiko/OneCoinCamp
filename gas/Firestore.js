@@ -367,6 +367,13 @@ function upsertUser(telegramId, chatId, extra) {
   return firestoreUpdate('users/' + telegramId, data);
 }
 
+function setUserLanguage(telegramId, lang) {
+  if (!isFirestoreConfigured_()) return null;
+  clearUserCache(telegramId);
+  var normalized = (typeof normalizeLanguage_ === 'function') ? normalizeLanguage_(lang) : (lang || 'en');
+  return firestoreUpdate('users/' + telegramId, { language: normalized });
+}
+
 function getUserRoutes(telegramId) {
   if (!isFirestoreConfigured_()) return [];
   var routes = firestoreList('users/' + telegramId + '/routes') || [];

@@ -184,7 +184,7 @@ function setupGasContext(fetchMock, initialSettings = {}) {
   };
 
   vm.createContext(context);
-  const files = ['gas/Config.js', 'gas/Http.js', 'gas/Filters.js', 'gas/Sheets.js', 'gas/Telegram.js', 'gas/Providers.js', 'gas/Monitor.js', 'gas/WebApp.js'];
+  const files = ['gas/Config.js', 'gas/Http.js', 'gas/I18n.js', 'gas/Filters.js', 'gas/Sheets.js', 'gas/Telegram.js', 'gas/Providers.js', 'gas/Monitor.js', 'gas/WebApp.js'];
   for (const f of files) {
     vm.runInContext(fs.readFileSync(f, 'utf8'), context);
   }

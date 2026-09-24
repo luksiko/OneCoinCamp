@@ -850,33 +850,58 @@
     <div id="mainForm">
       <div id="screenMain">
         <!-- Компактный статус -->
-        <div class="banner" id="banner" style="align-items: center; padding: 10px 14px;">
-          <div class="emoji">🟢</div>
-          <div class="banner-title" id="bannerTitle" style="font-size: 15px;">Загрузка…</div>
+        <div class="banner" id="banner" style="align-items: center; justify-content: space-between; padding: 10px 14px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="emoji">🟢</div>
+            <div class="banner-title" id="bannerTitle" style="font-size: 15px;" data-i18n="loading">Загрузка…</div>
+          </div>
+          <div>
+            <select id="headerLangSelector" onchange="onLanguageChange(this.value)" style="width: auto; padding: 4px 8px; font-size: 13px; border-radius: 8px; background: var(--section); border: 1px solid var(--border); color: var(--text); cursor: pointer;">
+              <option value="de">🇩🇪 DE</option>
+              <option value="it">🇮🇹 IT</option>
+              <option value="en">🇬🇧 EN</option>
+              <option value="uk">🇺🇦 UK</option>
+              <option value="ru">🇷🇺 RU</option>
+            </select>
+          </div>
         </div>
 
         <div class="card">
-          <div class="card-title">Маршруты</div>
+          <div class="card-title" data-i18n="routes_title">Маршруты</div>
           <div id="routesList"></div>
-          <button type="button" class="add-route" id="btnAddRoute">+ Добавить маршрут</button>
+          <button type="button" class="add-route" id="btnAddRoute" data-i18n="add_route">+ Добавить маршрут</button>
         </div>
         <div class="actions-row">
-          <button type="button" class="btn btn-accent" id="btnSaveMain"><span class="save-spinner">⏳</span><span class="save-label">💾 Сохранить</span></button>
-          <button type="button" class="btn btn-secondary" id="btnRun">▶ Проверить</button>
+          <button type="button" class="btn btn-accent" id="btnSaveMain"><span class="save-spinner">⏳</span><span class="save-label" data-i18n="save_main">💾 Сохранить</span></button>
+          <button type="button" class="btn btn-secondary" id="btnRun" data-i18n="check_btn">▶ Проверить</button>
         </div>
       </div>
 
     <div id="screenSettings" style="display:none;">
+      <!-- Language Card -->
+      <div class="card" id="cardLanguage">
+        <div class="card-title" data-i18n="lang_title" style="margin-bottom:8px;">🌐 Язык интерфейса / Language</div>
+        <div class="field" style="margin-bottom:0;">
+          <select id="langSelector" onchange="onLanguageChange(this.value)">
+            <option value="de">🇩🇪 Deutsch</option>
+            <option value="it">🇮🇹 Italiano</option>
+            <option value="en">🇬🇧 English</option>
+            <option value="uk">🇺🇦 Українська</option>
+            <option value="ru">🇷🇺 Русский</option>
+          </select>
+        </div>
+      </div>
+
       <!-- Подробный статус скрипта -->
       <div class="card" id="detailedStatusCard">
-        <div class="card-title" style="margin-bottom:6px;">Информация о проверках</div>
+        <div class="card-title" style="margin-bottom:6px;" data-i18n="info_checks">Информация о проверках</div>
         <div id="bannerSub" class="banner-sub" style="margin-top:0;"></div>
       </div>
 
     <div class="card" id="healthCard">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <div class="card-title" style="margin-bottom:0;">🌐 Статус связи с сайтами</div>
-          <button type="button" style="background:none; border:none; color:var(--accent); font-size:12px; font-weight:600; cursor:pointer;" onclick="checkHealth(true)">🔄 Обновить</button>
+          <div class="card-title" style="margin-bottom:0;" data-i18n="site_status">🌐 Статус связи с сайтами</div>
+          <button type="button" style="background:none; border:none; color:var(--accent); font-size:12px; font-weight:600; cursor:pointer;" onclick="checkHealth(true)" data-i18n="refresh">🔄 Обновить</button>
         </div>
         <div style="font-size:13px; line-height:1.6;">
           <div id="healthRowRs" style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
@@ -904,15 +929,15 @@
       </div>
 
       <div class="card">
-        <div class="card-title">Настройки</div>
+        <div class="card-title" data-i18n="settings_title">Настройки</div>
         <div class="field">
-          <span class="field-label">Интервал опроса, мин</span>
+          <span class="field-label" data-i18n="poll_interval">Интервал опроса, мин</span>
           <div class="seg" id="intervalSeg"></div>
         </div>
 
         <div class="field">
           <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
-            <span>Проверять соседние даты (±2 дня)</span>
+            <span data-i18n="check_neighbors">Проверять соседние даты (±2 дня)</span>
             <span class="switch">
               <input type="checkbox" id="checkNeighbors">
               <span class="slider"></span>
@@ -921,7 +946,7 @@
         </div>
         <div class="field">
           <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
-            <span>Telegram-уведомления</span>
+            <span data-i18n="telegram_notifications">Telegram-уведомления</span>
             <span class="switch">
               <input type="checkbox" id="telegramEnabled">
               <span class="slider"></span>
@@ -931,15 +956,15 @@
         <div class="field" id="webhookField">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
             <div>
-              <span style="font-weight:500;font-size:14px;">Режим Telegram бота</span>
+              <span style="font-weight:500;font-size:14px;" data-i18n="bot_mode">Режим Telegram бота</span>
               <div style="font-size:11px;color:var(--hint);" id="webhookStatusDesc">Загрузка режима…</div>
             </div>
-            <button type="button" id="btnToggleWebhook" class="btn btn-secondary" style="width:auto;padding:5px 10px;font-size:12px;margin:0;white-space:nowrap;">⚡ Включить Webhook</button>
+            <button type="button" id="btnToggleWebhook" class="btn btn-secondary" style="width:auto;padding:5px 10px;font-size:12px;margin:0;white-space:nowrap;" data-i18n="btn_enable_webhook">⚡ Включить Webhook</button>
           </div>
         </div>
         <div class="field">
           <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
-            <span>Макс. цена оффера, €</span>
+            <span data-i18n="max_price">Макс. цена оффера, €</span>
             <input type="number" id="maxPriceInput" min="0" step="1"
               style="width:72px;text-align:right;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:var(--card);color:var(--text);font-size:15px;"
               placeholder="1">
@@ -947,30 +972,30 @@
         </div>
         <div class="field">
           <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
-            <span>Уведомлять обо всех слотах до макс. цены</span>
+            <span data-i18n="notify_all_by_price">Уведомлять обо всех слотах до макс. цены</span>
             <span class="switch">
               <input type="checkbox" id="notifyAllByPrice">
               <span class="slider"></span>
             </span>
           </label>
-          <div style="font-size:11px;color:var(--hint);margin-top:4px;">
+          <div style="font-size:11px;color:var(--hint);margin-top:4px;" data-i18n="notify_all_desc">
             Игнорировать фильтры дат и стран для Telegram, если цена слота ≤ макс. цены
           </div>
         </div>
       </div>
 
       <div class="card" id="cardFilters">
-        <div class="card-title">🌍 Фильтры стран</div>
-        <div style="font-size:12px;color:var(--hint);margin-bottom:12px;">
+        <div class="card-title" data-i18n="country_filters">🌍 Фильтры стран</div>
+        <div style="font-size:12px;color:var(--hint);margin-bottom:12px;" data-i18n="country_filters_desc">
           Эти фильтры применяются синхронно и для приложения, и для Telegram-бота
         </div>
 
         <div class="field" style="margin-bottom:14px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span class="field-label" style="margin-bottom:0;">🛫 Откуда (страны отправления)</span>
+            <span class="field-label" style="margin-bottom:0;" data-i18n="origin_countries">🛫 Откуда (страны отправления)</span>
             <div>
-              <button type="button" class="btn-chip-action" id="btnAllOriginCountries">Все</button>
-              <button type="button" class="btn-chip-action" id="btnClearOriginCountries">Очистить</button>
+              <button type="button" class="btn-chip-action" id="btnAllOriginCountries" data-i18n="btn_all">Все</button>
+              <button type="button" class="btn-chip-action" id="btnClearOriginCountries" data-i18n="btn_clear">Очистить</button>
             </div>
           </div>
           <div style="font-size:11px;color:var(--hint);margin-bottom:6px;" id="originCountriesCount">Все страны разрешены</div>
@@ -979,10 +1004,10 @@
 
         <div class="field" style="margin-bottom:14px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span class="field-label" style="margin-bottom:0;">🛬 Куда (страны прибытия)</span>
+            <span class="field-label" style="margin-bottom:0;" data-i18n="dest_countries">🛬 Куда (страны прибытия)</span>
             <div>
-              <button type="button" class="btn-chip-action" id="btnAllDestCountries">Все</button>
-              <button type="button" class="btn-chip-action" id="btnClearDestCountries">Очистить</button>
+              <button type="button" class="btn-chip-action" id="btnAllDestCountries" data-i18n="btn_all">Все</button>
+              <button type="button" class="btn-chip-action" id="btnClearDestCountries" data-i18n="btn_clear">Очистить</button>
             </div>
           </div>
           <div style="font-size:11px;color:var(--hint);margin-bottom:6px;" id="destCountriesCount">Все страны разрешены</div>
@@ -990,7 +1015,7 @@
         </div>
 
         <div class="field" style="margin-bottom:0;">
-          <span class="field-label">⏱ Длительность поездки (дней)</span>
+          <span class="field-label" data-i18n="trip_duration">⏱ Длительность поездки (дней)</span>
           <div style="display:flex; align-items:center; gap:8px;">
             <input type="number" id="minTripDaysInput" min="0" max="60" placeholder="Мин. (любая)" style="flex:1; text-align:center; padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--text); font-size:14px;">
             <span style="color:var(--hint); font-weight:600;">–</span>
@@ -1001,21 +1026,21 @@
 
       <div class="card" id="cardSilentHours">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <div class="card-title" style="margin-bottom:0;">🌙 Режим тихих часов</div>
+          <div class="card-title" style="margin-bottom:0;" data-i18n="silent_hours">🌙 Режим тихих часов</div>
           <span class="switch">
             <input type="checkbox" id="silentHoursEnabled">
             <span class="slider"></span>
           </span>
         </div>
-        <div style="font-size:12px; color:var(--hint); margin-bottom:12px;">
+        <div style="font-size:12px; color:var(--hint); margin-bottom:12px;" data-i18n="silent_hours_desc">
           В тихие часы уведомления приходят в Telegram без звука.
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; margin-bottom:12px;">
-          <span style="color:var(--subtext);">Статус:</span>
+          <span style="color:var(--subtext);" data-i18n="silent_status_label">Статус:</span>
           <span id="silentHoursStatusText" style="font-weight:600;">Выключены ⬜</span>
         </div>
         <div class="field" style="margin-bottom:12px;">
-          <span class="field-label">Интервал тихих часов</span>
+          <span class="field-label" data-i18n="silent_interval">Интервал тихих часов</span>
           <div style="display:flex; align-items:center; gap:8px;">
             <input type="time" id="silentHoursStart" value="23:00" style="flex:1; text-align:center;">
             <span style="color:var(--hint); font-weight:600;">–</span>
@@ -1023,7 +1048,7 @@
           </div>
         </div>
         <div style="padding:10px 12px; background:var(--section); border-radius:10px; font-size:12px; color:var(--subtext); line-height:1.6;">
-          <div style="font-weight:600; color:var(--text); margin-bottom:4px;">Команды управления в чате:</div>
+          <div style="font-weight:600; color:var(--text); margin-bottom:4px;" data-i18n="commands_in_chat">Команды управления в чате:</div>
           <div>• <code>/silent on</code> — включить</div>
           <div>• <code>/silent off</code> — выключить</div>
           <div>• <code>/silent 22:00-08:00</code> — изменить интервал</div>
@@ -1031,8 +1056,8 @@
       </div>
 
       <div class="card" id="cardCompanies">
-        <div class="card-title">🏢 Компании в мониторинге</div>
-        <div style="font-size:12px;color:var(--hint);margin-bottom:10px;">
+        <div class="card-title" data-i18n="companies_title">🏢 Компании в мониторинге</div>
+        <div style="font-size:12px;color:var(--hint);margin-bottom:10px;" data-i18n="companies_desc">
           Отключенные компании не опрашиваются при мониторинге
         </div>
         <div class="field">
@@ -1074,10 +1099,10 @@
       </div>
       <div class="card" id="cardTriggers">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <div class="card-title" style="margin-bottom:0;">🔧 Триггеры автоматизации</div>
-          <button type="button" class="btn btn-secondary" id="btnTriggers" style="width:auto; padding:6px 12px; font-size:12px; margin-top:0;">Восстановить</button>
+          <div class="card-title" style="margin-bottom:0;" data-i18n="triggers_title">🔧 Триггеры автоматизации</div>
+          <button type="button" class="btn btn-secondary" id="btnTriggers" style="width:auto; padding:6px 12px; font-size:12px; margin-top:0;" data-i18n="triggers_restore">Восстановить</button>
         </div>
-        <div style="font-size:12px; color:var(--hint); margin-bottom:10px;">
+        <div style="font-size:12px; color:var(--hint); margin-bottom:10px;" data-i18n="triggers_desc">
           Автоматические фоновые службы в Google Apps Script:
         </div>
         <div style="padding:10px 12px; background:var(--section); border-radius:10px; font-size:12px; color:var(--subtext); line-height:1.6;">
@@ -1088,9 +1113,9 @@
         </div>
       </div>
 
-      <button type="button" class="btn btn-accent" id="btnSave" style="margin-top:8px;"><span class="save-spinner">⏳</span><span class="save-label">Сохранить настройки</span></button>
+      <button type="button" class="btn btn-accent" id="btnSave" style="margin-top:8px;"><span class="save-spinner">⏳</span><span class="save-label" data-i18n="save_settings_btn">Сохранить настройки</span></button>
       <div id="versionFooter" style="text-align:center; margin-top:28px; margin-bottom:12px; font-size:12px; color:var(--hint);">
-        <span>Версия: </span>
+        <span data-i18n="version_label">Версия: </span>
         <a id="gitVersionLink" href="https://github.com/luksiko/OneCoinCamp/commit/0a8b0c0" target="_blank" rel="noopener noreferrer" style="color:var(--hint); text-decoration:none; border-bottom:1px dashed var(--hint); font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px;">git: <span id="gitCommitHash">0a8b0c0</span></a>
       </div>
     </div>
@@ -1100,29 +1125,29 @@
 
       <div class="offers-filter-section">
         <div class="offers-sort-bar">
-          <span class="date-label" style="margin-right:2px;">Сортировка:</span>
-          <button type="button" class="filter-chip active" id="sortAddedBtn" onclick="setOfferSort('added_desc')">🕒 По дате добавления</button>
-          <button type="button" class="filter-chip" id="sortTripBtn" onclick="setOfferSort('trip_date')">📅 По диапазону дат</button>
+          <span class="date-label" style="margin-right:2px;" data-i18n="offers_sort_label">Сортировка:</span>
+          <button type="button" class="filter-chip active" id="sortAddedBtn" onclick="setOfferSort('added_desc')" data-i18n="offers_sort_added">🕒 По дате добавления</button>
+          <button type="button" class="filter-chip" id="sortTripBtn" onclick="setOfferSort('trip_date')" data-i18n="offers_sort_trip">📅 По диапазону дат</button>
         </div>
         <div class="offers-date-row">
           <div class="date-inputs">
-            <span class="date-label">С:</span>
+            <span class="date-label" data-i18n="offers_date_from">С:</span>
             <input type="date" id="offerDateFrom" class="offer-date-input" onchange="onOfferDateInputChange()">
-            <span class="date-label">По:</span>
+            <span class="date-label" data-i18n="offers_date_to">По:</span>
             <input type="date" id="offerDateTo" class="offer-date-input" onchange="onOfferDateInputChange()">
             <button type="button" class="btn-clear-date" id="btnClearDates" onclick="clearOfferDateFilter()" title="Сбросить даты" style="display:none;">✕</button>
           </div>
           <div class="date-presets">
-            <button type="button" class="date-preset-btn" onclick="setDatePreset('7d')">7 дн</button>
-            <button type="button" class="date-preset-btn" onclick="setDatePreset('14d')">14 дн</button>
-            <button type="button" class="date-preset-btn" onclick="setDatePreset('month')">Месяц</button>
+            <button type="button" class="date-preset-btn" onclick="setDatePreset('7d')" data-i18n="date_preset_7d">7 дн</button>
+            <button type="button" class="date-preset-btn" onclick="setDatePreset('14d')" data-i18n="date_preset_14d">14 дн</button>
+            <button type="button" class="date-preset-btn" onclick="setDatePreset('month')" data-i18n="date_preset_month">Месяц</button>
           </div>
         </div>
       </div>
 
       <div class="offers-toolbar">
         <span class="offers-count-badge" id="offersCountBadge"></span>
-        <button type="button" class="btn-check-avail" id="btnCheckAvail" title="Проверить доступность офферов у провайдеров и удалить недоступные">
+        <button type="button" class="btn-check-avail" id="btnCheckAvail" title="Проверить доступность офферов у провайдеров и удалить недоступные" data-i18n="btn_check_avail">
           🔄 Проверить актуальность
         </button>
       </div>
@@ -1135,42 +1160,42 @@
     <div id="screenAnalytics" style="display:none;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <div style="font-size:13px; color:var(--subtext);" id="analyticsSubtitle"></div>
-        <button type="button" class="analytics-reload" id="btnReloadAnalytics" onclick="loadAnalytics()">🔄 Обновить</button>
+        <button type="button" class="analytics-reload" id="btnReloadAnalytics" onclick="loadAnalytics()" data-i18n="analytics_reload">🔄 Обновить</button>
       </div>
 
       <!-- Daily bar chart -->
       <div class="card" id="cardDailyChart">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <div class="card-title" style="margin-bottom:0;">📅 Офферы по дням</div>
+          <div class="card-title" style="margin-bottom:0;" data-i18n="analytics_daily_title">📅 Офферы по дням</div>
         </div>
         <div class="bar-chart" id="dailyBarChart"></div>
         <div class="heatmap-row-labels" id="dailyBarLabels"></div>
         <div class="bar-chart-legend">
-          <span><span class="dot total"></span>Всего найдено</span>
-          <span><span class="dot matched"></span>Подходящие</span>
+          <span><span class="dot total"></span><span data-i18n="analytics_legend_total">Всего найдено</span></span>
+          <span><span class="dot matched"></span><span data-i18n="analytics_legend_matched">Подходящие</span></span>
         </div>
       </div>
 
       <!-- Hourly heatmap -->
       <div class="card" id="cardHourlyHeatmap">
-        <div class="card-title" style="margin-bottom:12px;">🕐 Когда появляются офферы (UTC)</div>
+        <div class="card-title" style="margin-bottom:12px;" data-i18n="analytics_hourly_title">🕐 Когда появляются офферы (UTC)</div>
         <div class="heatmap" id="hourlyHeatmap"></div>
         <div class="heatmap-row-labels" id="hourlyHeatmapLabels"></div>
       </div>
 
       <!-- Top routes -->
       <div class="card" id="cardTopRoutes">
-        <div class="card-title" style="margin-bottom:12px;">🗺 Топ направлений</div>
+        <div class="card-title" style="margin-bottom:12px;" data-i18n="analytics_top_routes_title">🗺 Топ направлений</div>
         <div id="topRoutesList"></div>
       </div>
 
       <!-- By source -->
       <div class="card" id="cardBySources">
-        <div class="card-title" style="margin-bottom:12px;">📡 По источникам</div>
+        <div class="card-title" style="margin-bottom:12px;" data-i18n="analytics_by_sources_title">📡 По источникам</div>
         <div class="source-grid" id="sourceGrid"></div>
       </div>
 
-      <div class="analytics-empty" id="analyticsEmpty" style="display:none;">
+      <div class="analytics-empty" id="analyticsEmpty" style="display:none;" data-i18n="analytics_empty">
         📭 Данных пока нет.<br>Запустите мониторинг, чтобы накопить статистику.
       </div>
     </div>
@@ -1179,19 +1204,19 @@
   <div class="tab-nav" id="tabNav">
     <button type="button" class="tab-btn selected" id="tabMain" onclick="switchTab('main')">
       <span class="icon">🏠</span>
-      <span>Главная</span>
+      <span data-i18n="tab_main">Главная</span>
     </button>
     <button type="button" class="tab-btn" id="tabOffers" onclick="switchTab('offers')">
       <span class="icon">🎫</span>
-      <span>Офферы</span>
+      <span data-i18n="tab_offers">Офферы</span>
     </button>
     <button type="button" class="tab-btn" id="tabAnalytics" onclick="switchTab('analytics')">
       <span class="icon">📊</span>
-      <span>Аналитика</span>
+      <span data-i18n="tab_analytics">Аналитика</span>
     </button>
     <button type="button" class="tab-btn" id="tabSettings" onclick="switchTab('settings')">
       <span class="icon">⚙️</span>
-      <span>Настройки</span>
+      <span data-i18n="tab_settings">Настройки</span>
     </button>
   </div>
 
@@ -1249,12 +1274,548 @@
 
     var state = null;
     var currentTab = 'main';
+    var currentAppLang = 'ru';
     var offersData = null;
     var offerFilters = { source: '', operator: '', vehicleType: '', sentStatus: '', page: 1, sortBy: 'added_desc', dateFrom: '', dateTo: '', isMatched: false };
     var INTERVALS = [1, 5, 10, 15, 30];
     var WINDOWS = [7, 10, 14, 21, 30];
     var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
     var toastTimer = null;
+
+    var WEBAPP_COUNTRY_NAMES = {
+      de: {
+        DE: 'Deutschland', AT: 'Österreich', NL: 'Niederlande', BE: 'Belgien', FR: 'Frankreich',
+        CH: 'Schweiz', ES: 'Spanien', IT: 'Italien', PT: 'Portugal', DK: 'Dänemark',
+        LU: 'Luxemburg', PL: 'Polen', CZ: 'Tschechien', HR: 'Kroatien', SI: 'Slowenien',
+        HU: 'Ungarn', GB: 'Vereinigtes Königreich', UK: 'Vereinigtes Königreich',
+        IE: 'Irland', SE: 'Schweden', NO: 'Norwegen', IS: 'Island', US: 'Vereinigte Staaten',
+        CA: 'Kanada', AU: 'Australien', NZ: 'Neuseeland', JP: 'Japan'
+      },
+      it: {
+        DE: 'Germania', AT: 'Austria', NL: 'Paesi Bassi', BE: 'Belgio', FR: 'Francia',
+        CH: 'Svizzera', ES: 'Spagna', IT: 'Italia', PT: 'Portogallo', DK: 'Danimarca',
+        LU: 'Lussemburgo', PL: 'Polonia', CZ: 'Repubblica Ceca', HR: 'Croazia', SI: 'Slovenia',
+        HU: 'Ungheria', GB: 'Regno Unito', UK: 'Regno Unito',
+        IE: 'Irlanda', SE: 'Svezia', NO: 'Norvegia', IS: 'Islanda', US: 'Stati Uniti',
+        CA: 'Canada', AU: 'Australia', NZ: 'Nuova Zelanda', JP: 'Giappone'
+      },
+      en: {
+        DE: 'Germany', AT: 'Austria', NL: 'Netherlands', BE: 'Belgium', FR: 'France',
+        CH: 'Switzerland', ES: 'Spain', IT: 'Italy', PT: 'Portugal', DK: 'Denmark',
+        LU: 'Luxembourg', PL: 'Poland', CZ: 'Czech Republic', HR: 'Croatia', SI: 'Slovenia',
+        HU: 'Hungary', GB: 'United Kingdom', UK: 'United Kingdom',
+        IE: 'Ireland', SE: 'Sweden', NO: 'Norway', IS: 'Iceland', US: 'United States',
+        CA: 'Canada', AU: 'Australia', NZ: 'New Zealand', JP: 'Japan'
+      },
+      uk: {
+        DE: 'Німеччина', AT: 'Австрія', NL: 'Нідерланди', BE: 'Бельгія', FR: 'Франція',
+        CH: 'Швейцарія', ES: 'Іспанія', IT: 'Італія', PT: 'Португалія', DK: 'Данія',
+        LU: 'Люксембург', PL: 'Польща', CZ: 'Чехія', HR: 'Хорватія', SI: 'Словенія',
+        HU: 'Угорщина', GB: 'Велика Британія', UK: 'Велика Британія',
+        IE: 'Ірландія', SE: 'Швеція', NO: 'Норвегія', IS: 'Ісландія', US: 'США',
+        CA: 'Канада', AU: 'Австралія', NZ: 'Нова Зеландія', JP: 'Японія'
+      },
+      ru: {
+        DE: 'Германия', AT: 'Австрия', NL: 'Нидерланды', BE: 'Бельгия', FR: 'Франция',
+        CH: 'Швейцария', ES: 'Испания', IT: 'Италия', PT: 'Португалия', DK: 'Дания',
+        LU: 'Люксембург', PL: 'Польша', CZ: 'Чехия', HR: 'Хорватия', SI: 'Словения',
+        HU: 'Венгрия', GB: 'Великобритания', UK: 'Великобритания',
+        IE: 'Ирландия', SE: 'Швеция', NO: 'Норвегия', IS: 'Исландия', US: 'США',
+        CA: 'Канада', AU: 'Австралия', NZ: 'Новая Зеландия', JP: 'Япония'
+      }
+    };
+
+    var I18N_WEB = {
+      de: {
+        loading: 'Wird geladen…',
+        routes_title: '📍 Routen',
+        add_route: '+ Route hinzufügen',
+        save_main: '💾 Speichern',
+        check_btn: '▶ Jetzt prüfen',
+        lang_title: '🌐 Sprache / Language',
+        info_checks: 'Prüfungsinformationen',
+        site_status: '🌐 Verbindungsstatus der Anbieter',
+        refresh: '🔄 Aktualisieren',
+        settings_title: 'Einstellungen',
+        poll_interval: 'Abfrageintervall, Min.',
+        check_neighbors: 'Flexible Daten prüfen (±2 Tage)',
+        telegram_notifications: 'Telegram-Benachrichtigungen',
+        bot_mode: 'Telegram-Bot-Modus',
+        btn_enable_webhook: '⚡ Webhook aktivieren',
+        btn_disable_webhook: 'Webhook deaktivieren',
+        webhook_active_desc: '🟢 Webhook aktiv (Polling aus, kein Quotenverbrauch)',
+        webhook_polling_desc: '🟡 Polling (alle 1 Min., verbraucht ~1440 Anfragen/Tag)',
+        max_price: 'Max. Angebotspreis, €',
+        notify_all_by_price: 'Über alle Slots bis zum Höchstpreis benachrichtigen',
+        notify_all_desc: 'Datums- und Länderfilter für Telegram ignorieren, wenn Angebotspreis ≤ Höchstpreis',
+        country_filters: '🌍 Länderfilter',
+        country_filters_desc: 'Diese Filter gelten synchron für die Web-App und den Telegram-Bot',
+        origin_countries: '🛫 Abfahrtsländer (Start)',
+        dest_countries: '🛬 Zielländer',
+        btn_all: 'Alle',
+        btn_clear: 'Leeren',
+        trip_duration: '⏱ Reisedauer (Tage)',
+        silent_hours: '🌙 Ruhezeiten',
+        silent_hours_desc: 'Während der Ruhezeiten werden Telegram-Benachrichtigungen stumm gesendet.',
+        silent_status_label: 'Status:',
+        silent_interval: 'Ruhezeiten-Intervall',
+        commands_in_chat: 'Chat-Befehle:',
+        companies_title: '🏢 Anbieter in Überwachung',
+        companies_desc: 'Deaktivierte Anbieter werden beim Monitoring nicht abgefragt',
+        triggers_title: '🔧 Automatisierungs-Trigger',
+        triggers_restore: 'Wiederherstellen',
+        triggers_desc: 'Automatische Hintergrunddienste in Google Apps Script:',
+        save_settings_btn: 'Einstellungen speichern',
+        version_label: 'Version: ',
+        offers_sort_label: 'Sortierung:',
+        offers_sort_added: '🕒 Nach Hinzufügedatum',
+        offers_sort_trip: '📅 Nach Reisedaten',
+        offers_date_from: 'Von:',
+        offers_date_to: 'Bis:',
+        date_preset_7d: '7 Tage',
+        date_preset_14d: '14 Tage',
+        date_preset_month: 'Monat',
+        btn_check_avail: '🔄 Verfügbarkeit prüfen',
+        analytics_reload: '🔄 Aktualisieren',
+        analytics_daily_title: '📅 Angebote nach Tagen',
+        analytics_legend_total: 'Gesamt gefunden',
+        analytics_legend_matched: 'Passend',
+        analytics_hourly_title: '🕐 Wann Angebote erscheinen (UTC)',
+        analytics_top_routes_title: '🗺 Top-Routen',
+        analytics_by_sources_title: '📡 Nach Anbietern',
+        analytics_empty: '📭 Noch keine Daten.<br>Monitoring ausführen, um Statistiken zu sammeln.',
+        tab_main: 'Start',
+        tab_offers: 'Angebote',
+        tab_analytics: 'Statistik',
+        tab_settings: 'Optionen',
+        all_cities: 'Alle Städte',
+        station_prefix: 'Station ',
+        any_country: '🌍 Jedes Land',
+        campers_badge: '🚐 Camper',
+        cars_badge: '🚗 PKW',
+        all_badge: '🚗🚐 alle',
+        company_disabled: 'Anbieter deaktiviert',
+        edit_route: 'Route bearbeiten',
+        delete_btn: 'Löschen',
+        all_countries_allowed: 'Alle Länder erlaubt (Filter aus)',
+        selected_count: 'Ausgewählt: {selected} von {total}',
+        silent_on: 'Aktiviert 🔔',
+        silent_off: 'Deaktiviert ⬜',
+        empty_routes: 'Keine Routen — hinzufügen',
+        saving: 'Wird gespeichert…',
+        saved: '✓ Gespeichert',
+        save_error: 'Fehler beim Speichern'
+      },
+      it: {
+        loading: 'Caricamento…',
+        routes_title: '📍 Itinerari',
+        add_route: '+ Aggiungi itinerario',
+        save_main: '💾 Salva',
+        check_btn: '▶ Controlla ora',
+        lang_title: '🌐 Lingua / Language',
+        info_checks: 'Informazioni sulle verifiche',
+        site_status: '🌐 Stato connessione provider',
+        refresh: '🔄 Aggiorna',
+        settings_title: 'Impostazioni',
+        poll_interval: 'Intervallo di scansione, min',
+        check_neighbors: 'Controlla date flessibili (±2 giorni)',
+        telegram_notifications: 'Notifiche Telegram',
+        bot_mode: 'Modalità bot Telegram',
+        btn_enable_webhook: '⚡ Abilita Webhook',
+        btn_disable_webhook: 'Disabilita Webhook',
+        webhook_active_desc: '🟢 Webhook attivo (polling disattivato, zero quota consumata)',
+        webhook_polling_desc: '🟡 Polling (ogni 1 min, consuma ~1440 richieste/giorno)',
+        max_price: 'Prezzo max offerta, €',
+        notify_all_by_price: 'Notifica per tutti gli slot fino al prezzo max',
+        notify_all_desc: 'Ignora filtri date e paesi per Telegram se prezzo offerta ≤ prezzo max',
+        country_filters: '🌍 Filtri per paese',
+        country_filters_desc: 'Questi filtri si applicano sia alla web app che al bot Telegram',
+        origin_countries: '🛫 Paesi di partenza (origine)',
+        dest_countries: '🛬 Paesi di destinazione',
+        btn_all: 'Tutti',
+        btn_clear: 'Cancella',
+        trip_duration: '⏱ Durata del viaggio (giorni)',
+        silent_hours: '🌙 Ore di silenzio',
+        silent_hours_desc: 'Durante le ore di silenzio, le notifiche Telegram arrivano senza suono.',
+        silent_status_label: 'Stato:',
+        silent_interval: 'Intervallo ore di silenzio',
+        commands_in_chat: 'Comandi di chat:',
+        companies_title: '🏢 Provider nel monitoraggio',
+        companies_desc: 'I provider disabilitati non verranno scansionati',
+        triggers_title: '🔧 Trigger di automazione',
+        triggers_restore: 'Ripristina',
+        triggers_desc: 'Servizi automatici in background in Google Apps Script:',
+        save_settings_btn: 'Salva impostazioni',
+        version_label: 'Versione: ',
+        offers_sort_label: 'Ordina per:',
+        offers_sort_added: '🕒 Per data di aggiunta',
+        offers_sort_trip: '📅 Per date di viaggio',
+        offers_date_from: 'Da:',
+        offers_date_to: 'A:',
+        date_preset_7d: '7 giorni',
+        date_preset_14d: '14 giorni',
+        date_preset_month: 'Mese',
+        btn_check_avail: '🔄 Verifica disponibilità',
+        analytics_reload: '🔄 Aggiorna',
+        analytics_daily_title: '📅 Offerte per giorno',
+        analytics_legend_total: 'Totale trovati',
+        analytics_legend_matched: 'Corrispondenti',
+        analytics_hourly_title: '🕐 Quando appaiono le offerte (UTC)',
+        analytics_top_routes_title: '🗺 Principali itinerari',
+        analytics_by_sources_title: '📡 Per provider',
+        analytics_empty: '📭 Nessun dato al momento.<br>Avvia il monitoraggio per raccogliere statistiche.',
+        tab_main: 'Home',
+        tab_offers: 'Offerte',
+        tab_analytics: 'Analitica',
+        tab_settings: 'Impostazioni',
+        all_cities: 'Tutte le città',
+        station_prefix: 'Stazione ',
+        any_country: '🌍 Qualsiasi paese',
+        campers_badge: '🚐 camper',
+        cars_badge: '🚗 auto',
+        all_badge: '🚗🚐 tutti',
+        company_disabled: 'provider disabilitato',
+        edit_route: 'Modifica itinerario',
+        delete_btn: 'Elimina',
+        all_countries_allowed: 'Tutti i paesi consentiti (filtro off)',
+        selected_count: 'Selezionati: {selected} su {total}',
+        silent_on: 'Abilitato 🔔',
+        silent_off: 'Disabilitato ⬜',
+        empty_routes: 'Nessun itinerario — aggiungine uno',
+        saving: 'Salvataggio…',
+        saved: '✓ Salvato',
+        save_error: 'Errore durante il salvataggio'
+      },
+      en: {
+        loading: 'Loading…',
+        routes_title: '📍 Routes',
+        add_route: '+ Add route',
+        save_main: '💾 Save',
+        check_btn: '▶ Check now',
+        lang_title: '🌐 Interface Language',
+        info_checks: 'Check information',
+        site_status: '🌐 Provider Connection Status',
+        refresh: '🔄 Refresh',
+        settings_title: 'Settings',
+        poll_interval: 'Polling interval, min',
+        check_neighbors: 'Check flexible dates (±2 days)',
+        telegram_notifications: 'Telegram Notifications',
+        bot_mode: 'Telegram Bot Mode',
+        btn_enable_webhook: '⚡ Enable Webhook',
+        btn_disable_webhook: 'Disable Webhook',
+        webhook_active_desc: '🟢 Webhook active (polling off, zero quota wasted)',
+        webhook_polling_desc: '🟡 Polling (every 1 min, consumes ~1440 requests/day)',
+        max_price: 'Max offer price, €',
+        notify_all_by_price: 'Notify for all slots up to max price',
+        notify_all_desc: 'Ignore date & country filters for Telegram when offer price ≤ max price',
+        country_filters: '🌍 Country Filters',
+        country_filters_desc: 'These filters are synced across the web app and the Telegram bot',
+        origin_countries: '🛫 Departure countries (origin)',
+        dest_countries: '🛬 Destination countries',
+        btn_all: 'All',
+        btn_clear: 'Clear',
+        trip_duration: '⏱ Trip duration (days)',
+        silent_hours: '🌙 Quiet Hours',
+        silent_hours_desc: 'During quiet hours, Telegram notifications arrive silently.',
+        silent_status_label: 'Status:',
+        silent_interval: 'Quiet hours interval',
+        commands_in_chat: 'Chat control commands:',
+        companies_title: '🏢 Providers in Monitoring',
+        companies_desc: 'Disabled providers will not be checked during monitoring',
+        triggers_title: '🔧 Automation Triggers',
+        triggers_restore: 'Restore',
+        triggers_desc: 'Automatic background services in Google Apps Script:',
+        save_settings_btn: 'Save settings',
+        version_label: 'Version: ',
+        offers_sort_label: 'Sort by:',
+        offers_sort_added: '🕒 By added date',
+        offers_sort_trip: '📅 By trip dates',
+        offers_date_from: 'From:',
+        offers_date_to: 'To:',
+        date_preset_7d: '7 days',
+        date_preset_14d: '14 days',
+        date_preset_month: 'Month',
+        btn_check_avail: '🔄 Check availability',
+        analytics_reload: '🔄 Refresh',
+        analytics_daily_title: '📅 Offers by day',
+        analytics_legend_total: 'Total found',
+        analytics_legend_matched: 'Matched',
+        analytics_hourly_title: '🕐 When offers appear (UTC)',
+        analytics_top_routes_title: '🗺 Top routes',
+        analytics_by_sources_title: '📡 By provider',
+        analytics_empty: '📭 No data yet.<br>Run monitoring to collect statistics.',
+        tab_main: 'Main',
+        tab_offers: 'Offers',
+        tab_analytics: 'Analytics',
+        tab_settings: 'Settings',
+        all_cities: 'All cities',
+        station_prefix: 'Station ',
+        any_country: '🌍 Any country',
+        campers_badge: '🚐 campers',
+        cars_badge: '🚗 cars',
+        all_badge: '🚗🚐 all',
+        company_disabled: 'provider disabled',
+        edit_route: 'Edit route',
+        delete_btn: 'Delete',
+        all_countries_allowed: 'All countries allowed (filter off)',
+        selected_count: 'Selected: {selected} of {total}',
+        silent_on: 'Enabled 🔔',
+        silent_off: 'Disabled ⬜',
+        empty_routes: 'No routes — add one',
+        saving: 'Saving…',
+        saved: '✓ Saved',
+        save_error: 'Failed to save'
+      },
+      uk: {
+        loading: 'Завантаження…',
+        routes_title: '📍 Маршрути',
+        add_route: '+ Додати маршрут',
+        save_main: '💾 Зберегти',
+        check_btn: '▶ Перевірити',
+        lang_title: '🌐 Мова інтерфейсу',
+        info_checks: 'Інформація про перевірки',
+        site_status: '🌐 Стан зв\'язку із сайтами',
+        refresh: '🔄 Оновити',
+        settings_title: 'Налаштування',
+        poll_interval: 'Інтервал опитування, хв',
+        check_neighbors: 'Перевіряти сусідні дати (±2 дні)',
+        telegram_notifications: 'Telegram-сповіщення',
+        bot_mode: 'Режим Telegram бота',
+        btn_enable_webhook: '⚡ Увімкнути Webhook',
+        btn_disable_webhook: 'Вимкнути Webhook',
+        webhook_active_desc: '🟢 Webhook активний (полінг вимкнено, квота не витрачається)',
+        webhook_polling_desc: '🟡 Polling (раз на 1 хв, витрачає ~1440 запитів/день)',
+        max_price: 'Макс. ціна оферу, €',
+        notify_all_by_price: 'Сповіщати про всі слоти до макс. ціни',
+        notify_all_desc: 'Ігнорувати фільтри дат і країн для Telegram, якщо ціна слота ≤ макс. ціни',
+        country_filters: '🌍 Фільтри країн',
+        country_filters_desc: 'Ці фільтри застосовуються синхронно і для додатку, і для Telegram-бота',
+        origin_countries: '🛫 Звідки (країни відправлення)',
+        dest_countries: '🛬 Куди (країни прибуття)',
+        btn_all: 'Всі',
+        btn_clear: 'Очистити',
+        trip_duration: '⏱ Тривалість поїздки (днів)',
+        silent_hours: '🌙 Режим тихих годин',
+        silent_hours_desc: 'У тихі години сповіщення надходять у Telegram без звуку.',
+        silent_status_label: 'Статус:',
+        silent_interval: 'Інтервал тихих годин',
+        commands_in_chat: 'Команди керування в чаті:',
+        companies_title: '🏢 Компанії в моніторингу',
+        companies_desc: 'Вимкнені компанії не опитуються під час моніторингу',
+        triggers_title: '🔧 Тригери автоматизації',
+        triggers_restore: 'Відновити',
+        triggers_desc: 'Автоматичні фонові служби в Google Apps Script:',
+        save_settings_btn: 'Зберегти налаштування',
+        version_label: 'Версія: ',
+        offers_sort_label: 'Сортування:',
+        offers_sort_added: '🕒 За датою додавання',
+        offers_sort_trip: '📅 За діапазоном дат',
+        offers_date_from: 'З:',
+        offers_date_to: 'По:',
+        date_preset_7d: '7 дн',
+        date_preset_14d: '14 дн',
+        date_preset_month: 'Місяць',
+        btn_check_avail: '🔄 Перевірити актуальність',
+        analytics_reload: '🔄 Оновити',
+        analytics_daily_title: '📅 Офери за днями',
+        analytics_legend_total: 'Всього знайдено',
+        analytics_legend_matched: 'Відповідні',
+        analytics_hourly_title: '🕐 Коли з\'являються офери (UTC)',
+        analytics_top_routes_title: '🗺 Топ напрямків',
+        analytics_by_sources_title: '📡 За джерелами',
+        analytics_empty: '📭 Даних поки немає.<br>Запустіть моніторинг, щоб накопичити статистику.',
+        tab_main: 'Головна',
+        tab_offers: 'Офери',
+        tab_analytics: 'Аналітика',
+        tab_settings: 'Налаштування',
+        all_cities: 'Всі міста',
+        station_prefix: 'Станція ',
+        any_country: '🌍 Будь-яка країна',
+        campers_badge: '🚐 кемпери',
+        cars_badge: '🚗 легкові',
+        all_badge: '🚗🚐 всі',
+        company_disabled: 'компанія вимкнена',
+        edit_route: 'Редагувати маршрут',
+        delete_btn: 'Видалити',
+        all_countries_allowed: 'Всі країни дозволені (фільтр вимкнено)',
+        selected_count: 'Вибрано: {selected} з {total}',
+        silent_on: 'Увімкнено 🔔',
+        silent_off: 'Вимкнено ⬜',
+        empty_routes: 'Немає маршрутів — додайте',
+        saving: 'Збереження…',
+        saved: '✓ Збережено',
+        save_error: 'Помилка збереження'
+      },
+      ru: {
+        loading: 'Загрузка…',
+        routes_title: '📍 Маршруты',
+        add_route: '+ Добавить маршрут',
+        save_main: '💾 Сохранить',
+        check_btn: '▶ Проверить',
+        lang_title: '🌐 Язык интерфейса / Language',
+        info_checks: 'Информация о проверках',
+        site_status: '🌐 Статус связи с сайтами',
+        refresh: '🔄 Обновить',
+        settings_title: 'Настройки',
+        poll_interval: 'Интервал опроса, мин',
+        check_neighbors: 'Проверять соседние даты (±2 дня)',
+        telegram_notifications: 'Telegram-уведомления',
+        bot_mode: 'Режим Telegram бота',
+        btn_enable_webhook: '⚡ Включить Webhook',
+        btn_disable_webhook: 'Отключить Webhook',
+        webhook_active_desc: '🟢 Webhook активен (поллинг отключен, квота не тратится)',
+        webhook_polling_desc: '🟡 Polling (раз в 1 мин, тратит ~1440 запросов/день)',
+        max_price: 'Макс. цена оффера, €',
+        notify_all_by_price: 'Уведомлять обо всех слотах до макс. цены',
+        notify_all_desc: 'Игнорировать фильтры дат и стран для Telegram, если цена слота ≤ макс. цены',
+        country_filters: '🌍 Фильтры стран',
+        country_filters_desc: 'Эти фильтры применяются синхронно и для приложения, и для Telegram-бота',
+        origin_countries: '🛫 Откуда (страны отправления)',
+        dest_countries: '🛬 Куда (страны прибытия)',
+        btn_all: 'Все',
+        btn_clear: 'Очистить',
+        trip_duration: '⏱ Длительность поездки (дней)',
+        silent_hours: '🌙 Режим тихих часов',
+        silent_hours_desc: 'В тихие часы уведомления приходят в Telegram без звука.',
+        silent_status_label: 'Статус:',
+        silent_interval: 'Интервал тихих часов',
+        commands_in_chat: 'Команди управления в чате:',
+        companies_title: '🏢 Компании в мониторинге',
+        companies_desc: 'Отключенные компании не опрашиваются при мониторинге',
+        triggers_title: '🔧 Триггеры автоматизации',
+        triggers_restore: 'Восстановить',
+        triggers_desc: 'Автоматические фоновые службы в Google Apps Script:',
+        save_settings_btn: 'Сохранить настройки',
+        version_label: 'Версия: ',
+        offers_sort_label: 'Сортировка:',
+        offers_sort_added: '🕒 По дате добавления',
+        offers_sort_trip: '📅 По диапазону дат',
+        offers_date_from: 'С:',
+        offers_date_to: 'По:',
+        date_preset_7d: '7 дн',
+        date_preset_14d: '14 дн',
+        date_preset_month: 'Месяц',
+        btn_check_avail: '🔄 Проверить актуальность',
+        analytics_reload: '🔄 Обновить',
+        analytics_daily_title: '📅 Офферы по дням',
+        analytics_legend_total: 'Всего найдено',
+        analytics_legend_matched: 'Подходящие',
+        analytics_hourly_title: '🕐 Когда появляются офферы (UTC)',
+        analytics_top_routes_title: '🗺 Топ направлений',
+        analytics_by_sources_title: '📡 По источникам',
+        analytics_empty: '📭 Данных пока нет.<br>Запустите мониторинг, чтобы накопить статистику.',
+        tab_main: 'Главная',
+        tab_offers: 'Офферы',
+        tab_analytics: 'Аналитика',
+        tab_settings: 'Настройки',
+        all_cities: 'Все города',
+        station_prefix: 'Станция ',
+        any_country: '🌍 Любая страна',
+        campers_badge: '🚐 кемперы',
+        cars_badge: '🚗 легковые',
+        all_badge: '🚗🚐 все',
+        company_disabled: 'компания отключена',
+        edit_route: 'Редактировать маршрут',
+        delete_btn: 'Удалить',
+        all_countries_allowed: 'Все страны разрешены (фильтр отключен)',
+        selected_count: 'Выбрано: {selected} из {total}',
+        silent_on: 'Включены 🔔',
+        silent_off: 'Выключены ⬜',
+        empty_routes: 'Нет маршрутов — добавьте',
+        saving: 'Сохранение…',
+        saved: '✓ Сохранено',
+        save_error: 'Ошибка сохранения'
+      }
+    };
+
+    function tWeb(key, params) {
+      var dict = I18N_WEB[currentAppLang] || I18N_WEB['ru'];
+      var val = dict[key] || (I18N_WEB['ru'] && I18N_WEB['ru'][key]) || key;
+      if (params && typeof params === 'object') {
+        Object.keys(params).forEach(function(p) {
+          val = val.replace(new RegExp('\\{' + p + '\\}', 'g'), params[p]);
+        });
+      }
+      return val;
+    }
+
+    function getCountryDisplayName(code, lang) {
+      lang = lang || currentAppLang || 'ru';
+      var dict = WEBAPP_COUNTRY_NAMES[lang] || WEBAPP_COUNTRY_NAMES['en'] || {};
+      if (dict[code]) return dict[code];
+      return code;
+    }
+
+    function setAppLanguage(lang, syncWithBackend) {
+      if (!I18N_WEB[lang]) {
+        lang = 'ru';
+      }
+      currentAppLang = lang;
+      try {
+        localStorage.setItem('camper_monitor_lang', lang);
+      } catch (e) {}
+
+      var hSel = document.getElementById('headerLangSelector');
+      if (hSel) hSel.value = lang;
+      var cSel = document.getElementById('langSelector');
+      if (cSel) cSel.value = lang;
+
+      var els = document.querySelectorAll('[data-i18n]');
+      els.forEach(function(el) {
+        var key = el.getAttribute('data-i18n');
+        if (key && (I18N_WEB[lang][key] || I18N_WEB['ru'][key])) {
+          var text = tWeb(key);
+          if (text.indexOf('<') !== -1) {
+            el.innerHTML = text;
+          } else {
+            el.textContent = text;
+          }
+        }
+      });
+
+      if (state) {
+        renderRoutes();
+        renderCountryChips(
+          'originCountriesChips',
+          'originCountriesCount',
+          'allowed_origin_countries',
+          'btnAllOriginCountries',
+          'btnClearOriginCountries'
+        );
+        renderCountryChips(
+          'destCountriesChips',
+          'destCountriesCount',
+          'allowed_destination_countries',
+          'btnAllDestCountries',
+          'btnClearDestCountries'
+        );
+        var webhookActive = !!(state && state.telegramWebhookActive);
+        var webhookBtn = document.getElementById('btnToggleWebhook');
+        var webhookDesc = document.getElementById('webhookStatusDesc');
+        if (webhookBtn && webhookDesc) {
+          if (webhookActive) {
+            webhookDesc.textContent = tWeb('webhook_active_desc');
+            webhookBtn.textContent = tWeb('btn_disable_webhook');
+          } else {
+            webhookDesc.textContent = tWeb('webhook_polling_desc');
+            webhookBtn.textContent = tWeb('btn_enable_webhook');
+          }
+        }
+        var isSilent = state.settings && isTruthy(state.settings.silent_hours_enabled);
+        var silentStatusTextEl = document.getElementById('silentHoursStatusText');
+        if (silentStatusTextEl) {
+          silentStatusTextEl.textContent = isSilent ? tWeb('silent_on') : tWeb('silent_off');
+        }
+      }
+
+      if (syncWithBackend) {
+        saveSettings();
+      }
+    }
+
+    function onLanguageChange(lang) {
+      setAppLanguage(lang, true);
+    }
 
     function getInitData() {
       if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
@@ -2148,6 +2709,20 @@
         }
       }).withFailureHandler(function() {}).getUiData(getInitData());
       
+      var initialLang = 'ru';
+      try {
+        var localLang = localStorage.getItem('camper_monitor_lang');
+        if (localLang && I18N_WEB[localLang]) {
+          initialLang = localLang;
+        } else if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) {
+          var rawCode = String(tg.initDataUnsafe.user.language_code).toLowerCase().slice(0, 2);
+          if (I18N_WEB[rawCode]) {
+            initialLang = rawCode;
+          }
+        }
+      } catch (e) {}
+      setAppLanguage(initialLang, false);
+
       switchTab(currentTab);
       load();
     }
@@ -2158,6 +2733,9 @@
         .withSuccessHandler(function (data) {
           var form = document.getElementById('mainForm');
           if (form) form.style.display = 'block';
+          if (data && data.language && I18N_WEB[data.language] && !localStorage.getItem('camper_monitor_lang')) {
+            setAppLanguage(data.language, false);
+          }
           render(data);
           checkHealth();
         })
@@ -2447,7 +3025,7 @@
       if (!state.routes.length) {
         var empty = document.createElement('div');
         empty.className = 'empty-hint';
-        empty.textContent = 'Нет маршрутов — добавьте';
+        empty.textContent = tWeb('empty_routes');
         list.appendChild(empty);
         return;
       }
@@ -2465,8 +3043,8 @@
         return card;
       }
 
-      var origText = route.originName || (isWildcardStation(route.originId) ? 'Все города' : ('Станция ' + route.originId));
-      var destText = route.destinationName || (isWildcardStation(route.destinationId) ? 'Все города' : ('Станция ' + route.destinationId));
+      var origText = route.originName || (isWildcardStation(route.originId) ? tWeb('all_cities') : (tWeb('station_prefix') + route.originId));
+      var destText = route.destinationName || (isWildcardStation(route.destinationId) ? tWeb('all_cities') : (tWeb('station_prefix') + route.destinationId));
       var head = document.createElement('div');
       head.className = 'route-head';
       head.textContent = flagEmoji(route.originCountry) + ' ' + origText + '  ➔  ' +
@@ -2481,11 +3059,11 @@
       vBadge.className = 'src';
       vBadge.style.cssText = 'margin-left:6px;';
       if (rVType === 'camper') {
-        vBadge.textContent = '🚐 кемперы';
+        vBadge.textContent = tWeb('campers_badge');
       } else if (rVType === 'car') {
-        vBadge.textContent = '🚗 легковые';
+        vBadge.textContent = tWeb('cars_badge');
       } else {
-        vBadge.textContent = '🚗🚐 все';
+        vBadge.textContent = tWeb('all_badge');
       }
       head.appendChild(vBadge);
 
@@ -2494,14 +3072,14 @@
       if (!isProvEnabled) {
         var offBadge = document.createElement('span');
         offBadge.style.cssText = 'font-size:11px;color:#f87171;background:rgba(239,68,68,0.15);padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:500;';
-        offBadge.textContent = 'компания отключена';
+        offBadge.textContent = tWeb('company_disabled');
         head.appendChild(offBadge);
       }
 
       var edit = document.createElement('button');
       edit.type = 'button';
       edit.className = 'delete-link';
-      edit.title = 'Редактировать маршрут';
+      edit.title = tWeb('edit_route');
       edit.textContent = '✏️';
       edit.onclick = function () {
         route._editing = true;
@@ -2515,7 +3093,8 @@
       foot.appendChild(routeDates(route));
 
       var w = route.window || state.window;
-      var daysLabel = document.createTextNode('(' + w.days + ' дн)');
+      var daysUnit = currentAppLang === 'ru' || currentAppLang === 'uk' ? 'дн' : (currentAppLang === 'de' ? 'Tage' : (currentAppLang === 'it' ? 'gg' : 'days'));
+      var daysLabel = document.createTextNode('(' + w.days + ' ' + daysUnit + ')');
       foot.appendChild(daysLabel);
 
       if (state.settings.check_neighbors) {
@@ -2547,7 +3126,7 @@
       var del = document.createElement('button');
       del.type = 'button';
       del.className = 'delete-link';
-      del.title = 'Удалить';
+      del.title = tWeb('delete_btn');
       del.textContent = '🗑';
       del.onclick = function () {
         state.routes.splice(index, 1);
@@ -2786,7 +3365,7 @@
           var origInner = btn._origInner;
           // Temporarily show checkmark label
           var saveText = btn.querySelector('.save-label');
-          if (saveText) saveText.textContent = '✓ Сохранено';
+          if (saveText) saveText.textContent = tWeb('saved');
           btn._doneTimer = setTimeout(function() {
             btn.classList.remove('btn-done');
             if (origInner) btn.innerHTML = origInner;
@@ -2830,6 +3409,7 @@
       state.filters.vehicle_type = isOnlyCampers ? 'camper' : 'all';
 
       var payload = {
+        language: currentAppLang,
         settings: {
           poll_interval_minutes: state.settings.poll_interval_minutes,
           window_days: state.settings.window_days,
@@ -2881,11 +3461,11 @@
         .withSuccessHandler(function (result) {
           // result is now { ok: true } — no full reload needed
           setSavingState(false, true);
-          toast('Сохранено ✓');
+          toast(tWeb('saved'));
         })
         .withFailureHandler(function (err) {
           setSavingState(false, false);
-          toast((err && err.message) || 'Ошибка сохранения', true);
+          toast((err && err.message) || tWeb('save_error'), true);
         })
         .saveUiData(payload, initData);
     }
@@ -2939,15 +3519,15 @@
       function updateCount() {
         if (!countEl) return;
         if (selected.length === 0) {
-          countEl.textContent = 'Все страны разрешены (фильтр отключен)';
+          countEl.textContent = tWeb('all_countries_allowed');
         } else {
-          countEl.textContent = 'Выбрано: ' + selected.length + ' из ' + allCountries.length;
+          countEl.textContent = tWeb('selected_count', { selected: selected.length, total: allCountries.length });
         }
       }
 
       allCountries.forEach(function (c) {
         var code = c[0];
-        var name = c[1];
+        var name = getCountryDisplayName(code, currentAppLang);
         var chip = document.createElement('button');
         chip.type = 'button';
         var isSel = selected.indexOf(code) !== -1;
@@ -3054,6 +3634,31 @@
       return d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()] + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
     }
 
+    function pluralizeDaysWeb(days, lang) {
+      lang = lang || currentAppLang || 'ru';
+      if (lang === 'ru') {
+        var mod10 = days % 10;
+        var mod100 = days % 100;
+        if (mod10 === 1 && mod100 !== 11) return 'день';
+        if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'дня';
+        return 'дней';
+      }
+      if (lang === 'uk') {
+        var mod10 = days % 10;
+        var mod100 = days % 100;
+        if (mod10 === 1 && mod100 !== 11) return 'день';
+        if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'дні';
+        return 'днів';
+      }
+      if (lang === 'de') {
+        return days === 1 ? 'Tag' : 'Tage';
+      }
+      if (lang === 'it') {
+        return days === 1 ? 'giorno' : 'giorni';
+      }
+      return days === 1 ? 'day' : 'days';
+    }
+
     function formatOfferDateRange(pickup, returnDate) {
       var p = parseDateFlexible(pickup);
       var r = parseDateFlexible(returnDate);
@@ -3065,7 +3670,7 @@
       var pYear = p.getFullYear();
       var rYear = r.getFullYear();
       var daysDiff = Math.max(1, Math.round((r.getTime() - p.getTime()) / (1000 * 60 * 60 * 24)));
-      var daysLabel = ' (' + daysDiff + ' ' + (daysDiff === 1 ? 'день' : (daysDiff < 5 ? 'дня' : 'дней')) + ')';
+      var daysLabel = ' (' + daysDiff + ' ' + pluralizeDaysWeb(daysDiff, currentAppLang) + ')';
 
       if (pYear === rYear && p.getMonth() === r.getMonth()) {
         if (p.getDate() === r.getDate()) {
@@ -3110,16 +3715,30 @@
     }
 
     function timeAgo(iso) {
-      if (!iso) { return 'никогда'; }
+      if (!iso) {
+        var dict = { ru: 'никогда', uk: 'ніколи', de: 'nie', it: 'mai', en: 'never' };
+        return dict[currentAppLang] || 'never';
+      }
       var t = new Date(iso).getTime();
       if (isNaN(t)) { return String(iso); }
       var diff = Math.max(0, (Date.now() - t) / 1000);
-      if (diff < 60) { return 'только что'; }
+      if (diff < 60) {
+        var dictJustNow = { ru: 'только что', uk: 'щойно', de: 'gerade eben', it: 'proprio ora', en: 'just now' };
+        return dictJustNow[currentAppLang] || 'just now';
+      }
       var m = Math.floor(diff / 60);
-      if (m < 60) { return m + ' мин назад'; }
+      if (m < 60) {
+        var dictMins = { ru: ' мин назад', uk: ' хв тому', de: ' Min. her', it: ' min fa', en: 'm ago' };
+        return m + (dictMins[currentAppLang] || 'm ago');
+      }
       var h = Math.floor(m / 60);
-      if (h < 24) { return h + ' ч назад'; }
-      return Math.floor(h / 24) + ' дн назад';
+      if (h < 24) {
+        var dictHours = { ru: ' ч назад', uk: ' год тому', de: ' Std. her', it: ' ore fa', en: 'h ago' };
+        return h + (dictHours[currentAppLang] || 'h ago');
+      }
+      var d = Math.floor(h / 24);
+      var dictDays = { ru: ' дн назад', uk: ' дн тому', de: ' Tage her', it: ' giorni fa', en: 'd ago' };
+      return d + (dictDays[currentAppLang] || 'd ago');
     }
 
     function isTruthy(value) {
@@ -3180,13 +3799,13 @@
       if (allowAll) {
         var anyEl = document.createElement('option');
         anyEl.value = '';
-        anyEl.textContent = '🌍 Любая страна';
+        anyEl.textContent = tWeb('any_country');
         sel.appendChild(anyEl);
       }
       (state.countries || []).forEach(function (c) {
         var el = document.createElement('option');
         el.value = c[0];
-        el.textContent = flagEmoji(c[0]) + ' ' + c[1];
+        el.textContent = flagEmoji(c[0]) + ' ' + getCountryDisplayName(c[0], currentAppLang);
         sel.appendChild(el);
       });
       sel.value = value || '';

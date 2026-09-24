@@ -462,6 +462,7 @@ function runMonitorOnce() {
             const sh = filters.silent_hours;
             const isSilentEnabled = Boolean(sh && sh.enabled !== false);
             const userSettings = Object.assign({}, settings, {
+              language: user.language,
               silent_hours_enabled: isSilentEnabled,
               silent_hours_start: sh ? (sh.start || sh.from || settings.silent_hours_start || '23:00') : settings.silent_hours_start,
               silent_hours_end: sh ? (sh.end || sh.to || settings.silent_hours_end || '07:00') : settings.silent_hours_end
@@ -638,6 +639,7 @@ function runMonitorOnce() {
 function buildStatusMessage_(spreadsheet, chatId) {
   const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
   const globalFilters = readKeyValueSheet_(spreadsheet, SHEET_NAMES.FILTERS, DEFAULT_FILTERS);
+  const lang = (typeof resolveUserLanguage_ === 'function') ? resolveUserLanguage_(chatId) : 'en';
   
   const filters = getUserFilters(chatId) || {};
   const routes = getUserRoutes(chatId) || [];
@@ -646,13 +648,13 @@ function buildStatusMessage_(spreadsheet, chatId) {
   });
 
   const runsSheet = spreadsheet.getSheetByName(SHEET_NAMES.RUNS);
-  let lastRunText = 'нет данных';
+  let lastRunText = (typeof t_ === 'function') ? t_('status_no_data', lang) : 'no data';
   let total24h = 0;
 
   if (runsSheet && runsSheet.getLastRow() > 1) {
     const data = runsSheet.getDataRange().getValues();
     const lastRow = data[data.length - 1];
-    lastRunText = lastRow[0] ? Utilities.formatDate(new Date(lastRow[0]), settings.timezone || 'Europe/Berlin', 'yyyy-MM-dd HH:mm:ss') : 'нет данных';
+    lastRunText = lastRow[0] ? Utilities.formatDate(new Date(lastRow[0]), settings.timezone || 'Europe/Berlin', 'yyyy-MM-dd HH:mm:ss') : ((typeof t_ === 'function') ? t_('status_no_data', lang) : 'no data');
 
     const oneDayAgo = new Date().getTime() - 24 * 60 * 60 * 1000;
     for (let i = 1; i < data.length; i++) {
@@ -668,37 +670,45 @@ function buildStatusMessage_(spreadsheet, chatId) {
   const mvIcon = health.movacar.ok ? '🟢' : '🔴';
   const tgIcon = health.telegram.ok ? '🟢' : '🔴';
 
+  if (typeof t_ !== 'function') {
+    return 'Status: total ' + total24h;
+  }
+
+  const originVal = (filters.allowed_origin_countries && filters.allowed_origin_countries.length)
+    ? filters.allowed_origin_countries.join(', ')
+    : t_('status_all', lang);
+  const destVal = (filters.allowed_destination_countries && filters.allowed_destination_countries.length)
+    ? filters.allowed_destination_countries.join(', ')
+    : t_('status_all', lang);
+
   let lines = [
-    '📊 <b>Статус Camper Monitor</b>',
+    t_('status_header', lang),
     '',
-    '🌐 <b>Связь с сайтами:</b>',
+    t_('status_site_conn', lang),
     '  ' + rsIcon + ' <b>Roadsurfer Rally:</b> ' + health.roadsurfer.message,
     '  ' + mvIcon + ' <b>Movacar:</b> ' + health.movacar.message,
     '  ' + tgIcon + ' <b>Telegram Bot:</b> ' + health.telegram.message,
     '',
-    '⏱ Последний опрос: ' + lastRunText,
-    '📈 Общих офферов за 24ч: ' + total24h,
-    '🚗 Моих маршрутов (активных): ' + enabledRoutes.length,
+    t_('status_last_poll', lang, { time: lastRunText }),
+    t_('status_total_24h', lang, { count: total24h }),
+    t_('status_active_routes', lang, { count: enabledRoutes.length }),
     '',
-    'Мои фильтры:',
-    '  Откуда: ' + (filters.allowed_origin_countries ? filters.allowed_origin_countries.join(', ') : 'все'),
-    '  Куда: ' + (filters.allowed_destination_countries ? filters.allowed_destination_countries.join(', ') : 'все'),
+    t_('status_my_filters', lang),
+    t_('status_origin', lang, { val: originVal }),
+    t_('status_dest', lang, { val: destVal }),
   ];
 
   if (filters.min_duration_days || filters.max_duration_days) {
-    lines.push('  Длительность: ' + (filters.min_duration_days || '0') + '–' + (filters.max_duration_days || '∞') + ' дней');
+    lines.push(t_('status_duration', lang, { min: filters.min_duration_days || '0', max: filters.max_duration_days || '∞' }));
   }
 
-  const maxP = (filters.price_max != null && filters.price_max !== '') ? (filters.price_max + ' €') : 'любая';
-  lines.push('  Макс. цена: ' + maxP);
+  const maxP = (filters.price_max != null && filters.price_max !== '') ? (filters.price_max + ' €') : t_('status_any', lang);
+  lines.push(t_('status_max_price', lang, { val: maxP }));
   const isCampersOnly = filters.only_campers !== false && filters.vehicle_type !== 'all';
-  lines.push('  Тип ТС: ' + (isCampersOnly ? '🚐 Только дома на колёсах (кемперы)' : '🚗 Все (включая легковые)'));
+  lines.push(t_('status_vehicle_type', lang, { val: isCampersOnly ? t_('status_campers_only', lang) : t_('status_all_vehicles', lang) }));
 
   lines.push('');
-  lines.push('Команды:');
-  lines.push('/check — запустить сканирование прямо сейчас');
-  lines.push('/routes — список моих маршрутов');
-  lines.push('/campers [on|off] — фильтр кемперов / легковых');
+  lines.push(t_('status_commands', lang));
   return lines.join('\n');
 }
 

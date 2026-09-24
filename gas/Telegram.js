@@ -79,6 +79,8 @@ function sendTelegramOffer_(secrets, offer, route, routeIndex, settings, chatId)
     throw new Error('TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing in Script Properties');
   }
 
+  const userLang = (settings && settings.language) || (typeof resolveUserLanguage_ === 'function' ? resolveUserLanguage_(targetChatId) : 'en');
+
   let durationDays = '';
   if (offer.pickupDate && offer.returnDate) {
     const p = parseIsoDate_(offer.pickupDate);
@@ -86,7 +88,9 @@ function sendTelegramOffer_(secrets, offer, route, routeIndex, settings, chatId)
     if (p && r) {
       const days = Math.round((r.getTime() - p.getTime()) / (1000 * 60 * 60 * 24));
       if (days > 0) {
-        durationDays = ' (' + days + ' дней)';
+        durationDays = (typeof pluralizeDays_ === 'function')
+          ? pluralizeDays_(days, userLang)
+          : (' (' + days + ' days)');
       }
     }
   }
@@ -99,12 +103,17 @@ function sendTelegramOffer_(secrets, offer, route, routeIndex, settings, chatId)
 
   const displayInfo = getSourceAndPartnerDisplay_(offer, meta);
 
-  const sleepingDesc = (isCamper && meta.sleeping) ? (' (спальных мест: ' + meta.sleeping + ')') : '';
-  const typeDesc = isCamper
-    ? '🚐 <b>Дом на колёсах' + sleepingDesc + '</b>'
-    : '🚗 <b>Легковой авто (' + escapeHtml_(meta.operator || 'Sixt') + ', без спальных мест)</b>';
+  const sleepingDesc = (isCamper && meta.sleeping)
+    ? (typeof t_ === 'function' ? t_('sleeping_places', userLang, { count: meta.sleeping }) : (' (спальных мест: ' + meta.sleeping + ')'))
+    : '';
 
-  const vehicleLine = offer.vehicle ? ('\n' + icon + ' Модель: <b>' + escapeHtml_(offer.vehicle) + '</b>') : '';
+  const typeDesc = isCamper
+    ? (typeof t_ === 'function' ? t_('offer_type_camper', userLang, { sleeping: sleepingDesc }) : ('🚐 <b>Дом на колёсах' + sleepingDesc + '</b>'))
+    : (typeof t_ === 'function' ? t_('offer_type_car', userLang, { operator: escapeHtml_(meta.operator || 'Sixt') }) : ('🚗 <b>Легковой авто (' + escapeHtml_(meta.operator || 'Sixt') + ', без спальных мест)</b>'));
+
+  const vehicleLine = offer.vehicle
+    ? (typeof t_ === 'function' ? t_('vehicle_model', userLang, { icon: icon, model: escapeHtml_(offer.vehicle) }) : ('\n' + icon + ' Модель: <b>' + escapeHtml_(offer.vehicle) + '</b>'))
+    : '';
   
   let priceLine = '';
   let priceSuffix = '!';
@@ -113,26 +122,31 @@ function sendTelegramOffer_(secrets, offer, route, routeIndex, settings, chatId)
     const numTotal = (offer.totalPrice != null && offer.totalPrice !== '') ? Number(offer.totalPrice) : null;
     if (!isNaN(numPrice)) {
       if (numPrice === 1 && (!numTotal || numTotal === 1)) {
-        priceSuffix = ' за 1€!';
-        priceLine = '\n💶 Цена: <b>1 €</b>';
+        priceSuffix = (typeof t_ === 'function') ? t_('price_suffix_1eur', userLang) : ' за 1€!';
+        priceLine = (typeof t_ === 'function') ? t_('price_line_1eur', userLang) : '\n💶 Цена: <b>1 €</b>';
       } else if (numTotal && numTotal !== numPrice) {
-        priceSuffix = ' от ' + numPrice + '€/сутки!';
-        priceLine = '\n💶 Цена: <b>' + escapeHtml_(String(numPrice)) + '</b> € / сутки (всего: <b>' + escapeHtml_(String(numTotal)) + '</b> €)';
+        priceSuffix = (typeof t_ === 'function') ? t_('price_suffix_from', userLang, { price: numPrice }) : (' от ' + numPrice + '€/сутки!');
+        priceLine = (typeof t_ === 'function') ? t_('price_line_daily', userLang, { price: escapeHtml_(String(numPrice)), total: escapeHtml_(String(numTotal)) }) : ('\n💶 Цена: <b>' + escapeHtml_(String(numPrice)) + '</b> € / сутки (всего: <b>' + escapeHtml_(String(numTotal)) + '</b> €)');
       } else {
-        priceSuffix = ' за ' + numPrice + '€!';
-        priceLine = '\n💶 Цена: <b>' + escapeHtml_(String(numPrice)) + '</b> €';
+        priceSuffix = (typeof t_ === 'function') ? t_('price_suffix_price', userLang, { price: numPrice }) : (' за ' + numPrice + '€!');
+        priceLine = (typeof t_ === 'function') ? t_('price_line_fixed', userLang, { price: escapeHtml_(String(numPrice)) }) : ('\n💶 Цена: <b>' + escapeHtml_(String(numPrice)) + '</b> €');
       }
     }
   }
 
-  const buttonLabel = 'Забронировать оффер ➔';
+  const buttonLabel = (typeof t_ === 'function') ? t_('btn_book', userLang) : 'Забронировать оффер ➔';
+  const typeLabel = (typeof t_ === 'function') ? t_('offer_type_label', userLang) : '🏷 Тип: ';
+
+  const headerText = isCamper
+    ? (typeof t_ === 'function' ? t_('offer_title_camper', userLang, { icon: icon, source: displayInfo.headerSource, priceSuffix: priceSuffix }) : (icon + ' <b>' + displayInfo.headerSource + ' — найден кемпер' + priceSuffix + '</b>'))
+    : (typeof t_ === 'function' ? t_('offer_title_car', userLang, { icon: icon, source: displayInfo.headerSource, priceSuffix: priceSuffix }) : (icon + ' <b>' + displayInfo.headerSource + ' — найден легковой авто' + priceSuffix + '</b>'));
 
   const text =
-    icon + ' <b>' + displayInfo.headerSource + ' — ' + (isCamper ? 'найден кемпер' : 'найден легковой авто') + priceSuffix + '</b>\n\n' +
+    headerText + '\n\n' +
     displayInfo.sourceLine + '\n' +
     '📍 ' + escapeHtml_(offer.origin) + ' ➔ ' + escapeHtml_(offer.destination) + '\n' +
     '📅 ' + escapeHtml_(offer.pickupDate || '') + ' – ' + escapeHtml_(offer.returnDate || '') + durationDays + '\n' +
-    '🏷 Тип: ' + typeDesc +
+    typeLabel + typeDesc +
     vehicleLine +
     priceLine;
 
@@ -149,9 +163,10 @@ function sendTelegramOffer_(secrets, offer, route, routeIndex, settings, chatId)
   if (routeIndex != null) {
     const rHash = computeRouteHash_(route);
     const cbData = rHash ? ('dis_r:' + routeIndex + ':' + rHash) : ('dis_r:' + String(routeIndex).substring(0, 30));
+    const disableText = (typeof t_ === 'function') ? t_('btn_disable_route', userLang) : '🚫 Отключить этот маршрут';
     keyboard.push([
       {
-        text: '🚫 Отключить этот маршрут',
+        text: disableText,
         callback_data: cbData,
       },
     ]);
@@ -183,19 +198,23 @@ function sendTelegramOffer_(secrets, offer, route, routeIndex, settings, chatId)
   }
 }
 
-function sendTelegramMessage_(secrets, text, chatId) {
+function sendTelegramMessage_(secrets, text, chatId, replyMarkup) {
   const targetChatId = chatId || secrets.telegramChatId;
   if (!secrets.telegramBotToken || !targetChatId) {
     throw new Error('TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing');
   }
+  const payload = {
+    chat_id: targetChatId,
+    text: text,
+    parse_mode: 'HTML',
+    disable_web_page_preview: true,
+  };
+  if (replyMarkup) {
+    payload.reply_markup = replyMarkup;
+  }
   const result = fetchJson_('https://api.telegram.org/bot' + secrets.telegramBotToken + '/sendMessage', {
     method: 'post',
-    payload: JSON.stringify({
-      chat_id: targetChatId,
-      text: text,
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-    }),
+    payload: JSON.stringify(payload),
     retries: 1,
   });
   if (!result || result.ok !== true) {
@@ -299,15 +318,36 @@ function handleTelegramCallbackQuery_(callbackQuery) {
   const message = callbackQuery.message;
   const chatId = message && message.chat && message.chat.id != null ? String(message.chat.id) : '';
 
+  const telegramId = fromUser ? fromUser.id : null;
+  const userLang = (typeof resolveUserLanguage_ === 'function')
+    ? resolveUserLanguage_(telegramId, fromUser ? fromUser.language_code : null)
+    : 'en';
+
   if (data === 'none' || data === 'disabled_already') {
-    answerTelegramCallbackQuery_(secrets, queryId, 'Маршрут уже отключен.', false);
+    const msg = (typeof t_ === 'function') ? t_('alert_route_already_disabled', userLang) : 'Маршрут уже отключен.';
+    answerTelegramCallbackQuery_(secrets, queryId, msg, false);
+    return;
+  }
+
+  if (data.indexOf('set_lang:') === 0) {
+    const chosenLang = data.split(':')[1];
+    const normalized = (typeof normalizeLanguage_ === 'function') ? normalizeLanguage_(chosenLang) : chosenLang;
+    if (telegramId && typeof setUserLanguage === 'function') {
+      try {
+        setUserLanguage(telegramId, normalized);
+      } catch (e) {}
+    }
+    const confirmMsg = (typeof t_ === 'function') ? t_('lang_changed', normalized) : ('Language set to ' + normalized);
+    answerTelegramCallbackQuery_(secrets, queryId, confirmMsg, false);
+    if (message && message.message_id && chatId) {
+      sendTelegramMessage_(secrets, confirmMsg, chatId);
+    }
     return;
   }
 
   if (data.indexOf('dis_r:') === 0) {
     const routeParam = data.substring(6);
     const parts = routeParam.split(':');
-    const telegramId = fromUser ? fromUser.id : null;
     let success = false;
     const hasFirestore = typeof isFirestoreConfigured_ === 'function' && isFirestoreConfigured_();
     const isAdmin = Boolean(!secrets.telegramChatId || (telegramId && (String(telegramId) === String(secrets.telegramChatId) || (secrets.telegramAllowedUsers && secrets.telegramAllowedUsers.indexOf(String(telegramId)) !== -1))));
@@ -332,17 +372,15 @@ function handleTelegramCallbackQuery_(callbackQuery) {
       } catch (e) {}
     }
 
-    if (success) {
-      answerTelegramCallbackQuery_(secrets, queryId, 'Маршрут отключен! 🚫', false);
-    } else {
-      answerTelegramCallbackQuery_(secrets, queryId, 'Маршрут отключен! 🚫', false);
-    }
+    const disabledAlert = (typeof t_ === 'function') ? t_('alert_route_disabled', userLang) : 'Маршрут отключен! 🚫';
+    answerTelegramCallbackQuery_(secrets, queryId, disabledAlert, false);
 
     // Update inline keyboard on message
     if (message && message.message_id && chatId) {
       const existingMarkup = message.reply_markup || {};
       const newKeyboard = [];
       const oldKeyboard = existingMarkup.inline_keyboard || [];
+      const disabledBtnText = (typeof t_ === 'function') ? t_('btn_route_disabled', userLang) : 'Маршрут отключен 🚫';
       for (let r = 0; r < oldKeyboard.length; r++) {
         const row = oldKeyboard[r];
         const newRow = [];
@@ -350,7 +388,7 @@ function handleTelegramCallbackQuery_(callbackQuery) {
           const btn = row[c];
           if (btn.callback_data && btn.callback_data.indexOf('dis_r:') === 0) {
             newRow.push({
-              text: 'Маршрут отключен 🚫',
+              text: disabledBtnText,
               callback_data: 'disabled_already',
             });
           } else {
@@ -366,10 +404,11 @@ function handleTelegramCallbackQuery_(callbackQuery) {
   }
 }
 
-function buildDigestMessage_(spreadsheet) {
+function buildDigestMessage_(spreadsheet, chatId) {
+  const lang = (typeof resolveUserLanguage_ === 'function') ? resolveUserLanguage_(chatId) : 'en';
   const sheet = spreadsheet.getSheetByName(SHEET_NAMES.ARCHIVE);
   if (!sheet || sheet.getLastRow() < 2) {
-    return '📋 <b>Дневной дайджест</b>\n\nЗа последние 24 часа новых офферов не найдено.';
+    return (typeof t_ === 'function') ? t_('digest_empty', lang) : '📋 <b>Дневной дайджест</b>\n\nЗа последние 24 часа новых офферов не найдено.';
   }
 
   const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, ARCHIVE_HEADERS.length).getValues();
@@ -395,12 +434,13 @@ function buildDigestMessage_(spreadsheet) {
   }
 
   if (recentOffers.length === 0) {
-    return '📋 <b>Дневной дайджест</b>\n\nЗа последние 24 часа новых офферов не найдено.';
+    return (typeof t_ === 'function') ? t_('digest_empty', lang) : '📋 <b>Дневной дайджест</b>\n\nЗа последние 24 часа новых офферов не найдено.';
   }
 
+  const bookLabel = (typeof t_ === 'function') ? t_('actual_book_link', lang) : 'Забронировать ➔';
   const lines = [
-    '📋 <b>Дневной дайджест (за 24ч):</b>',
-    'Найдено слотов: ' + recentOffers.length + '\n',
+    (typeof t_ === 'function') ? t_('digest_title', lang) : '📋 <b>Дневной дайджест (за 24ч):</b>',
+    (typeof t_ === 'function') ? t_('digest_found', lang, { count: recentOffers.length }) : ('Найдено слотов: ' + recentOffers.length + '\n'),
   ];
 
   const maxItems = Math.min(recentOffers.length, 10);
@@ -422,22 +462,23 @@ function buildDigestMessage_(spreadsheet) {
       itemLine += ' — <b>' + escapeHtml_(String(off.price)) + '€</b>';
     }
     if (off.url) {
-      itemLine += '\n   <a href="' + escapeHtml_(off.url, true) + '">Забронировать ➔</a>';
+      itemLine += '\n   <a href="' + escapeHtml_(off.url, true) + '">' + bookLabel + '</a>';
     }
     lines.push(itemLine);
   }
 
   if (recentOffers.length > maxItems) {
-    lines.push('\n... и еще ' + (recentOffers.length - maxItems) + ' слотов в архиве.');
+    lines.push((typeof t_ === 'function') ? t_('digest_more', lang, { count: recentOffers.length - maxItems }) : ('\n... и еще ' + (recentOffers.length - maxItems) + ' слотов в архиве.'));
   }
 
   return lines.join('\n');
 }
 
 function buildActualOffersMessage_(spreadsheet, chatId) {
+  const lang = (typeof resolveUserLanguage_ === 'function') ? resolveUserLanguage_(chatId) : 'en';
   const sheet = spreadsheet.getSheetByName(SHEET_NAMES.ARCHIVE);
   if (!sheet || sheet.getLastRow() < 2) {
-    return '📋 <b>Актуальные предложения</b>\n\nНа данный момент предложений нет.';
+    return (typeof t_ === 'function') ? t_('actual_empty', lang) : '📋 <b>Актуальные предложения</b>\n\nНа данный момент предложений нет.';
   }
 
   const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, ARCHIVE_HEADERS.length).getValues();
@@ -501,12 +542,13 @@ function buildActualOffersMessage_(spreadsheet, chatId) {
   }
 
   if (actualOffers.length === 0) {
-    return '📋 <b>Актуальные предложения</b>\n\nПо вашим фильтрам и маршрутам актуальных предложений не найдено.';
+    return (typeof t_ === 'function') ? t_('actual_empty', lang) : '📋 <b>Актуальные предложения</b>\n\nПо вашим фильтрам и маршрутам актуальных предложений не найдено.';
   }
 
+  const bookLabel = (typeof t_ === 'function') ? t_('actual_book_link', lang) : 'Забронировать ➔';
   const lines = [
-    '📋 <b>Актуальные предложения:</b>',
-    'Найдено слотов: ' + actualOffers.length + '\n',
+    (typeof t_ === 'function') ? t_('actual_title', lang) : '📋 <b>Актуальные предложения:</b>',
+    (typeof t_ === 'function') ? t_('actual_found', lang, { count: actualOffers.length }) : ('Найдено слотов: ' + actualOffers.length + '\n'),
   ];
 
   const maxItems = Math.min(actualOffers.length, 10);
@@ -528,13 +570,13 @@ function buildActualOffersMessage_(spreadsheet, chatId) {
       itemLine += ' — <b>' + escapeHtml_(String(off.price)) + '€</b>';
     }
     if (off.bookingUrl) {
-      itemLine += '\n   <a href="' + escapeHtml_(off.bookingUrl, true) + '">Забронировать ➔</a>';
+      itemLine += '\n   <a href="' + escapeHtml_(off.bookingUrl, true) + '">' + bookLabel + '</a>';
     }
     lines.push(itemLine);
   }
 
   if (actualOffers.length > maxItems) {
-    lines.push('\n... и еще ' + (actualOffers.length - maxItems) + ' слотов.');
+    lines.push((typeof t_ === 'function') ? t_('actual_more', lang, { count: actualOffers.length - maxItems }) : ('\n... и еще ' + (actualOffers.length - maxItems) + ' слотов.'));
   }
 
   return lines.join('\n');
@@ -567,45 +609,30 @@ function handleTelegramUpdate_(update) {
   const chatId = incomingChatId;
 
   const userId = message.from && message.from.id ? String(message.from.id) : chatId;
+  const userLang = (typeof resolveUserLanguage_ === 'function')
+    ? resolveUserLanguage_(userId, message.from ? message.from.language_code : null)
+    : 'en';
 
   if (message.from && message.from.id) {
     try {
-      upsertUser(message.from.id, chatId, { username: message.from.username || '' });
+      upsertUser(message.from.id, chatId, {
+        username: message.from.username || '',
+        language: userLang
+      });
     } catch(e) {}
   }
 
   const command = text.split(/\s+/)[0].split('@')[0];
 
   if (command === '/start') {
-    const welcome =
-      '🚐 <b>Camper Monitor Bot</b>\n\n' +
-      'Мониторинг перегонов кемперов за 1€ (Roadsurfer Rally, Movacar, Indie Campers, Imoova).\n\n' +
-      '<b>Доступные команды:</b>\n' +
-      '📊 /status — статус мониторинга и статистика\n' +
-      '📋 /digest — сводный дайджест офферов за 24ч\n' +
-      '🎯 /actual — актуальные предложения по вашим фильтрам\n' +
-      '🌙 /silent — настройки режима тихих часов\n' +
-      '🔍 /check — принудительный запуск сканирования\n' +
-      '🚗 /routes — список отслеживаемых маршрутов\n' +
-      'ℹ️ /help — справка';
+    const welcome = (typeof t_ === 'function') ? t_('start_welcome', userLang) : 'Camper Monitor Bot';
     try {
       sendTelegramMessage_(secrets, welcome, chatId);
     } catch(err) {
       try { firestoreAdd('webhook_logs', { timestamp: new Date().toISOString(), error_start: err.message || String(err), chatId: chatId }); } catch(e) {}
     }
   } else if (command === '/help') {
-    const help =
-      '🚐 <b>Camper Monitor — Справка</b>\n\n' +
-      'Бот автоматически сканирует сайты и присылает новые перегоны за 1 евро.\n\n' +
-      '<b>Команды:</b>\n' +
-      '/status — время последнего опроса, интервал, статистика за 24ч\n' +
-      '/digest — сводный дайджест найденных офферов за 24ч\n' +
-      '/actual — актуальные предложения по вашим фильтрам и маршрутам\n' +
-      '/silent [on|off|HH:MM-HH:MM] — режим тихих часов (без звука)\n' +
-      '/check — запустить проверку прямо сейчас\n' +
-      '/routes — список активных направлений\n\n' +
-      'Под каждым оффером доступны кнопки: «Забронировать оффер ➔» и «🚫 Отключить этот маршрут».\n\n' +
-      'Чтобы сообщить об ошибке: https://github.com/anomalyco/opencode/issues';
+    const help = (typeof t_ === 'function') ? t_('help_text', userLang) : 'Camper Monitor Help';
     sendTelegramMessage_(secrets, help, chatId);
   } else if (command === '/status') {
     const spreadsheet = ensureWorkbook_();
@@ -613,8 +640,22 @@ function handleTelegramUpdate_(update) {
     try { sendTelegramMessage_(secrets, statusText, chatId); } catch (e) {}
   } else if (command === '/digest') {
     const spreadsheet = ensureWorkbook_();
-    const digestText = buildDigestMessage_(spreadsheet);
+    const digestText = buildDigestMessage_(spreadsheet, chatId);
     try { sendTelegramMessage_(secrets, digestText, chatId); } catch (e) {}
+  } else if (command === '/lang' || command === '/language') {
+    const parts = text.split(/\s+/);
+    if (parts.length > 1 && parts[1]) {
+      const chosenLang = (typeof normalizeLanguage_ === 'function') ? normalizeLanguage_(parts[1]) : parts[1];
+      if (typeof setUserLanguage === 'function') {
+        try { setUserLanguage(userId, chosenLang); } catch (e) {}
+      }
+      const msg = (typeof t_ === 'function') ? t_('lang_changed', chosenLang) : ('Language set to ' + chosenLang);
+      sendTelegramMessage_(secrets, msg, chatId);
+      return;
+    }
+    const promptText = (typeof t_ === 'function') ? t_('lang_prompt', userLang) : 'Choose language:';
+    const keyboard = (typeof buildLanguageKeyboard_ === 'function') ? buildLanguageKeyboard_() : [];
+    sendTelegramMessage_(secrets, promptText, chatId, { inline_keyboard: keyboard });
   } else if (command === '/silent') {
     let filters = (typeof getUserFilters === 'function' ? getUserFilters(userId) : null) || {};
     const parts = text.split(/\s+/);
@@ -629,12 +670,12 @@ function handleTelegramUpdate_(update) {
         settings.silent_hours_start = '23:00';
         settings.silent_hours_end = '07:00';
         writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, settings);
-        sendTelegramMessage_(secrets, '🌙 Тихие часы включены (по умолчанию 23:00-07:00).', chatId);
+        sendTelegramMessage_(secrets, (typeof t_ === 'function') ? t_('silent_on', userLang) : 'Silent hours enabled.', chatId);
       } else if (mode === 'off') {
         filters.silent_hours = { enabled: false };
         settings.silent_hours_enabled = false;
         writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, settings);
-        sendTelegramMessage_(secrets, '☀️ Тихие часы отключены. Уведомления будут приходить всегда.', chatId);
+        sendTelegramMessage_(secrets, (typeof t_ === 'function') ? t_('silent_off', userLang) : 'Silent hours disabled.', chatId);
       } else if (mode.includes('-')) {
         const times = mode.split('-');
         if (times.length === 2 && /^\d{1,2}:\d{2}$/.test(times[0]) && /^\d{1,2}:\d{2}$/.test(times[1])) {
@@ -643,9 +684,9 @@ function handleTelegramUpdate_(update) {
           settings.silent_hours_start = times[0];
           settings.silent_hours_end = times[1];
           writeKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, settings);
-          sendTelegramMessage_(secrets, '🌙 Тихие часы настроены на: ' + times[0] + ' – ' + times[1], chatId);
+          sendTelegramMessage_(secrets, (typeof t_ === 'function') ? t_('silent_set', userLang, { start: times[0], end: times[1] }) : ('Silent hours: ' + times[0] + ' - ' + times[1]), chatId);
         } else {
-          sendTelegramMessage_(secrets, '❌ Неверный формат времени. Пример: /silent 22:00-08:00', chatId);
+          sendTelegramMessage_(secrets, (typeof t_ === 'function') ? t_('silent_invalid_format', userLang) : 'Invalid format. Example: /silent 22:00-08:00', chatId);
         }
       }
       if (typeof setUserFilters === 'function') {
@@ -653,49 +694,50 @@ function handleTelegramUpdate_(update) {
       }
     } else {
       const isEnabled = (filters.silent_hours && filters.silent_hours.enabled) || isTruthy_(settings.silent_hours_enabled);
-      let msg = '🌙 <b>Тихие часы</b>\n\nТекущий статус: ' + (isEnabled ? 'ВКЛЮЧЕНЫ' : 'ВЫКЛЮЧЕНЫ') + '\n';
+      const statusVal = isEnabled ? ((typeof t_ === 'function') ? t_('status_enabled', userLang) : 'ENABLED') : ((typeof t_ === 'function') ? t_('status_disabled', userLang) : 'DISABLED');
+      let msg = (typeof t_ === 'function') ? t_('silent_status_header', userLang, { status: statusVal }) : ('Silent hours: ' + statusVal + '\n');
       if (isEnabled) {
-        msg += 'Интервал: ' + ((filters.silent_hours && filters.silent_hours.start) || settings.silent_hours_start || '23:00') + ' – ' + ((filters.silent_hours && filters.silent_hours.end) || settings.silent_hours_end || '07:00') + '\n\n';
+        const sStart = (filters.silent_hours && filters.silent_hours.start) || settings.silent_hours_start || '23:00';
+        const sEnd = (filters.silent_hours && filters.silent_hours.end) || settings.silent_hours_end || '07:00';
+        msg += (typeof t_ === 'function') ? t_('silent_status_interval', userLang, { start: sStart, end: sEnd }) : ('Interval: ' + sStart + ' - ' + sEnd + '\n\n');
       }
-      msg += 'Управление:\n' +
-        '• <code>/silent on</code> — включить (23:00-07:00)\n' +
-        '• <code>/silent off</code> — выключить\n' +
-        '• <code>/silent 22:00-08:00</code> — изменить интервал';
+      msg += (typeof t_ === 'function') ? t_('silent_usage', userLang) : '/silent on | off';
       sendTelegramMessage_(secrets, msg, chatId);
     }
   } else if (command === '/campers' || command === '/vehicle') {
-    sendTelegramMessage_(secrets, '🚐 <b>Тип транспорта</b> теперь настраивается индивидуально в каждом маршруте (в приложении на вкладке «Маршруты» или командой /routes). Вы можете выбрать: только кемперы, только легковые или все.', chatId);
+    sendTelegramMessage_(secrets, (typeof t_ === 'function') ? t_('campers_info', userLang) : 'Vehicle type info', chatId);
   } else if (command === '/actual') {
     const spreadsheet = ensureWorkbook_();
     const actualText = buildActualOffersMessage_(spreadsheet, userId);
     try { sendTelegramMessage_(secrets, actualText, chatId); } catch (e) {}
   } else if (command === '/check') {
-    sendTelegramMessage_(secrets, '⏳ Запуск сканирования...', chatId);
+    sendTelegramMessage_(secrets, (typeof t_ === 'function') ? t_('check_starting', userLang) : 'Starting scan...', chatId);
     runMonitorOnce();
-    sendTelegramMessage_(secrets, '✅ Сканирование завершено.', chatId);
+    sendTelegramMessage_(secrets, (typeof t_ === 'function') ? t_('check_finished', userLang) : 'Scan completed.', chatId);
   } else if (command === '/clear_routes' || command === '/reset_routes') {
     if (typeof deleteAllUserRoutes === 'function') {
       deleteAllUserRoutes(userId);
     }
-    sendTelegramMessage_(secrets, '🗑️ Все маршруты очищены. Теперь откройте Mini App и нажмите «Сохранить».', chatId);
+    sendTelegramMessage_(secrets, (typeof t_ === 'function') ? t_('routes_cleared', userLang) : 'All routes cleared.', chatId);
   } else if (command === '/routes') {
     const routes = (typeof getUserRoutes === 'function' ? getUserRoutes(userId) : []) || [];
-    let lines = ['🚗 <b>Отслеживаемые маршруты:</b>\n'];
+    const allCitiesLabel = (typeof t_ === 'function') ? t_('routes_all_cities', userLang) : 'All cities';
+    const routeWord = (typeof t_ === 'function') ? t_('routes_route_word', userLang) : 'route';
+    let lines = [(typeof t_ === 'function') ? t_('routes_header', userLang) : 'Tracked routes:\n'];
     routes.forEach(function (r) {
       const statusIcon = r.enabled ? '✅' : '⬜';
       const origCountry = r.origin_country || r.originCountry || '';
       const destCountry = r.destination_country || r.destinationCountry || '';
       const origFlag = origCountry ? flagEmoji_(origCountry) + ' ' : '';
       const destFlag = destCountry ? flagEmoji_(destCountry) + ' ' : '';
-      const origCity = r.origin_name || r.originName || (r.origin_id === '*' || r.originId === '*' ? 'Все города' : (r.origin_id || r.originId || 'Все города'));
-      const destCity = r.destination_name || r.destinationName || (r.destination_id === '*' || r.destinationId === '*' ? 'Все города' : (r.destination_id || r.destinationId || 'Все города'));
-      lines.push(statusIcon + ' <b>' + (r.source || 'маршрут').toUpperCase() + '</b>: ' + origFlag + origCity + ' ➔ ' + destFlag + destCity);
+      const origCity = r.origin_name || r.originName || (r.origin_id === '*' || r.originId === '*' ? allCitiesLabel : (r.origin_id || r.originId || allCitiesLabel));
+      const destCity = r.destination_name || r.destinationName || (r.destination_id === '*' || r.destinationId === '*' ? allCitiesLabel : (r.destination_id || r.destinationId || allCitiesLabel));
+      lines.push(statusIcon + ' <b>' + (r.source || routeWord).toUpperCase() + '</b>: ' + origFlag + origCity + ' ➔ ' + destFlag + destCity);
     });
-    if (routes.length === 0) lines.push('Нет маршрутов. Настройте их в Mini App и нажмите «Сохранить».');
+    if (routes.length === 0) lines.push((typeof t_ === 'function') ? t_('routes_empty', userLang) : 'No routes.');
     sendTelegramMessage_(secrets, lines.join('\n'), chatId);
   } else {
-    // Пользователь написал произвольный текст, а не команду
-    sendTelegramMessage_(secrets, 'Извините, я понимаю только команды. Нажмите /help, чтобы посмотреть список доступных команд.', chatId);
+    sendTelegramMessage_(secrets, (typeof t_ === 'function') ? t_('unknown_command', userLang) : 'Unknown command. Use /help', chatId);
   }
 }
 

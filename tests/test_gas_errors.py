@@ -200,7 +200,7 @@ function setupGasContext(fetchMock) {
   };
 
   vm.createContext(context);
-  const files = ['gas/Config.js', 'gas/Http.js', 'gas/Filters.js', 'gas/Sheets.js', 'gas/Firestore.js', 'gas/Telegram.js', 'gas/Providers.js', 'gas/Monitor.js', 'gas/WebApp.js'];
+  const files = ['gas/Config.js', 'gas/Http.js', 'gas/I18n.js', 'gas/Filters.js', 'gas/Sheets.js', 'gas/Firestore.js', 'gas/Telegram.js', 'gas/Providers.js', 'gas/Monitor.js', 'gas/WebApp.js'];
   for (const f of files) {
     vm.runInContext(fs.readFileSync(f, 'utf8'), context);
   }
@@ -1632,6 +1632,104 @@ if (testName === 'roadsurfer_429') {
   assert.ok(sentPayload.text.includes('movacar.com'));
   assert.ok(sentPayload.text.includes('Sixt'));
   assert.ok(sentPayload.text.includes('sixt.de'));
+} else if (testName === 'i18n_key_completeness') {
+  const { context } = setupGasContext(() => ({ getResponseCode: () => 200, getContentText: () => '{}' }));
+  const trans = context.I18N_STRINGS;
+  const langs = ['de', 'it', 'en', 'uk', 'ru'];
+  langs.forEach(lang => {
+    assert.ok(trans[lang], 'Missing language: ' + lang);
+  });
+  const ruKeys = Object.keys(trans.ru).sort();
+  assert.ok(ruKeys.length >= 60, 'Expected at least 60 keys, got ' + ruKeys.length);
+  langs.forEach(lang => {
+    const keys = Object.keys(trans[lang]).sort();
+    assert.deepStrictEqual(keys, ruKeys, 'Key parity mismatch for lang: ' + lang);
+  });
+  assert.strictEqual(context.t_('btn_book', 'de'), 'Angebot buchen ➔');
+  assert.strictEqual(context.t_('btn_book', 'it'), 'Prenota offerta ➔');
+  assert.strictEqual(context.t_('btn_book', 'en'), 'Book offer ➔');
+  assert.strictEqual(context.t_('btn_book', 'uk'), 'Забронювати оффер ➔');
+  assert.strictEqual(context.t_('btn_book', 'ru'), 'Забронировать оффер ➔');
+} else if (testName === 'i18n_pluralization') {
+  const { context } = setupGasContext(() => ({ getResponseCode: () => 200, getContentText: () => '{}' }));
+  // RU
+  assert.strictEqual(context.pluralizeDays_(1, 'ru'), ' (1 день)');
+  assert.strictEqual(context.pluralizeDays_(2, 'ru'), ' (2 дня)');
+  assert.strictEqual(context.pluralizeDays_(5, 'ru'), ' (5 дней)');
+  assert.strictEqual(context.pluralizeDays_(21, 'ru'), ' (21 день)');
+  // UK
+  assert.strictEqual(context.pluralizeDays_(1, 'uk'), ' (1 день)');
+  assert.strictEqual(context.pluralizeDays_(2, 'uk'), ' (2 дні)');
+  assert.strictEqual(context.pluralizeDays_(5, 'uk'), ' (5 днів)');
+  assert.strictEqual(context.pluralizeDays_(21, 'uk'), ' (21 день)');
+  // DE
+  assert.strictEqual(context.pluralizeDays_(1, 'de'), ' (1 Tag)');
+  assert.strictEqual(context.pluralizeDays_(2, 'de'), ' (2 Tage)');
+  assert.strictEqual(context.pluralizeDays_(5, 'de'), ' (5 Tage)');
+  // IT
+  assert.strictEqual(context.pluralizeDays_(1, 'it'), ' (1 giorno)');
+  assert.strictEqual(context.pluralizeDays_(2, 'it'), ' (2 giorni)');
+  assert.strictEqual(context.pluralizeDays_(5, 'it'), ' (5 giorni)');
+  // EN
+  assert.strictEqual(context.pluralizeDays_(1, 'en'), ' (1 day)');
+  assert.strictEqual(context.pluralizeDays_(2, 'en'), ' (2 days)');
+  assert.strictEqual(context.pluralizeDays_(5, 'en'), ' (5 days)');
+} else if (testName === 'telegram_lang_command') {
+  const sentMessages = [];
+  const { context, scriptProps } = setupGasContext((url, opts) => {
+    if (url.includes('sendMessage')) {
+      sentMessages.push(JSON.parse(opts.payload));
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ok: true }) };
+    }
+    return { getResponseCode: () => 200, getContentText: () => '{}' };
+  });
+  scriptProps.TELEGRAM_BOT_TOKEN = 'mock-bot-token';
+  scriptProps.TELEGRAM_CHAT_ID = '12345';
+
+  // 1. /lang command returns keyboard with 5 languages
+  context.handleTelegramUpdate_({
+    message: {
+      message_id: 1,
+      from: { id: 12345, first_name: 'Alex' },
+      chat: { id: 12345, type: 'private' },
+      text: '/lang'
+    }
+  });
+  assert.strictEqual(sentMessages.length, 1);
+  const msg1 = sentMessages[0];
+  assert.ok(msg1.reply_markup);
+  const inlineBtns = msg1.reply_markup.inline_keyboard;
+  assert.ok(inlineBtns.length >= 2);
+  const callbacks = inlineBtns.flat().map(b => b.callback_data);
+  assert.ok(callbacks.includes('set_lang:de'));
+  assert.ok(callbacks.includes('set_lang:it'));
+  assert.ok(callbacks.includes('set_lang:en'));
+  assert.ok(callbacks.includes('set_lang:uk'));
+  assert.ok(callbacks.includes('set_lang:ru'));
+
+  // 2. /lang de sets language directly
+  context.handleTelegramUpdate_({
+    message: {
+      message_id: 2,
+      from: { id: 12345, first_name: 'Alex' },
+      chat: { id: 12345, type: 'private' },
+      text: '/lang de'
+    }
+  });
+  assert.strictEqual(sentMessages.length, 2);
+  assert.ok(sentMessages[1].text.includes('Sprache auf Deutsch'));
+
+  // 3. Callback query set_lang:it sets language
+  context.handleTelegramUpdate_({
+    callback_query: {
+      id: 'cb-123',
+      from: { id: 12345, first_name: 'Alex' },
+      message: { message_id: 1, chat: { id: 12345, type: 'private' } },
+      data: 'set_lang:it'
+    }
+  });
+  assert.strictEqual(sentMessages.length, 3);
+  assert.ok(sentMessages[2].text.includes('Lingua impostata su Italiano'));
 } else {
   throw new Error('Unknown test: ' + testName);
 }
@@ -1706,6 +1804,9 @@ def run_node_test(test_name: str):
         "firestore_empty_dev_routes_does_not_permanently_configure_user",
         "route_vehicle_type_filtering",
         "telegram_notification_shows_aggregator_and_partner_site",
+        "i18n_key_completeness",
+        "i18n_pluralization",
+        "telegram_lang_command",
     ],
 )
 def test_gas_node_suite(test_name: str):
