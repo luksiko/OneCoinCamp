@@ -602,7 +602,7 @@ function normalizeLanguage_(code) {
     return c;
   }
   if (c === 'be' || c === 'kk' || c === 'ky') return 'ru';
-  return DEFAULT_LANGUAGE;
+  return 'en';
 }
 
 /**
@@ -647,7 +647,8 @@ function t_(key, lang, params) {
     for (var p in params) {
       if (Object.prototype.hasOwnProperty.call(params, p)) {
         var re = new RegExp('%' + p + '%', 'g');
-        text = text.replace(re, params[p] != null ? String(params[p]) : '');
+        var val = params[p] != null ? String(params[p]) : '';
+        text = text.replace(re, function() { return val; });
       }
     }
   }

@@ -1730,6 +1730,41 @@ if (testName === 'roadsurfer_429') {
   });
   assert.strictEqual(sentMessages.length, 3);
   assert.ok(sentMessages[2].text.includes('Lingua impostata su Italiano'));
+} else if (testName === 'i18n_fallback_and_safe_replacement') {
+  const { context } = setupGasContext(() => ({ getResponseCode: () => 200, getContentText: () => '{}' }));
+  // normalizeLanguage_ fallback: unknown Slavic regional -> ru, other unknown foreign -> en, null/empty -> ru
+  assert.strictEqual(context.normalizeLanguage_('fr'), 'en');
+  assert.strictEqual(context.normalizeLanguage_('es'), 'en');
+  assert.strictEqual(context.normalizeLanguage_('pl'), 'en');
+  assert.strictEqual(context.normalizeLanguage_('kk'), 'ru');
+  assert.strictEqual(context.normalizeLanguage_('be'), 'ru');
+  assert.strictEqual(context.normalizeLanguage_(null), 'ru');
+  assert.strictEqual(context.normalizeLanguage_(''), 'ru');
+  // Safe replacement: dynamic text containing $ values like $100 or $$$ must not trigger regex $ replacement patterns
+  const replaced = context.t_('vehicle_model', 'en', { icon: '🚐', model: 'VW California ($100 & $200)' });
+  assert.ok(replaced.includes('VW California ($100 & $200)'));
+} else if (testName === 'i18n_web_key_completeness') {
+  const fs = require('fs');
+  const path = require('path');
+  const html = fs.readFileSync(path.resolve(__dirname, 'docs/index.html'), 'utf-8');
+  // Extract I18N_WEB
+  const start = html.indexOf('var I18N_WEB = {');
+  const end = html.indexOf('    };', start);
+  assert.ok(start !== -1 && end !== -1, 'I18N_WEB not found in docs/index.html');
+  const sub = html.substring(start, end);
+  const langs = ['de', 'it', 'en', 'uk', 'ru'];
+  const keySets = {};
+  langs.forEach(lang => {
+    const m = sub.match(new RegExp('^\\s*' + lang + ':\\s*\\{([\\s\\S]*?)\\n\\s*\\},?', 'm'));
+    assert.ok(m, 'Language ' + lang + ' not found in I18N_WEB');
+    const keys = Array.from(m[1].matchAll(/^\s*([a-zA-Z0-9_]+):/gm)).map(x => x[1]).sort();
+    keySets[lang] = keys;
+  });
+  const ruKeys = keySets['ru'];
+  assert.ok(ruKeys.length >= 120, 'Expected at least 120 web keys, got ' + ruKeys.length);
+  langs.forEach(lang => {
+    assert.deepStrictEqual(keySets[lang], ruKeys, 'Mismatch in web keys for lang: ' + lang);
+  });
 } else {
   throw new Error('Unknown test: ' + testName);
 }
@@ -1807,6 +1842,8 @@ def run_node_test(test_name: str):
         "i18n_key_completeness",
         "i18n_pluralization",
         "telegram_lang_command",
+        "i18n_fallback_and_safe_replacement",
+        "i18n_web_key_completeness",
     ],
 )
 def test_gas_node_suite(test_name: str):

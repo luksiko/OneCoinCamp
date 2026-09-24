@@ -72,6 +72,17 @@
     .banner.stale { border-color: var(--danger); background: rgba(255, 91, 102, 0.12); }
     .banner.stale .banner-title { color: var(--danger); }
 
+    @media (max-width: 380px) {
+      #banner {
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      #headerLangSelector {
+        padding: 3px 6px !important;
+        font-size: 12px !important;
+      }
+    }
+
     /* Chips */
     .chips { display: flex; flex-wrap: wrap; gap: 8px; }
     .chip {
@@ -1224,7 +1235,7 @@
   <script>
     // --- ПОЛИФИЛЛ ДЛЯ google.script.run ---
     // ВАЖНО: ЗАМЕНИТЕ ЭТУ ССЫЛКУ НА URL ВАШЕГО РАЗВЕРНУТОГО APPS SCRIPT WEB APP!
-    var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxYkBcGj8-TMe_4TocnDgUCdh8I3AKqayAZwve-dgt21R6U6UQxa24lF5eQUvHUKn9FNw/exec';
+    var APPS_SCRIPT_URL = 'https://camper-monitor.luksiko90.workers.dev';
 
     var google = {
       script: {
@@ -1382,16 +1393,16 @@
         analytics_legend_matched: 'Passend',
         analytics_hourly_title: '🕐 Wann Angebote erscheinen (UTC)',
         analytics_top_routes_title: '🗺 Top-Routen',
-        analytics_by_sources_title: '📡 Nach Anbietern',
-        analytics_empty: '📭 Noch keine Daten.<br>Monitoring ausführen, um Statistiken zu sammeln.',
+        analytics_by_sources_title: '📡 Nach Quellen',
+        analytics_empty: '📭 Noch keine Daten.<br>Starten Sie das Monitoring, um Statistiken zu sammeln.',
         tab_main: 'Start',
         tab_offers: 'Angebote',
         tab_analytics: 'Statistik',
         tab_settings: 'Optionen',
         all_cities: 'Alle Städte',
         station_prefix: 'Station ',
-        any_country: '🌍 Jedes Land',
-        campers_badge: '🚐 Camper',
+        any_country: '🌍 Beliebiges Land',
+        campers_badge: '🚐 Wohnmobile',
         cars_badge: '🚗 PKW',
         all_badge: '🚗🚐 alle',
         company_disabled: 'Anbieter deaktiviert',
@@ -1404,7 +1415,81 @@
         empty_routes: 'Keine Routen — hinzufügen',
         saving: 'Wird gespeichert…',
         saved: '✓ Gespeichert',
-        save_error: 'Fehler beim Speichern'
+        save_error: 'Fehler beim Speichern',
+        status_active: 'Überwachung aktiv',
+        status_trigger_every: 'Trigger alle {min} Min.',
+        status_not_run_no_data: 'Trigger nicht ausgeführt: keine Daten',
+        status_not_run_age: 'Trigger nicht ausgeführt seit {min} Min.',
+        status_threshold: 'Schwellenwert: {min} Min.',
+        status_tg_not_configured: '⚠️ Telegram nicht konfiguriert',
+        status_last_check_error: 'Letzte Prüfung mit Fehler',
+        status_last_check: 'Letzte Prüfung: {time}',
+        status_offers_found: 'Angebote: {count}',
+        status_not_run_yet: 'Noch nicht ausgeführt',
+        status_error: 'Fehler',
+        field_source: 'Quelle',
+        field_vehicle_type: 'Fahrzeugtyp',
+        vtype_all_opt: '🚗🚐 Alle (Wohnmobile & PKW)',
+        vtype_camper_opt: '🚐 Nur Wohnmobile',
+        vtype_car_opt: '🚗 Nur PKW',
+        field_origin_country: 'Abfahrtsland',
+        field_dest_country: 'Zielland',
+        field_origin_city: 'Abfahrtsort',
+        field_dest_city: 'Zielort',
+        field_date_from: 'Suchen ab',
+        field_date_to: 'Suchen bis',
+        dates_empty_hint: 'Wenn Daten leer sind — nächster Sonntag + 14 Tage',
+        loading_cities: 'Städte werden geladen…',
+        select_country_first: 'Wählen Sie zuerst ein Land',
+        select_origin_country_first: 'Wählen Sie zuerst das Abfahrtsland',
+        loading_destinations: 'Ziele werden geladen…',
+        failed_load_cities: 'Städte konnten nicht geladen werden',
+        failed_load_destinations: 'Ziele konnten nicht geladen werden',
+        all_cities_wildcard: '✨ Alle Städte / Beliebig',
+        btn_done: 'Fertig',
+        offers_count_zero: '0 Angebote',
+        offers_none_found: 'Keine Angebote gefunden',
+        offers_count_filter: '{count} Angebote (Datumsfilter)',
+        offers_count_total: '{count} Angebote',
+        offers_none_in_range: 'Keine Angebote im ausgewählten Datumsbereich',
+        status_all_chip: 'Alle',
+        status_new_chip: 'Neu',
+        status_sent_chip: 'Gesendet',
+        status_sent_badge: '✓ Gesendet',
+        status_new_badge: 'Neu',
+        offer_camper_type: '🚐 Wohnmobil',
+        offer_car_type: '🚗 PKW',
+        offer_sleeping_suffix: ' • {count} Schlafplätze',
+        delete_offer_title: 'Dieses Angebot löschen',
+        offer_delete_confirm: 'Dieses Angebot löschen?',
+        offer_deleted: 'Angebot gelöscht',
+        btn_book: 'Buchen',
+        page_prev: '← Zurück',
+        page_next: 'Weiter →',
+        page_info: 'Seite {page} / {total}',
+        page_total_count: '(gesamt: {total})',
+        offers_found_total: 'Angebote gefunden: {count}',
+        date_today: 'Heute, ',
+        date_yesterday: 'Gestern, ',
+        dates_not_specified: 'Keine Daten angegeben',
+        departure_today: 'Abreise heute, ',
+        departure_tomorrow: 'Abreise morgen, ',
+        departure_prefix: 'Abreise ',
+        added_just_now: 'gerade eben hinzugefügt',
+        added_mins_ago: 'hinzugefügt um {time} (vor {mins} Min.)',
+        added_hours_ago: 'hinzugefügt um {time} (vor {hours} Std.)',
+        added_at: 'hinzugefügt um {time}',
+        checking: 'Prüfung…',
+        check_avail_removed: 'Nicht verfügbare Angebote entfernt: {removed} (von {total})',
+        check_avail_all_ok: 'Alle geprüften Angebote ({total}) sind aktuell',
+        check_avail_error: 'Fehler bei der Verfügbarkeitsprüfung',
+        access_denied_title: 'Zugriff verweigert',
+        access_denied_sub: 'Öffnen Sie die App über den Telegram-Bot.',
+        triggers_restored: 'Trigger wiederhergestellt ✓ ',
+        triggers_already_ok: 'Trigger bereits vorhanden ✓',
+        triggers_install_error: 'Fehler beim Einrichten der Trigger',
+        check_started: 'Prüfung gestartet…',
+        check_start_error: 'Fehler beim Starten der Prüfung'
       },
       it: {
         loading: 'Caricamento…',
@@ -1458,16 +1543,16 @@
         btn_check_avail: '🔄 Verifica disponibilità',
         analytics_reload: '🔄 Aggiorna',
         analytics_daily_title: '📅 Offerte per giorno',
-        analytics_legend_total: 'Totale trovati',
-        analytics_legend_matched: 'Corrispondenti',
+        analytics_legend_total: 'Totale trovato',
+        analytics_legend_matched: 'Idonee',
         analytics_hourly_title: '🕐 Quando appaiono le offerte (UTC)',
-        analytics_top_routes_title: '🗺 Principali itinerari',
-        analytics_by_sources_title: '📡 Per provider',
-        analytics_empty: '📭 Nessun dato al momento.<br>Avvia il monitoraggio per raccogliere statistiche.',
+        analytics_top_routes_title: '🗺 Itinerari più popolari',
+        analytics_by_sources_title: '📡 Per sorgente',
+        analytics_empty: '📭 Nessun dato disponibile.<br>Avvia il monitoraggio per raccogliere statistiche.',
         tab_main: 'Home',
         tab_offers: 'Offerte',
-        tab_analytics: 'Analitica',
-        tab_settings: 'Impostazioni',
+        tab_analytics: 'Statistiche',
+        tab_settings: 'Opzioni',
         all_cities: 'Tutte le città',
         station_prefix: 'Stazione ',
         any_country: '🌍 Qualsiasi paese',
@@ -1484,7 +1569,81 @@
         empty_routes: 'Nessun itinerario — aggiungine uno',
         saving: 'Salvataggio…',
         saved: '✓ Salvato',
-        save_error: 'Errore durante il salvataggio'
+        save_error: 'Errore durante il salvataggio',
+        status_active: 'Monitoraggio attivo',
+        status_trigger_every: 'Trigger ogni {min} min',
+        status_not_run_no_data: 'Trigger non eseguito: nessun dato',
+        status_not_run_age: 'Trigger non eseguito da {min} min',
+        status_threshold: 'Soglia: {min} min',
+        status_tg_not_configured: '⚠️ Telegram non configurato',
+        status_last_check_error: 'Ultima verifica con errore',
+        status_last_check: 'Ultima verifica: {time}',
+        status_offers_found: 'Offerte: {count}',
+        status_not_run_yet: 'Non ancora eseguito',
+        status_error: 'Errore',
+        field_source: 'Sorgente',
+        field_vehicle_type: 'Tipo di veicolo',
+        vtype_all_opt: '🚗🚐 Tutti (camper e auto)',
+        vtype_camper_opt: '🚐 Solo camper',
+        vtype_car_opt: '🚗 Solo auto',
+        field_origin_country: 'Paese di partenza',
+        field_dest_country: 'Paese di destinazione',
+        field_origin_city: 'Città di partenza',
+        field_dest_city: 'Città di destinazione',
+        field_date_from: 'Cerca dal',
+        field_date_to: 'Cerca al',
+        dates_empty_hint: 'Se le date sono vuote — prossima domenica + 14 giorni',
+        loading_cities: 'Caricamento città…',
+        select_country_first: 'Seleziona prima un paese',
+        select_origin_country_first: 'Seleziona prima il paese di partenza',
+        loading_destinations: 'Caricamento destinazioni…',
+        failed_load_cities: 'Impossibile caricare le città',
+        failed_load_destinations: 'Impossibile caricare le destinazioni',
+        all_cities_wildcard: '✨ Tutte le città / Qualsiasi',
+        btn_done: 'Fatto',
+        offers_count_zero: '0 offerte',
+        offers_none_found: 'Nessuna offerta trovata',
+        offers_count_filter: '{count} offerte (filtro date)',
+        offers_count_total: '{count} offerte',
+        offers_none_in_range: 'Nessuna offerta nell\'intervallo di date selezionato',
+        status_all_chip: 'Tutti',
+        status_new_chip: 'Nuove',
+        status_sent_chip: 'Inviate',
+        status_sent_badge: '✓ Inviato',
+        status_new_badge: 'Nuovo',
+        offer_camper_type: '🚐 Camper',
+        offer_car_type: '🚗 Auto',
+        offer_sleeping_suffix: ' • {count} posti letto',
+        delete_offer_title: 'Elimina questa offerta',
+        offer_delete_confirm: 'Eliminare questa offerta?',
+        offer_deleted: 'Offerta eliminata',
+        btn_book: 'Prenota',
+        page_prev: '← Indietro',
+        page_next: 'Avanti →',
+        page_info: 'Pag. {page} / {total}',
+        page_total_count: '(totale: {total})',
+        offers_found_total: 'Offerte trovate: {count}',
+        date_today: 'Oggi, ',
+        date_yesterday: 'Ieri, ',
+        dates_not_specified: 'Date non specificate',
+        departure_today: 'Partenza oggi, ',
+        departure_tomorrow: 'Partenza domani, ',
+        departure_prefix: 'Partenza ',
+        added_just_now: 'aggiunto proprio ora',
+        added_mins_ago: 'aggiunto alle {time} ({mins} min fa)',
+        added_hours_ago: 'aggiunto alle {time} ({hours} ore fa)',
+        added_at: 'aggiunto alle {time}',
+        checking: 'Verifica…',
+        check_avail_removed: 'Offerte non disponibili rimosse: {removed} (su {total})',
+        check_avail_all_ok: 'Tutte le offerte verificate ({total}) sono aggiornate',
+        check_avail_error: 'Errore durante la verifica della disponibilità',
+        access_denied_title: 'Accesso negato',
+        access_denied_sub: 'Apri l\'app tramite il bot Telegram.',
+        triggers_restored: 'Trigger ripristinati ✓ ',
+        triggers_already_ok: 'I trigger sono già a posto ✓',
+        triggers_install_error: 'Errore durante l\'installazione dei trigger',
+        check_started: 'Verifica avviata…',
+        check_start_error: 'Errore di avvio'
       },
       en: {
         loading: 'Loading…',
@@ -1499,29 +1658,29 @@
         settings_title: 'Settings',
         poll_interval: 'Polling interval, min',
         check_neighbors: 'Check flexible dates (±2 days)',
-        telegram_notifications: 'Telegram Notifications',
-        bot_mode: 'Telegram Bot Mode',
+        telegram_notifications: 'Telegram notifications',
+        bot_mode: 'Telegram bot mode',
         btn_enable_webhook: '⚡ Enable Webhook',
         btn_disable_webhook: 'Disable Webhook',
-        webhook_active_desc: '🟢 Webhook active (polling off, zero quota wasted)',
-        webhook_polling_desc: '🟡 Polling (every 1 min, consumes ~1440 requests/day)',
+        webhook_active_desc: '🟢 Webhook active (polling off, zero quota consumed)',
+        webhook_polling_desc: '🟡 Polling (every 1 min, consumes ~1440 req/day)',
         max_price: 'Max offer price, €',
         notify_all_by_price: 'Notify for all slots up to max price',
-        notify_all_desc: 'Ignore date & country filters for Telegram when offer price ≤ max price',
+        notify_all_desc: 'Bypass date & country filters for Telegram when offer price ≤ max price',
         country_filters: '🌍 Country Filters',
-        country_filters_desc: 'These filters are synced across the web app and the Telegram bot',
+        country_filters_desc: 'These filters apply synchronously to both web app and Telegram bot',
         origin_countries: '🛫 Departure countries (origin)',
         dest_countries: '🛬 Destination countries',
         btn_all: 'All',
         btn_clear: 'Clear',
         trip_duration: '⏱ Trip duration (days)',
-        silent_hours: '🌙 Quiet Hours',
-        silent_hours_desc: 'During quiet hours, Telegram notifications arrive silently.',
+        silent_hours: '🌙 Quiet hours',
+        silent_hours_desc: 'During quiet hours Telegram notifications arrive silently.',
         silent_status_label: 'Status:',
         silent_interval: 'Quiet hours interval',
-        commands_in_chat: 'Chat control commands:',
-        companies_title: '🏢 Providers in Monitoring',
-        companies_desc: 'Disabled providers will not be checked during monitoring',
+        commands_in_chat: 'Chat commands:',
+        companies_title: '🏢 Monitored providers',
+        companies_desc: 'Disabled providers are not queried during monitoring',
         triggers_title: '🔧 Automation Triggers',
         triggers_restore: 'Restore',
         triggers_desc: 'Automatic background services in Google Apps Script:',
@@ -1539,11 +1698,11 @@
         analytics_reload: '🔄 Refresh',
         analytics_daily_title: '📅 Offers by day',
         analytics_legend_total: 'Total found',
-        analytics_legend_matched: 'Matched',
+        analytics_legend_matched: 'Matching',
         analytics_hourly_title: '🕐 When offers appear (UTC)',
-        analytics_top_routes_title: '🗺 Top routes',
-        analytics_by_sources_title: '📡 By provider',
-        analytics_empty: '📭 No data yet.<br>Run monitoring to collect statistics.',
+        analytics_top_routes_title: '🗺 Top destinations',
+        analytics_by_sources_title: '📡 By source',
+        analytics_empty: '📭 No data yet.<br>Start monitoring to accumulate statistics.',
         tab_main: 'Main',
         tab_offers: 'Offers',
         tab_analytics: 'Analytics',
@@ -1554,7 +1713,7 @@
         campers_badge: '🚐 campers',
         cars_badge: '🚗 cars',
         all_badge: '🚗🚐 all',
-        company_disabled: 'provider disabled',
+        company_disabled: 'company disabled',
         edit_route: 'Edit route',
         delete_btn: 'Delete',
         all_countries_allowed: 'All countries allowed (filter off)',
@@ -1564,7 +1723,81 @@
         empty_routes: 'No routes — add one',
         saving: 'Saving…',
         saved: '✓ Saved',
-        save_error: 'Failed to save'
+        save_error: 'Failed to save',
+        status_active: 'Monitoring active',
+        status_trigger_every: 'Trigger every {min} min',
+        status_not_run_no_data: 'Trigger not run: no data',
+        status_not_run_age: 'Trigger not run for {min} min',
+        status_threshold: 'Threshold: {min} min',
+        status_tg_not_configured: '⚠️ Telegram not configured',
+        status_last_check_error: 'Last check with error',
+        status_last_check: 'Last check: {time}',
+        status_offers_found: 'Offers: {count}',
+        status_not_run_yet: 'Not run yet',
+        status_error: 'Error',
+        field_source: 'Source',
+        field_vehicle_type: 'Vehicle type',
+        vtype_all_opt: '🚗🚐 All (campers & cars)',
+        vtype_camper_opt: '🚐 Campers only',
+        vtype_car_opt: '🚗 Cars only',
+        field_origin_country: 'Origin country',
+        field_dest_country: 'Destination country',
+        field_origin_city: 'Origin city',
+        field_dest_city: 'Destination city',
+        field_date_from: 'Search from',
+        field_date_to: 'Search to',
+        dates_empty_hint: 'If dates are empty — next Sunday + 14 days',
+        loading_cities: 'Loading cities…',
+        select_country_first: 'Select country first',
+        select_origin_country_first: 'Select origin country first',
+        loading_destinations: 'Loading destinations…',
+        failed_load_cities: 'Failed to load cities',
+        failed_load_destinations: 'Failed to load destinations',
+        all_cities_wildcard: '✨ All cities / Any',
+        btn_done: 'Done',
+        offers_count_zero: '0 offers',
+        offers_none_found: 'No offers found',
+        offers_count_filter: '{count} offers (date filter)',
+        offers_count_total: '{count} offers',
+        offers_none_in_range: 'No offers in the selected date range',
+        status_all_chip: 'All',
+        status_new_chip: 'New',
+        status_sent_chip: 'Sent',
+        status_sent_badge: '✓ Sent',
+        status_new_badge: 'New',
+        offer_camper_type: '🚐 Camper',
+        offer_car_type: '🚗 Passenger car',
+        offer_sleeping_suffix: ' • {count} berths',
+        delete_offer_title: 'Delete this offer',
+        offer_delete_confirm: 'Delete this offer?',
+        offer_deleted: 'Offer deleted',
+        btn_book: 'Book',
+        page_prev: '← Previous',
+        page_next: 'Next →',
+        page_info: 'Page {page} / {total}',
+        page_total_count: '(total: {total})',
+        offers_found_total: 'Offers found: {count}',
+        date_today: 'Today, ',
+        date_yesterday: 'Yesterday, ',
+        dates_not_specified: 'Dates not specified',
+        departure_today: 'Departure today, ',
+        departure_tomorrow: 'Departure tomorrow, ',
+        departure_prefix: 'Departure ',
+        added_just_now: 'added just now',
+        added_mins_ago: 'added at {time} ({mins}m ago)',
+        added_hours_ago: 'added at {time} ({hours}h ago)',
+        added_at: 'added at {time}',
+        checking: 'Checking…',
+        check_avail_removed: 'Removed unavailable offers: {removed} (out of {total})',
+        check_avail_all_ok: 'All checked offers ({total}) are up to date',
+        check_avail_error: 'Error checking availability',
+        access_denied_title: 'Access denied',
+        access_denied_sub: 'Open the app via Telegram bot.',
+        triggers_restored: 'Triggers restored ✓ ',
+        triggers_already_ok: 'Triggers are already in place ✓',
+        triggers_install_error: 'Error installing triggers',
+        check_started: 'Check started…',
+        check_start_error: 'Error starting check'
       },
       uk: {
         loading: 'Завантаження…',
@@ -1644,23 +1877,97 @@
         empty_routes: 'Немає маршрутів — додайте',
         saving: 'Збереження…',
         saved: '✓ Збережено',
-        save_error: 'Помилка збереження'
+        save_error: 'Помилка збереження',
+        status_active: 'Моніторинг активний',
+        status_trigger_every: 'Тригер кожні {min} хв',
+        status_not_run_no_data: 'Тригер не виконувався: немає даних',
+        status_not_run_age: 'Тригер не виконувався {min} хв',
+        status_threshold: 'Поріг: {min} хв',
+        status_tg_not_configured: '⚠️ Telegram не налаштований',
+        status_last_check_error: 'Остання перевірка з помилкою',
+        status_last_check: 'Остання перевірка: {time}',
+        status_offers_found: 'Офферів: {count}',
+        status_not_run_yet: 'Ще не запускався',
+        status_error: 'Помилка',
+        field_source: 'Джерело',
+        field_vehicle_type: 'Тип транспорту',
+        vtype_all_opt: '🚗🚐 Всі (кемпери та легкові)',
+        vtype_camper_opt: '🚐 Тільки кемпери',
+        vtype_car_opt: '🚗 Тільки легкові авто',
+        field_origin_country: 'Країна відправлення',
+        field_dest_country: 'Країна призначення',
+        field_origin_city: 'Місто відправлення',
+        field_dest_city: 'Місто призначення',
+        field_date_from: 'Шукати з',
+        field_date_to: 'Шукати по',
+        dates_empty_hint: 'Якщо дати порожні — найближча неділя + 14 днів',
+        loading_cities: 'Завантаження міст…',
+        select_country_first: 'Спочатку оберіть країну',
+        select_origin_country_first: 'Спочатку оберіть країну відправлення',
+        loading_destinations: 'Завантаження напрямків…',
+        failed_load_cities: 'Не вдалося завантажити міста',
+        failed_load_destinations: 'Не вдалося завантажити напрямки',
+        all_cities_wildcard: '✨ Всі міста / Будь-яке',
+        btn_done: 'Готово',
+        offers_count_zero: '0 офферів',
+        offers_none_found: 'Оффери не знайдено',
+        offers_count_filter: '{count} офферів (фільтр дат)',
+        offers_count_total: '{count} офферів',
+        offers_none_in_range: 'Немає офферів у вибраному діапазоні дат',
+        status_all_chip: 'Всі',
+        status_new_chip: 'Нові',
+        status_sent_chip: 'Надіслані',
+        status_sent_badge: '✓ Надіслано',
+        status_new_badge: 'Новий',
+        offer_camper_type: '🚐 Будинок на колесах',
+        offer_car_type: '🚗 Легковий автомобіль',
+        offer_sleeping_suffix: ' • {count} спальних місць',
+        delete_offer_title: 'Видалити цей оффер',
+        offer_delete_confirm: 'Видалити цей оффер?',
+        offer_deleted: 'Оффер видалено',
+        btn_book: 'Бронювати',
+        page_prev: '← Назад',
+        page_next: 'Вперед →',
+        page_info: 'Стор. {page} / {total}',
+        page_total_count: '(всього: {total})',
+        offers_found_total: 'Знайдено офферів: {count}',
+        date_today: 'Сьогодні, ',
+        date_yesterday: 'Вчора, ',
+        dates_not_specified: 'Дати не вказані',
+        departure_today: 'Виїзд сьогодні, ',
+        departure_tomorrow: 'Виїзд завтра, ',
+        departure_prefix: 'Виїзд ',
+        added_just_now: 'додано щойно',
+        added_mins_ago: 'додано о {time} ({mins} хв тому)',
+        added_hours_ago: 'додано о {time} ({hours} год тому)',
+        added_at: 'додано о {time}',
+        checking: 'Перевірка…',
+        check_avail_removed: 'Видалено недоступних оферів: {removed} (з {total})',
+        check_avail_all_ok: 'Всі перевірені офери ({total}) актуальні',
+        check_avail_error: 'Помилка перевірки актуальності',
+        access_denied_title: 'Доступ заборонено',
+        access_denied_sub: 'Відкрийте додаток через Telegram бота.',
+        triggers_restored: 'Тригери відновлено ✓ ',
+        triggers_already_ok: 'Тригери вже на місці ✓',
+        triggers_install_error: 'Помилка встановлення тригерів',
+        check_started: 'Перевірку запущено…',
+        check_start_error: 'Помилка запуску'
       },
       ru: {
         loading: 'Загрузка…',
         routes_title: '📍 Маршруты',
         add_route: '+ Добавить маршрут',
         save_main: '💾 Сохранить',
-        check_btn: '▶ Проверить',
-        lang_title: '🌐 Язык интерфейса / Language',
+        check_btn: '▶ Проверить сейчас',
+        lang_title: '🌐 Язык интерфейса',
         info_checks: 'Информация о проверках',
-        site_status: '🌐 Статус связи с сайтами',
+        site_status: '🌐 Состояние связи с сайтами',
         refresh: '🔄 Обновить',
         settings_title: 'Настройки',
         poll_interval: 'Интервал опроса, мин',
         check_neighbors: 'Проверять соседние даты (±2 дня)',
         telegram_notifications: 'Telegram-уведомления',
-        bot_mode: 'Режим Telegram бота',
+        bot_mode: 'Режим Telegram-бота',
         btn_enable_webhook: '⚡ Включить Webhook',
         btn_disable_webhook: 'Отключить Webhook',
         webhook_active_desc: '🟢 Webhook активен (поллинг отключен, квота не тратится)',
@@ -1669,17 +1976,17 @@
         notify_all_by_price: 'Уведомлять обо всех слотах до макс. цены',
         notify_all_desc: 'Игнорировать фильтры дат и стран для Telegram, если цена слота ≤ макс. цены',
         country_filters: '🌍 Фильтры стран',
-        country_filters_desc: 'Эти фильтры применяются синхронно и для приложения, и для Telegram-бота',
+        country_filters_desc: 'Эти фильтры применяются синхронно и для веб-приложения, и для Telegram-бота',
         origin_countries: '🛫 Откуда (страны отправления)',
         dest_countries: '🛬 Куда (страны прибытия)',
         btn_all: 'Все',
-        btn_clear: 'Очистить',
+        btn_clear: 'Сбросить',
         trip_duration: '⏱ Длительность поездки (дней)',
         silent_hours: '🌙 Режим тихих часов',
-        silent_hours_desc: 'В тихие часы уведомления приходят в Telegram без звука.',
+        silent_hours_desc: 'В тихие часы уведомления в Telegram приходят без звука.',
         silent_status_label: 'Статус:',
         silent_interval: 'Интервал тихих часов',
-        commands_in_chat: 'Команди управления в чате:',
+        commands_in_chat: 'Команды управления в чате:',
         companies_title: '🏢 Компании в мониторинге',
         companies_desc: 'Отключенные компании не опрашиваются при мониторинге',
         triggers_title: '🔧 Триггеры автоматизации',
@@ -1724,7 +2031,81 @@
         empty_routes: 'Нет маршрутов — добавьте',
         saving: 'Сохранение…',
         saved: '✓ Сохранено',
-        save_error: 'Ошибка сохранения'
+        save_error: 'Ошибка сохранения',
+        status_active: 'Мониторинг активен',
+        status_trigger_every: 'Триггер каждые {min} мин',
+        status_not_run_no_data: 'Триггер не выполнялся: нет данных',
+        status_not_run_age: 'Триггер не выполнялся {min} мин',
+        status_threshold: 'Порог: {min} мин',
+        status_tg_not_configured: '⚠️ Telegram не настроен',
+        status_last_check_error: 'Последняя проверка с ошибкой',
+        status_last_check: 'Последняя проверка: {time}',
+        status_offers_found: 'Офферов: {count}',
+        status_not_run_yet: 'Ещё не запускался',
+        status_error: 'Ошибка',
+        field_source: 'Источник',
+        field_vehicle_type: 'Тип транспорта',
+        vtype_all_opt: '🚗🚐 Все (кемперы и легковые)',
+        vtype_camper_opt: '🚐 Только кемперы (дома на колёсах)',
+        vtype_car_opt: '🚗 Только легковые авто',
+        field_origin_country: 'Страна отправления',
+        field_dest_country: 'Страна назначения',
+        field_origin_city: 'Город отправления',
+        field_dest_city: 'Город назначения',
+        field_date_from: 'Искать с',
+        field_date_to: 'Искать по',
+        dates_empty_hint: 'Если даты пустые — ближайшее воскресенье + 14 дней',
+        loading_cities: 'Загрузка городов…',
+        select_country_first: 'Сначала выберите страну',
+        select_origin_country_first: 'Сначала выберите страну отправления',
+        loading_destinations: 'Загрузка направлений…',
+        failed_load_cities: 'Не удалось загрузить города',
+        failed_load_destinations: 'Не удалось загрузить направления',
+        all_cities_wildcard: '✨ Все города / Любой',
+        btn_done: 'Готово',
+        offers_count_zero: '0 офферов',
+        offers_none_found: 'Офферы не найдены',
+        offers_count_filter: '{count} офферов (фильтр дат)',
+        offers_count_total: '{count} офферов',
+        offers_none_in_range: 'Нет офферов в выбранном диапазоне дат',
+        status_all_chip: 'Все',
+        status_new_chip: 'Новые',
+        status_sent_chip: 'Отправлены',
+        status_sent_badge: '✓ Отправлен',
+        status_new_badge: 'Новый',
+        offer_camper_type: '🚐 Дом на колёсах',
+        offer_car_type: '🚗 Легковой автомобиль',
+        offer_sleeping_suffix: ' • {count} спальных мест',
+        delete_offer_title: 'Удалить этот оффер',
+        offer_delete_confirm: 'Удалить этот оффер?',
+        offer_deleted: 'Оффер удалён',
+        btn_book: 'Бронировать',
+        page_prev: '← Назад',
+        page_next: 'Вперёд →',
+        page_info: 'Стр. {page} / {total}',
+        page_total_count: '(всего: {total})',
+        offers_found_total: 'Найдено офферов: {count}',
+        date_today: 'Сегодня, ',
+        date_yesterday: 'Вчера, ',
+        dates_not_specified: 'Даты не указаны',
+        departure_today: 'Выезд сегодня, ',
+        departure_tomorrow: 'Выезд завтра, ',
+        departure_prefix: 'Выезд ',
+        added_just_now: 'добавлен только что',
+        added_mins_ago: 'добавлен в {time} ({mins} мин назад)',
+        added_hours_ago: 'добавлен в {time} ({hours} ч назад)',
+        added_at: 'добавлен в {time}',
+        checking: 'Проверка…',
+        check_avail_removed: 'Удалено недоступных офферов: {removed} (из {total})',
+        check_avail_all_ok: 'Все проверенные офферы ({total}) актуальны',
+        check_avail_error: 'Ошибка при проверке доступности',
+        access_denied_title: 'Доступ запрещён',
+        access_denied_sub: 'Откройте приложение через Telegram бота.',
+        triggers_restored: 'Триггеры восстановлены ✓ ',
+        triggers_already_ok: 'Триггеры уже на месте ✓',
+        triggers_install_error: 'Ошибка установки триггеров',
+        check_started: 'Проверка запущена…',
+        check_start_error: 'Ошибка запуска'
       }
     };
 
@@ -1733,7 +2114,8 @@
       var val = dict[key] || (I18N_WEB['ru'] && I18N_WEB['ru'][key]) || key;
       if (params && typeof params === 'object') {
         Object.keys(params).forEach(function(p) {
-          val = val.replace(new RegExp('\\{' + p + '\\}', 'g'), params[p]);
+          var pVal = params[p];
+          val = val.replace(new RegExp('\\{' + p + '\\}', 'g'), function() { return pVal; });
         });
       }
       return val;
@@ -1774,6 +2156,7 @@
       });
 
       if (state) {
+        renderStatus();
         renderRoutes();
         renderCountryChips(
           'originCountriesChips',
@@ -1805,6 +2188,10 @@
         var silentStatusTextEl = document.getElementById('silentHoursStatusText');
         if (silentStatusTextEl) {
           silentStatusTextEl.textContent = isSilent ? tWeb('silent_on') : tWeb('silent_off');
+        }
+        if (typeof offersData !== 'undefined' && offersData && offersData.offers) {
+          renderSourceFilters();
+          renderOffers();
         }
       }
 
@@ -2223,9 +2610,9 @@
 
       // 3. Status filters
       var statusChips = [
-        { value: '', label: 'Все' },
-        { value: 'new', label: 'Новые' },
-        { value: 'sent', label: 'Отправлены' }
+        { value: '', label: tWeb('status_all_chip') },
+        { value: 'new', label: tWeb('status_new_chip') },
+        { value: 'sent', label: tWeb('status_sent_chip') }
       ];
       statusChips.forEach(function (s) {
         var chip = document.createElement('button');
@@ -2280,8 +2667,8 @@
       pagination.innerHTML = '';
 
       if (!offersData || !offersData.offers || !offersData.offers.length) {
-        if (badge) badge.textContent = '0 офферов';
-        list.innerHTML = '<div class="offers-empty"><div class="icon">🎫</div><div>Офферы не найдены</div></div>';
+        if (badge) badge.textContent = tWeb('offers_count_zero');
+        list.innerHTML = '<div class="offers-empty"><div class="icon">🎫</div><div>' + escHtml(tWeb('offers_none_found')) + '</div></div>';
         return;
       }
 
@@ -2326,14 +2713,14 @@
 
       if (badge) {
         if (offerFilters.dateFrom || offerFilters.dateTo) {
-          badge.textContent = offers.length + ' офферов (фильтр дат)';
+          badge.textContent = tWeb('offers_count_filter', { count: offers.length });
         } else {
-          badge.textContent = (offersData && offersData.total != null) ? (offersData.total + ' офферов') : (offers.length + ' офферов');
+          badge.textContent = (offersData && offersData.total != null) ? tWeb('offers_count_total', { count: offersData.total }) : tWeb('offers_count_total', { count: offers.length });
         }
       }
 
       if (!offers.length) {
-        list.innerHTML = '<div class="offers-empty"><div class="icon">🔍</div><div>Нет офферов в выбранном диапазоне дат</div></div>';
+        list.innerHTML = '<div class="offers-empty"><div class="icon">🔍</div><div>' + escHtml(tWeb('offers_none_in_range')) + '</div></div>';
         return;
       }
 
@@ -2358,7 +2745,7 @@
         var prev = document.createElement('button');
         prev.type = 'button';
         prev.className = 'page-btn';
-        prev.textContent = '← Назад';
+        prev.textContent = tWeb('page_prev');
         prev.disabled = offersData.page <= 1;
         prev.onclick = function () {
           offerFilters.page = offersData.page - 1;
@@ -2369,14 +2756,14 @@
 
         var info = document.createElement('div');
         info.className = 'page-info';
-        info.innerHTML = 'Стр. ' + offersData.page + ' / ' + offersData.totalPages +
-          ' <span class="page-total">(всего: ' + offersData.total + ')</span>';
+        info.innerHTML = tWeb('page_info', { page: offersData.page, total: offersData.totalPages }) +
+          ' <span class="page-total">' + tWeb('page_total_count', { total: offersData.total }) + '</span>';
         pagination.appendChild(info);
 
         var next = document.createElement('button');
         next.type = 'button';
         next.className = 'page-btn';
-        next.textContent = 'Вперёд →';
+        next.textContent = tWeb('page_next');
         next.disabled = offersData.page >= offersData.totalPages;
         next.onclick = function () {
           offerFilters.page = offersData.page + 1;
@@ -2387,7 +2774,7 @@
       } else if (offersData.total > 0) {
         var totalInfo = document.createElement('div');
         totalInfo.className = 'page-info';
-        totalInfo.textContent = 'Найдено офферов: ' + (offerFilters.dateFrom || offerFilters.dateTo ? offers.length : offersData.total);
+        totalInfo.textContent = tWeb('offers_found_total', { count: (offerFilters.dateFrom || offerFilters.dateTo ? offers.length : offersData.total) });
         pagination.appendChild(totalInfo);
       }
     }
@@ -2426,8 +2813,8 @@
       // Type tag
       var typeTag = document.createElement('div');
       typeTag.style.cssText = 'font-size:12px; font-weight:600; color:' + (isCamper ? 'var(--accent)' : 'var(--hint)') + '; margin-bottom:4px;';
-      var sleepingText = (isCamper && offer.sleeping) ? (' • ' + offer.sleeping + ' спальных мест') : '';
-      typeTag.textContent = (isCamper ? '🚐 Дом на колёсах' : '🚗 Легковой автомобиль') + (offer.operator ? ' (' + offer.operator + ')' : '') + sleepingText;
+      var sleepingText = (isCamper && offer.sleeping) ? tWeb('offer_sleeping_suffix', { count: offer.sleeping }) : '';
+      typeTag.textContent = (isCamper ? tWeb('offer_camper_type') : tWeb('offer_car_type')) + (offer.operator ? ' (' + offer.operator + ')' : '') + sleepingText;
       details.appendChild(typeTag);
 
       // Compact dates
@@ -2470,7 +2857,7 @@
 
       var status = document.createElement('span');
       status.className = 'offer-status ' + (offer.telegramSentAt ? 'sent' : 'new');
-      status.textContent = offer.telegramSentAt ? '✓ Отправлен' : 'Новый';
+      status.textContent = offer.telegramSentAt ? tWeb('status_sent_badge') : tWeb('status_new_badge');
       footer.appendChild(status);
 
       var actions = document.createElement('div');
@@ -2480,16 +2867,16 @@
       deleteBtn.type = 'button';
       deleteBtn.className = 'btn-delete-offer';
       deleteBtn.innerHTML = '🗑️';
-      deleteBtn.title = 'Удалить этот оффер';
+      deleteBtn.title = tWeb('delete_offer_title');
       deleteBtn.onclick = function (e) {
         e.stopPropagation();
-        if (!window.confirm('Удалить этот оффер?')) return;
+        if (!window.confirm(tWeb('offer_delete_confirm'))) return;
         deleteBtn.disabled = true;
         deleteBtn.textContent = '⏳';
         var initData = getInitData();
         google.script.run
           .withSuccessHandler(function (res) {
-            toast('Оффер удалён');
+            toast(tWeb('offer_deleted'));
             card.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
             card.style.opacity = '0';
             card.style.transform = 'scale(0.95)';
@@ -2521,7 +2908,7 @@
       var bookBtn = document.createElement('button');
       bookBtn.type = 'button';
       bookBtn.className = 'btn-book';
-      bookBtn.textContent = 'Бронировать';
+      bookBtn.textContent = tWeb('btn_book');
       var targetUrl = offer.bookingUrl || '';
       if (String(offer.source || '').toLowerCase() === 'movacar') {
         if (!targetUrl || targetUrl === 'https://movacar.com/' || targetUrl === 'https://movacar.com' || targetUrl.indexOf('origin=') === -1) {
@@ -2552,20 +2939,20 @@
       var btn = document.getElementById('btnCheckAvail');
       if (btn) {
         btn.disabled = true;
-        btn.textContent = '⏳ Проверка…';
+        btn.textContent = '⏳ ' + tWeb('checking');
       }
       var initData = getInitData();
       google.script.run
         .withSuccessHandler(function (res) {
           if (btn) {
             btn.disabled = false;
-            btn.textContent = '🔄 Проверить актуальность';
+            btn.textContent = tWeb('btn_check_avail');
           }
-          var msg = 'Проверка доступности завершена.';
+          var msg = tWeb('check_avail_all_ok', { total: (res && res.checked) || 0 });
           if (res && res.removed !== undefined) {
             msg = res.removed > 0
-              ? 'Удалено недоступных офферов: ' + res.removed + ' (из ' + res.checked + ')'
-              : 'Все проверенные офферы (' + res.checked + ') актуальны';
+              ? tWeb('check_avail_removed', { removed: res.removed, total: res.checked })
+              : tWeb('check_avail_all_ok', { total: res.checked });
           }
           toast(msg);
           applyOfferFilters();
@@ -2573,9 +2960,9 @@
         .withFailureHandler(function (err) {
           if (btn) {
             btn.disabled = false;
-            btn.textContent = '🔄 Проверить актуальность';
+            btn.textContent = tWeb('btn_check_avail');
           }
-          toast((err && err.message) || 'Ошибка при проверке доступности', true);
+          toast((err && err.message) || tWeb('check_avail_error'), true);
         })
         .checkOffersAvailabilityWeb(initData);
     }
@@ -2593,9 +2980,9 @@
         var emoji = banner.querySelector('.emoji');
         if (emoji) emoji.textContent = '🔒';
         var title = document.getElementById('bannerTitle');
-        if (title) title.textContent = 'Доступ запрещён';
+        if (title) title.textContent = tWeb('access_denied_title');
         var sub = document.getElementById('bannerSub');
-        if (sub) sub.textContent = msg || 'Откройте приложение через Telegram бота.';
+        if (sub) sub.textContent = msg || tWeb('access_denied_sub');
       }
       var form = document.getElementById('mainForm');
       if (form) form.style.display = 'none';
@@ -2663,7 +3050,7 @@
           state.settings.silent_hours_enabled = this.checked;
           var statusEl = document.getElementById('silentHoursStatusText');
           if (statusEl) {
-            statusEl.textContent = this.checked ? 'Включены ✅' : 'Выключены ⬜';
+            statusEl.textContent = this.checked ? tWeb('silent_on') : tWeb('silent_off');
           }
         };
       }
@@ -2776,11 +3163,11 @@
       var ic = document.getElementById('healthIc');
       var im = document.getElementById('healthIm');
       var tg = document.getElementById('healthTg');
-      if (rs && isProvActive('roadsurfer')) { rs.textContent = '⏳ Проверка…'; rs.style.color = 'var(--hint)'; }
-      if (mv && isProvActive('movacar')) { mv.textContent = '⏳ Проверка…'; mv.style.color = 'var(--hint)'; }
-      if (ic && isProvActive('indiecampers')) { ic.textContent = '⏳ Проверка…'; ic.style.color = 'var(--hint)'; }
-      if (im && isProvActive('imoova')) { im.textContent = '⏳ Проверка…'; im.style.color = 'var(--hint)'; }
-      if (tg) { tg.textContent = '⏳ Проверка…'; tg.style.color = 'var(--hint)'; }
+      if (rs && isProvActive('roadsurfer')) { rs.textContent = '⏳ ' + tWeb('checking'); rs.style.color = 'var(--hint)'; }
+      if (mv && isProvActive('movacar')) { mv.textContent = '⏳ ' + tWeb('checking'); mv.style.color = 'var(--hint)'; }
+      if (ic && isProvActive('indiecampers')) { ic.textContent = '⏳ ' + tWeb('checking'); ic.style.color = 'var(--hint)'; }
+      if (im && isProvActive('imoova')) { im.textContent = '⏳ ' + tWeb('checking'); im.style.color = 'var(--hint)'; }
+      if (tg) { tg.textContent = '⏳ ' + tWeb('checking'); tg.style.color = 'var(--hint)'; }
 
       google.script.run
         .withSuccessHandler(function (h) {
@@ -2807,7 +3194,7 @@
           }
         })
         .withFailureHandler(function (err) {
-          if (rs) rs.textContent = '❌ Ошибка';
+          if (rs) rs.textContent = '❌ ' + tWeb('status_error');
         })
         .checkProvidersHealth(initData, !!forceRefresh);
     }
@@ -2819,12 +3206,12 @@
       var webhookDesc = document.getElementById('webhookStatusDesc');
       if (webhookBtn && webhookDesc) {
         if (webhookActive) {
-          webhookDesc.textContent = '🟢 Webhook активен (поллинг отключен, квота не тратится)';
-          webhookBtn.textContent = 'Отключить Webhook';
+          webhookDesc.textContent = tWeb('webhook_active_desc');
+          webhookBtn.textContent = tWeb('btn_disable_webhook');
           webhookBtn.style.color = 'var(--danger)';
         } else {
-          webhookDesc.textContent = '🟡 Polling (раз в 1 мин, тратит ~1440 запросов/день)';
-          webhookBtn.textContent = '⚡ Включить Webhook';
+          webhookDesc.textContent = tWeb('webhook_polling_desc');
+          webhookBtn.textContent = tWeb('btn_enable_webhook');
           webhookBtn.style.color = 'var(--accent)';
         }
       }
@@ -2839,36 +3226,36 @@
       var bannerTitle = document.getElementById('bannerTitle');
       var bannerSub = document.getElementById('bannerSub');
       var emoji = '🟢';
-      var title = 'Мониторинг активен';
-      var parts = ['Триггер каждые ' + st.intervalMinutes + ' мин'];
+      var title = tWeb('status_active');
+      var parts = [tWeb('status_trigger_every', { min: st.intervalMinutes })];
       var freshness = st.freshness || {};
       var isStale = freshness.isStale === true;
 
       if (isStale) {
         emoji = '🔴';
         title = freshness.ageMinutes === null
-          ? 'Триггер не выполнялся: нет данных'
-          : 'Триггер не выполнялся ' + freshness.ageMinutes + ' мин';
-        parts.push('Порог: ' + freshness.thresholdMinutes + ' мин');
+          ? tWeb('status_not_run_no_data')
+          : tWeb('status_not_run_age', { min: freshness.ageMinutes });
+        parts.push(tWeb('status_threshold', { min: freshness.thresholdMinutes }));
       }
 
       if (state.telegramReady === false) {
-        parts.push('⚠️ Telegram не настроен');
+        parts.push(tWeb('status_tg_not_configured'));
       }
       if (lastRun) {
         if (!isStale && lastRun.status && String(lastRun.status).toLowerCase() !== 'ok') {
           emoji = '⚠️';
-          title = 'Последняя проверка с ошибкой';
+          title = tWeb('status_last_check_error');
           if (lastRun.error) {
             parts.push(String(lastRun.error).slice(0, 80));
           }
         }
-        parts.push('Последняя проверка: ' + timeAgo(lastRun.finished_at || lastRun.started_at));
+        parts.push(tWeb('status_last_check', { time: timeAgo(lastRun.finished_at || lastRun.started_at) }));
         if (lastRun.offers_found !== undefined && lastRun.offers_found !== null && lastRun.offers_found !== '') {
-          parts.push('Офферов: ' + lastRun.offers_found);
+          parts.push(tWeb('status_offers_found', { count: lastRun.offers_found }));
         }
       } else {
-        parts.push('Ещё не запускался');
+        parts.push(tWeb('status_not_run_yet'));
       }
       if (state.monitorError) {
         var isStaleErr = false;
@@ -3147,18 +3534,18 @@
     function buildRouteEditor(route, index) {
       var wrap = document.createElement('div');
       wrap.className = 'route-edit';
-      wrap.appendChild(fieldLabel('Источник'));
+      wrap.appendChild(fieldLabel(tWeb('field_source')));
       wrap.appendChild(select(['roadsurfer', 'movacar', 'indiecampers', 'imoova'], route.source, function (v) {
         route.source = v;
         renderRoutes();
       }));
 
       var vTypes = [
-        { id: 'all', label: '🚗🚐 Все (кемперы и легковые)' },
-        { id: 'camper', label: '🚐 Только кемперы (дома на колёсах)' },
-        { id: 'car', label: '🚗 Только легковые авто' }
+        { id: 'all', label: tWeb('vtype_all_opt') },
+        { id: 'camper', label: tWeb('vtype_camper_opt') },
+        { id: 'car', label: tWeb('vtype_car_opt') }
       ];
-      wrap.appendChild(fieldLabel('Тип транспорта'));
+      wrap.appendChild(fieldLabel(tWeb('field_vehicle_type')));
       var vTypeSelect = document.createElement('select');
       vTypes.forEach(function(vt) {
         var opt = document.createElement('option');
@@ -3175,41 +3562,41 @@
 
       var countries = document.createElement('div');
       countries.className = 'pair';
-      countries.appendChild(fieldGroup('Страна отправления', countrySelect(route.originCountry, function (v) {
+      countries.appendChild(fieldGroup(tWeb('field_origin_country'), countrySelect(route.originCountry, function (v) {
         route.originCountry = v;
         route.originId = '*';
-        route.originName = 'Все города';
+        route.originName = tWeb('all_cities');
         renderRoutes();
       })));
-      countries.appendChild(fieldGroup('Страна назначения', countrySelect(route.destinationCountry, function (v) {
+      countries.appendChild(fieldGroup(tWeb('field_dest_country'), countrySelect(route.destinationCountry, function (v) {
         route.destinationCountry = v;
         route.destinationId = '*';
-        route.destinationName = 'Все города';
+        route.destinationName = tWeb('all_cities');
         renderRoutes();
       }, true)));
       wrap.appendChild(countries);
 
       var stations = document.createElement('div');
       stations.className = 'pair';
-      stations.appendChild(fieldGroup('Город отправления', providerStationSelect(route, 'origin')));
-      stations.appendChild(fieldGroup('Город назначения', providerDestinationSelect(route)));
+      stations.appendChild(fieldGroup(tWeb('field_origin_city'), providerStationSelect(route, 'origin')));
+      stations.appendChild(fieldGroup(tWeb('field_dest_city'), providerDestinationSelect(route)));
       wrap.appendChild(stations);
 
       var dates = document.createElement('div');
       dates.className = 'pair';
-      dates.appendChild(fieldGroup('Искать с', dateInput(route.pickupDate, function (v) { route.pickupDate = v; })));
-      dates.appendChild(fieldGroup('Искать по', dateInput(route.returnDate, function (v) { route.returnDate = v; })));
+      dates.appendChild(fieldGroup(tWeb('field_date_from'), dateInput(route.pickupDate, function (v) { route.pickupDate = v; })));
+      dates.appendChild(fieldGroup(tWeb('field_date_to'), dateInput(route.returnDate, function (v) { route.returnDate = v; })));
       wrap.appendChild(dates);
 
       var datesHint = document.createElement('div');
       datesHint.style.cssText = 'font-size:12px;color:var(--hint);margin-bottom:12px;margin-top:-2px;';
-      datesHint.textContent = (!route.pickupDate && !route.returnDate) ? 'Если даты пустые — ближайшее воскресенье + 14 дней' : '';
+      datesHint.textContent = (!route.pickupDate && !route.returnDate) ? tWeb('dates_empty_hint') : '';
       wrap.appendChild(datesHint);
 
       var btnDone = document.createElement('button');
       btnDone.type = 'button';
       btnDone.className = 'btn btn-accent';
-      btnDone.textContent = 'Готово';
+      btnDone.textContent = tWeb('btn_done');
       btnDone.onclick = function () {
         route._editing = undefined;
         renderRoutes();
@@ -3225,7 +3612,7 @@
       var sel = document.createElement('select');
       sel.disabled = true;
       var loading = document.createElement('option');
-      loading.textContent = country ? 'Загрузка городов…' : 'Сначала выберите страну';
+      loading.textContent = country ? tWeb('loading_cities') : tWeb('select_country_first');
       loading.value = '';
       sel.appendChild(loading);
       if (!country) return sel;
@@ -3235,8 +3622,8 @@
           sel.innerHTML = '';
           var wildcardOpt = document.createElement('option');
           wildcardOpt.value = '*';
-          wildcardOpt.textContent = '✨ Все города / Любой';
-          wildcardOpt.dataset.name = 'Все города';
+          wildcardOpt.textContent = tWeb('all_cities_wildcard');
+          wildcardOpt.dataset.name = tWeb('all_cities');
           sel.appendChild(wildcardOpt);
 
           stations.forEach(function (station) {
@@ -3258,16 +3645,16 @@
             var prevId = route[idKey];
             route[idKey] = sel.value;
             var opt = sel.options[sel.selectedIndex];
-            route[nameKey] = (opt && opt.dataset.name) || (sel.value === '*' ? 'Все города' : '');
+            route[nameKey] = (opt && opt.dataset.name) || (sel.value === '*' ? tWeb('all_cities') : '');
             if (kind === 'origin' && prevId !== route.originId) {
               route.destinationId = '*';
-              route.destinationName = 'Все города';
+              route.destinationName = tWeb('all_cities');
               renderRoutes();
             }
           };
         })
         .withFailureHandler(function () {
-          loading.textContent = 'Не удалось загрузить города';
+          loading.textContent = tWeb('failed_load_cities');
         })
         .getProviderStations(route.source, [country], getInitData());
       return sel;
@@ -3279,12 +3666,12 @@
       var loading = document.createElement('option');
       loading.value = '';
       if (!route.originCountry && !route.originId) {
-        loading.textContent = 'Сначала выберите страну отправления';
+        loading.textContent = tWeb('select_origin_country_first');
         sel.appendChild(loading);
         return sel;
       }
       var countryFilter = route.destinationCountry ? [route.destinationCountry] : [];
-      loading.textContent = 'Загрузка направлений…';
+      loading.textContent = tWeb('loading_destinations');
       sel.appendChild(loading);
 
       var expectedOriginId = String(route.originId || '*');
@@ -3296,8 +3683,8 @@
           sel.innerHTML = '';
           var wildcardOpt = document.createElement('option');
           wildcardOpt.value = '*';
-          wildcardOpt.textContent = '✨ Все города / Любой';
-          wildcardOpt.dataset.name = 'Все города';
+          wildcardOpt.textContent = tWeb('all_cities_wildcard');
+          wildcardOpt.dataset.name = tWeb('all_cities');
           sel.appendChild(wildcardOpt);
 
           destinations.forEach(function (dest) {
@@ -3317,12 +3704,12 @@
           sel.onchange = function () {
             route.destinationId = sel.value;
             var opt = sel.options[sel.selectedIndex];
-            route.destinationName = (opt && opt.dataset.name) || (sel.value === '*' ? 'Все города' : '');
+            route.destinationName = (opt && opt.dataset.name) || (sel.value === '*' ? tWeb('all_cities') : '');
           };
         })
         .withFailureHandler(function () {
           if (String(route.originId || '*') !== expectedOriginId) return;
-          loading.textContent = 'Не удалось загрузить направления';
+          loading.textContent = tWeb('failed_load_destinations');
         })
         .getProviderDestinations(route.source, route.originId || '*', countryFilter, getInitData());
       return sel;
@@ -3475,13 +3862,13 @@
       google.script.run
         .withSuccessHandler(function (created) {
           if (created && created.length) {
-            toast('Триггеры восстановлены ✓ ' + created.join(', '));
+            toast(tWeb('triggers_restored') + created.join(', '));
           } else {
-            toast('Триггеры уже на месте ✓');
+            toast(tWeb('triggers_already_ok'));
           }
           load();
         })
-        .withFailureHandler(function (err) { toast((err && err.message) || 'Ошибка установки триггеров', true); })
+        .withFailureHandler(function (err) { toast((err && err.message) || tWeb('triggers_install_error'), true); })
         .ensureTriggersFromUi(initData);
     }
 
@@ -3491,7 +3878,7 @@
       if (btn) btn.disabled = true;
       google.script.run
         .withSuccessHandler(function () {
-          toast('Проверка запущена…');
+          toast(tWeb('check_started'));
           setTimeout(function () {
             if (btn) btn.disabled = false;
             load();
@@ -3499,7 +3886,7 @@
         })
         .withFailureHandler(function (err) {
           if (btn) btn.disabled = false;
-          toast((err && err.message) || 'Ошибка запуска', true);
+          toast((err && err.message) || tWeb('check_start_error'), true);
         })
         .runMonitorFromUi(initData);
     }
@@ -3575,8 +3962,38 @@
       }));
     }
 
-    var MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-    var MONTHS_FULL = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    var MONTHS_I18N = {
+      ru: {
+        short: ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'],
+        full: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+      },
+      uk: {
+        short: ['січ', 'лют', 'бер', 'кві', 'тра', 'чер', 'лип', 'сер', 'вер', 'жов', 'лис', 'гру'],
+        full: ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня']
+      },
+      en: {
+        short: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        full: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      },
+      de: {
+        short: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+        full: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+      },
+      it: {
+        short: ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'],
+        full: ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+      }
+    };
+
+    function getMonthShort(monthIdx) {
+      var d = MONTHS_I18N[currentAppLang] || MONTHS_I18N['ru'];
+      return d.short[monthIdx] || '';
+    }
+
+    function getMonthFull(monthIdx) {
+      var d = MONTHS_I18N[currentAppLang] || MONTHS_I18N['ru'];
+      return d.full[monthIdx] || '';
+    }
 
     function parseDateFlexible(val) {
       if (!val) return null;
@@ -3599,39 +4016,39 @@
       var now = new Date();
       var isToday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
       if (isToday) {
-        return 'Сегодня, ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()];
+        return tWeb('date_today') + d.getDate() + ' ' + getMonthFull(d.getMonth());
       }
       var yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
       var isYesterday = d.getFullYear() === yesterday.getFullYear() && d.getMonth() === yesterday.getMonth() && d.getDate() === yesterday.getDate();
       if (isYesterday) {
-        return 'Вчера, ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()];
+        return tWeb('date_yesterday') + d.getDate() + ' ' + getMonthFull(d.getMonth());
       }
       var curYear = now.getFullYear();
-      return d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
+      return d.getDate() + ' ' + getMonthFull(d.getMonth()) + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
     }
 
     function getTripDateGroupKey(val) {
-      if (!val) return 'Даты не указаны';
+      if (!val) return tWeb('dates_not_specified');
       var d = parseDateFlexible(val);
-      if (!d) return 'Даты не указаны';
+      if (!d) return tWeb('dates_not_specified');
       var now = new Date();
       var isToday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
       if (isToday) {
-        return 'Выезд сегодня, ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()];
+        return tWeb('departure_today') + d.getDate() + ' ' + getMonthFull(d.getMonth());
       }
       var tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
       var isTomorrow = d.getFullYear() === tomorrow.getFullYear() && d.getMonth() === tomorrow.getMonth() && d.getDate() === tomorrow.getDate();
       if (isTomorrow) {
-        return 'Выезд завтра, ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()];
+        return tWeb('departure_tomorrow') + d.getDate() + ' ' + getMonthFull(d.getMonth());
       }
       var curYear = now.getFullYear();
-      return 'Выезд ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
+      return tWeb('departure_prefix') + d.getDate() + ' ' + getMonthFull(d.getMonth()) + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
     }
 
     function formatCompactDate(d) {
       if (!d) return '—';
       var curYear = new Date().getFullYear();
-      return d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()] + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
+      return d.getDate() + ' ' + getMonthShort(d.getMonth()) + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
     }
 
     function pluralizeDaysWeb(days, lang) {
@@ -3674,16 +4091,16 @@
 
       if (pYear === rYear && p.getMonth() === r.getMonth()) {
         if (p.getDate() === r.getDate()) {
-          return p.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + (pYear !== curYear ? ' ' + pYear : '');
+          return p.getDate() + ' ' + getMonthShort(p.getMonth()) + (pYear !== curYear ? ' ' + pYear : '');
         }
-        return p.getDate() + '–' + r.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + (pYear !== curYear ? ' ' + pYear : '') + daysLabel;
+        return p.getDate() + '–' + r.getDate() + ' ' + getMonthShort(p.getMonth()) + (pYear !== curYear ? ' ' + pYear : '') + daysLabel;
       }
 
       if (pYear === rYear) {
-        return p.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + ' – ' + r.getDate() + ' ' + MONTHS_SHORT[r.getMonth()] + (pYear !== curYear ? ' ' + pYear : '') + daysLabel;
+        return p.getDate() + ' ' + getMonthShort(p.getMonth()) + ' – ' + r.getDate() + ' ' + getMonthShort(r.getMonth()) + (pYear !== curYear ? ' ' + pYear : '') + daysLabel;
       }
 
-      return p.getDate() + ' ' + MONTHS_SHORT[p.getMonth()] + ' ' + pYear + ' – ' + r.getDate() + ' ' + MONTHS_SHORT[r.getMonth()] + ' ' + rYear + daysLabel;
+      return p.getDate() + ' ' + getMonthShort(p.getMonth()) + ' ' + pYear + ' – ' + r.getDate() + ' ' + getMonthShort(r.getMonth()) + ' ' + rYear + daysLabel;
     }
 
     function formatAddedTime(iso) {
@@ -3696,16 +4113,16 @@
       var pad = function(n) { return n < 10 ? '0' + n : String(n); };
       var timeStr = pad(d.getHours()) + ':' + pad(d.getMinutes());
 
-      if (diffSec >= 0 && diffSec < 60) return 'добавлен только что';
+      if (diffSec >= 0 && diffSec < 60) return tWeb('added_just_now');
       if (diffSec >= 60 && diffSec < 3600) {
         var mins = Math.floor(diffSec / 60);
-        return 'добавлен в ' + timeStr + ' (' + mins + ' мин назад)';
+        return tWeb('added_mins_ago', { time: timeStr, mins: mins });
       }
       if (diffSec >= 3600 && diffSec < 86400) {
         var hours = Math.floor(diffSec / 3600);
-        return 'добавлен в ' + timeStr + ' (' + hours + ' ч назад)';
+        return tWeb('added_hours_ago', { time: timeStr, hours: hours });
       }
-      return 'добавлен в ' + timeStr;
+      return tWeb('added_at', { time: timeStr });
     }
 
     function shortDate(iso) {
