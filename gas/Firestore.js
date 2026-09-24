@@ -402,8 +402,11 @@ function getUserRoutes(telegramId) {
     var oCountry = String(r.origin_country || r.originCountry || 'DE').toUpperCase().trim();
     var dCountry = String(r.destination_country || r.destinationCountry || '').toUpperCase().trim();
     var oCity = String(r.origin_name || r.originName || r.origin_id || r.originId || '*').toLowerCase().trim();
+    var dCity = String(r.destination_name || r.destinationName || r.destination_id || r.destinationId || '*').toLowerCase().trim();
     var vType = String(r.vehicle_type || r.vehicleType || 'all').toLowerCase().trim();
-    var sig = src + '|' + oCountry + '|' + oCity + '|' + dCountry + '|' + dCity + '|' + vType;
+    var pDate = String(r.pickup_date || r.pickupDate || '').trim();
+    var rDate = String(r.return_date || r.returnDate || '').trim();
+    var sig = src + '|' + oCountry + '|' + oCity + '|' + dCountry + '|' + dCity + '|' + vType + '|' + pDate + '|' + rDate;
 
     if (!seen[sig]) {
       seen[sig] = true;
