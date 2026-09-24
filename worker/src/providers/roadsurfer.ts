@@ -6,6 +6,7 @@ export interface RoadsurferStation {
   id: string;
   name: string;
   country: string;
+  oneWay?: boolean;
 }
 
 let cachedStations: RoadsurferStation[] | null = null;
@@ -43,6 +44,7 @@ export async function getRoadsurferAllStations(db?: DbClient): Promise<Roadsurfe
         id: String(s.id),
         name: s.name || (s.city && s.city.name) || '',
         country: String((s.city && s.city.country) || '').trim().toUpperCase(),
+        oneWay: s.one_way === true,
       }));
 
     if (stations.length > 0) {
@@ -88,7 +90,7 @@ export async function fetchRoadsurferDestinations(
       headers: {
         Accept: 'application/json, text/plain, */*',
         Referer: `https://booking.roadsurfer.com/en/rally/pick?station=${encodeURIComponent(cleanOriginId)}`,
-        'X-Requested-Alias': 'rally.destStations',
+        'X-Requested-Alias': 'rally.fetchRoutes',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
       retries: 1,
@@ -237,6 +239,7 @@ export async function fetchRoadsurferOffers(
       : [];
     originsToCheck = allStations.filter(
       (s) =>
+        s.oneWay === true &&
         (!route.origin_country || s.country === route.origin_country.toUpperCase()) &&
         (allowedOrigins.length === 0 || allowedOrigins.includes(s.country))
     );

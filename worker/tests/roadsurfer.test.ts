@@ -1,9 +1,44 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { fetchRoadsurferTimeframes } from '../src/providers/roadsurfer';
+import { fetchRoadsurferTimeframes, fetchRoadsurferDestinations } from '../src/providers/roadsurfer';
 
 describe('Roadsurfer Provider', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('correctly requests rally.fetchRoutes and resolves destinations from returns array', async () => {
+    // 1st fetch: fetchRoadsurferDestinations calls /rally/stations/6
+    // 2nd fetch: getRoadsurferAllStations calls /rally/stations
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 6,
+            name: 'Berlin',
+            one_way: true,
+            returns: [16],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            { id: 6, name: 'Berlin', city: { country: 'DE' }, one_way: true, enabled: true },
+            { id: 16, name: 'Aix-Marseille', city: { country: 'FR' }, one_way: true, enabled: true },
+          ]),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      );
+
+    const dests = await fetchRoadsurferDestinations('6', ['FR']);
+    expect(dests).toEqual([
+      {
+        id: '16',
+        name: 'Aix-Marseille',
+        country: 'FR',
+      },
+    ]);
   });
 
   it('correctly parses camelCase startDate and endDate from timeframes API', async () => {
