@@ -37,6 +37,9 @@ export async function fetchJson<T = any>(url: string, options: FetchOptions = {}
   const isExcludedFromProxy =
     !proxyUrl ||
     host === 'api.telegram.org' ||
+    host === 'booking.roadsurfer.com' ||
+    host.endsWith('movacar.de') ||
+    host.endsWith('run.app') ||
     url.includes('/macros/s/') ||
     options.useProxy === 'never';
 
