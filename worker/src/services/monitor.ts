@@ -87,7 +87,7 @@ export async function runMonitorCycle(
     for (const route of routesToScan) {
       requestCount++;
       try {
-        const offers = await fetchOffersForRoute(route, windowDates);
+        const offers = await fetchOffersForRoute(route, windowDates, undefined, db);
         foundOffers.push(...offers);
       } catch (err: any) {
         console.warn(`Error scanning route ${route.source} ${route.origin_id} -> ${route.destination_id}:`, err.message || err);

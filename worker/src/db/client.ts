@@ -18,6 +18,36 @@ export class DbClient {
     await this.db.prepare("DELETE FROM monitor_locks WHERE name = 'scan' AND owner = ?").bind(owner).run();
   }
 
+  async getCache<T = any>(key: string): Promise<T | null> {
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const row = await this.db
+        .prepare('SELECT value FROM cache WHERE key = ? AND expires_at > ?')
+        .bind(key, now)
+        .first<{ value: string }>();
+      if (!row || !row.value) return null;
+      return JSON.parse(row.value) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  async setCache(key: string, value: any, ttlSeconds: number): Promise<void> {
+    try {
+      const expiresAt = Math.floor(Date.now() / 1000) + ttlSeconds;
+      const strVal = JSON.stringify(value);
+      await this.db
+        .prepare(
+          `INSERT INTO cache (key, value, expires_at) VALUES (?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value, expires_at = excluded.expires_at`
+        )
+        .bind(key, strVal, expiresAt)
+        .run();
+    } catch (e) {
+      console.warn('Failed to set cache for key:', key, e);
+    }
+  }
+
   async getUser(telegramId: string | number): Promise<User | null> {
     const id = String(telegramId);
     const row = await this.db

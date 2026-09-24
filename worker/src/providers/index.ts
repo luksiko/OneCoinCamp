@@ -3,16 +3,18 @@ import { fetchRoadsurferOffers } from './roadsurfer';
 import { fetchMovacarOffers } from './movacar';
 import { fetchIndieCampersOffers } from './indiecampers';
 import { fetchImoovaOffers } from './imoova';
+import { DbClient } from '../db/client';
 
 export async function fetchOffersForRoute(
   route: UserRoute,
   windowDates: { start: string; end: string },
-  filters?: UserFilters
+  filters?: UserFilters,
+  db?: DbClient
 ): Promise<NormalizedOffer[]> {
   const source = (route.source || '').toLowerCase().trim();
   switch (source) {
     case 'roadsurfer':
-      return fetchRoadsurferOffers(route, windowDates, filters);
+      return fetchRoadsurferOffers(route, windowDates, filters, db);
     case 'movacar':
       return fetchMovacarOffers(route, windowDates);
     case 'indiecampers':

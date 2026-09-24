@@ -1,5 +1,6 @@
 import { NormalizedOffer, UserRoute, UserFilters } from '../types';
 import { fetchJson } from '../utils/http';
+import { DbClient } from '../db/client';
 
 export interface RoadsurferStation {
   id: string;
@@ -10,16 +11,26 @@ export interface RoadsurferStation {
 let cachedStations: RoadsurferStation[] | null = null;
 let cachedStationsTime = 0;
 
-export async function getRoadsurferAllStations(): Promise<RoadsurferStation[]> {
+export async function getRoadsurferAllStations(db?: DbClient): Promise<RoadsurferStation[]> {
   const now = Date.now();
   if (cachedStations && now - cachedStationsTime < 6 * 3600 * 1000) {
     return cachedStations;
+  }
+
+  if (db) {
+    const d1Cached = await db.getCache<RoadsurferStation[]>('roadsurfer:stations');
+    if (d1Cached && Array.isArray(d1Cached) && d1Cached.length > 0) {
+      cachedStations = d1Cached;
+      cachedStationsTime = now;
+      return d1Cached;
+    }
   }
 
   try {
     const payload = await fetchJson<any[]>('https://booking.roadsurfer.com/api/en/rally/stations', {
       headers: {
         Accept: 'application/json, text/plain, */*',
+        Referer: 'https://booking.roadsurfer.com/en/rally/pick',
         'X-Requested-Alias': 'rally.startStations',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
@@ -37,6 +48,9 @@ export async function getRoadsurferAllStations(): Promise<RoadsurferStation[]> {
     if (stations.length > 0) {
       cachedStations = stations;
       cachedStationsTime = now;
+      if (db) {
+        await db.setCache('roadsurfer:stations', stations, 86400); // 24 hours
+      }
     }
     return stations;
   } catch (err) {
@@ -47,11 +61,25 @@ export async function getRoadsurferAllStations(): Promise<RoadsurferStation[]> {
 
 export async function fetchRoadsurferDestinations(
   originId: string,
-  allowedDestCountries: string[] = []
+  allowedDestCountries: string[] = [],
+  db?: DbClient
 ): Promise<RoadsurferStation[]> {
   const cleanOriginId = String(originId || '').trim();
   if (!/^\d+$/.test(cleanOriginId)) {
     return [];
+  }
+
+  const cacheKey = `roadsurfer:destinations:${cleanOriginId}`;
+  if (db) {
+    const d1Cached = await db.getCache<RoadsurferStation[]>(cacheKey);
+    if (d1Cached && Array.isArray(d1Cached) && d1Cached.length > 0) {
+      return d1Cached.filter(
+        (dest) =>
+          allowedDestCountries.length === 0 ||
+          !dest.country ||
+          allowedDestCountries.includes(dest.country)
+      );
+    }
   }
 
   const url = `https://booking.roadsurfer.com/api/en/rally/stations/${encodeURIComponent(cleanOriginId)}`;
@@ -59,7 +87,8 @@ export async function fetchRoadsurferDestinations(
     const payload = await fetchJson<any>(url, {
       headers: {
         Accept: 'application/json, text/plain, */*',
-        'X-Requested-Alias': 'rally.fetchRoutes',
+        Referer: `https://booking.roadsurfer.com/en/rally/pick?station=${encodeURIComponent(cleanOriginId)}`,
+        'X-Requested-Alias': 'rally.destStations',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
       retries: 1,
@@ -70,11 +99,11 @@ export async function fetchRoadsurferDestinations(
     else if (payload && Array.isArray(payload.routes)) returnIds = payload.routes;
     else if (Array.isArray(payload)) returnIds = payload;
 
-    const allStations = await getRoadsurferAllStations();
+    const allStations = await getRoadsurferAllStations(db);
     const stationMap = new Map<string, RoadsurferStation>();
     for (const s of allStations) stationMap.set(s.id, s);
 
-    const result: RoadsurferStation[] = [];
+    const allDestinations: RoadsurferStation[] = [];
     for (const r of returnIds) {
       let dest: RoadsurferStation;
       if (typeof r === 'object' && r !== null) {
@@ -91,16 +120,19 @@ export async function fetchRoadsurferDestinations(
           country: s ? s.country : '',
         };
       }
+      allDestinations.push(dest);
+    }
 
-      if (
+    if (db && allDestinations.length > 0) {
+      await db.setCache(cacheKey, allDestinations, 43200); // 12 hours
+    }
+
+    return allDestinations.filter(
+      (dest) =>
         allowedDestCountries.length === 0 ||
         !dest.country ||
         allowedDestCountries.includes(dest.country)
-      ) {
-        result.push(dest);
-      }
-    }
-    return result;
+    );
   } catch (e) {
     return [];
   }
@@ -108,12 +140,21 @@ export async function fetchRoadsurferDestinations(
 
 export async function fetchRoadsurferTimeframes(
   originId: string,
-  destinationId: string
+  destinationId: string,
+  db?: DbClient
 ): Promise<{ start: string; end: string }[]> {
   const origin = String(originId || '').trim();
   const destination = String(destinationId || '').trim();
   if (!/^\d+$/.test(origin) || !/^\d+$/.test(destination)) {
     return [];
+  }
+
+  const cacheKey = `roadsurfer:timeframes:${origin}:${destination}`;
+  if (db) {
+    const d1Cached = await db.getCache<{ start: string; end: string }[]>(cacheKey);
+    if (d1Cached && Array.isArray(d1Cached)) {
+      return d1Cached;
+    }
   }
 
   const url = `https://booking.roadsurfer.com/api/en/rally/timeframes/${encodeURIComponent(origin)}-${encodeURIComponent(destination)}`;
@@ -178,12 +219,13 @@ export async function fetchRoadsurferTimeframes(
 export async function fetchRoadsurferOffers(
   route: UserRoute,
   windowDates: { start: string; end: string },
-  filters?: UserFilters
+  filters?: UserFilters,
+  db?: DbClient
 ): Promise<NormalizedOffer[]> {
   const isWildOrigin = !route.origin_id || route.origin_id === '*';
   const isWildDest = !route.destination_id || route.destination_id === '*';
 
-  const allStations = await getRoadsurferAllStations();
+  const allStations = await getRoadsurferAllStations(db);
   const stationMap = new Map<string, RoadsurferStation>();
   for (const s of allStations) stationMap.set(s.id, s);
 
@@ -221,7 +263,7 @@ export async function fetchRoadsurferOffers(
   for (const origin of originsToCheck) {
     let destinationsToCheck: RoadsurferStation[] = [];
     if (isWildDest) {
-      destinationsToCheck = await fetchRoadsurferDestinations(origin.id, allowedDestCountries);
+      destinationsToCheck = await fetchRoadsurferDestinations(origin.id, allowedDestCountries, db);
       if (route.destination_country) {
         destinationsToCheck = destinationsToCheck.filter(
           (d) => d.country === route.destination_country!.toUpperCase()
@@ -239,7 +281,7 @@ export async function fetchRoadsurferOffers(
     }
 
     for (const destination of destinationsToCheck) {
-      const timeframes = await fetchRoadsurferTimeframes(origin.id, destination.id);
+      const timeframes = await fetchRoadsurferTimeframes(origin.id, destination.id, db);
       const activeTf =
         timeframes.length > 0
           ? timeframes.filter(
@@ -256,6 +298,7 @@ export async function fetchRoadsurferOffers(
           const payload = await fetchJson<any>(searchUrl, {
             headers: {
               Accept: 'application/json, text/plain, */*',
+              Referer: `https://booking.roadsurfer.com/en/rally/pick?station=${encodeURIComponent(origin.id)}&end_station=${encodeURIComponent(destination.id)}&currency=EUR`,
               'X-Requested-Alias': 'rally.search',
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             },

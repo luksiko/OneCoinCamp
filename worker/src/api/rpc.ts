@@ -53,13 +53,13 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
         result = await handleCheckProvidersHealth(ctx);
         break;
       case 'getRoadsurferStations':
-        result = await getRoadsurferAllStations();
+        result = await getRoadsurferAllStations(ctx.db);
         break;
       case 'getProviderStations':
-        result = await getProviderStations(args[0], args[1]);
+        result = await getProviderStations(args[0], args[1], ctx.db);
         break;
       case 'getProviderDestinations':
-        result = await getProviderDestinations(args[0], args[1], args[2]);
+        result = await getProviderDestinations(args[0], args[1], args[2], ctx.db);
         break;
       case 'getOffers':
         result = await getOffersForUi(ctx, identity.id, args[0]);
@@ -241,10 +241,10 @@ function splitCountries(value: string): string[] {
   return String(value || '').split(',').map((country) => country.trim()).filter(Boolean);
 }
 
-async function getProviderStations(provider: string, countries: string[] = []): Promise<any[]> {
+async function getProviderStations(provider: string, countries: string[] = [], db?: DbClient): Promise<any[]> {
   const countrySet = new Set((countries || []).map((country) => String(country).toUpperCase()));
   let stations: { id: string; name: string; country: string }[] = [];
-  if (provider === 'roadsurfer') stations = await getRoadsurferAllStations();
+  if (provider === 'roadsurfer') stations = await getRoadsurferAllStations(db);
   else if (provider === 'movacar') {
     const payload = await fetchJson<any>('https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de', {
       headers: { Accept: 'application/vnd.api+json', Origin: 'https://movacar.com', Referer: 'https://movacar.com/' },
@@ -260,9 +260,9 @@ async function getProviderStations(provider: string, countries: string[] = []): 
   return stations.filter((station) => !countrySet.size || !station.country || countrySet.has(station.country)).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-async function getProviderDestinations(provider: string, originId: string, countries: string[] = []): Promise<any[]> {
+async function getProviderDestinations(provider: string, originId: string, countries: string[] = [], db?: DbClient): Promise<any[]> {
   if (provider === 'roadsurfer' && /^\d+$/.test(String(originId))) {
-    return (await fetchRoadsurferDestinations(String(originId), countries)).sort((a, b) => a.name.localeCompare(b.name));
+    return (await fetchRoadsurferDestinations(String(originId), countries, db)).sort((a, b) => a.name.localeCompare(b.name));
   }
   if (provider === 'movacar' && originId && originId !== '*') {
     const url = `https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de&origin_reference=${encodeURIComponent(originId)}`;
@@ -277,7 +277,7 @@ async function getProviderDestinations(provider: string, originId: string, count
       .filter((station: any) => !countrySet.size || !station.country || countrySet.has(station.country));
     return [...new Map(stations.map((station: any) => [station.id, station])).values()].sort((a: any, b: any) => a.name.localeCompare(b.name));
   }
-  return (await getProviderStations(provider, countries)).filter((station) => station.id !== originId);
+  return (await getProviderStations(provider, countries, db)).filter((station) => station.id !== originId);
 }
 
 async function getOffersForUi(ctx: RpcContext, userId: string, filter: any = {}): Promise<any> {
