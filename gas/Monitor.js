@@ -677,11 +677,14 @@ function buildStatusMessage_(spreadsheet, chatId) {
 
   const maxP = (filters.price_max != null && filters.price_max !== '') ? (filters.price_max + ' €') : 'любая';
   lines.push('  Макс. цена: ' + maxP);
+  const isCampersOnly = filters.only_campers !== false && filters.vehicle_type !== 'all';
+  lines.push('  Тип ТС: ' + (isCampersOnly ? '🚐 Только дома на колёсах (кемперы)' : '🚗 Все (включая легковые)'));
 
   lines.push('');
   lines.push('Команды:');
   lines.push('/check — запустить сканирование прямо сейчас');
   lines.push('/routes — список моих маршрутов');
+  lines.push('/campers [on|off] — фильтр кемперов / легковых');
   return lines.join('\n');
 }
 

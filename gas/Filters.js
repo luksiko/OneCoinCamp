@@ -104,6 +104,67 @@ function buildEffectiveWindow_(baseWindow, checkNeighbors) {
 function offerMatchesFilter_(offer, filters, window, settings, matchedRoute) {
   if (!filters) return true;
 
+  const meta = (typeof detectOfferVehicleMetadata_ === 'function')
+    ? detectOfferVehicleMetadata_(offer)
+    : { operator: offer.operator || 'Unknown', vehicleType: offer.vehicleType || 'camper' };
+
+  // 1. Vehicle type filter (only_campers or vehicle_type or vehicle_types)
+  const onlyCampers = filters.only_campers === true || filters.only_campers === 'true' || filters.only_campers === '1' || filters.vehicle_type === 'camper';
+  if (onlyCampers && meta.vehicleType !== 'camper') {
+    return false;
+  }
+  if (filters.vehicle_type && filters.vehicle_type !== 'all' && filters.vehicle_type !== '*' && filters.vehicle_type !== 'camper') {
+    if (String(filters.vehicle_type).toLowerCase() !== String(meta.vehicleType).toLowerCase()) {
+      return false;
+    }
+  }
+  if (filters.vehicle_types) {
+    let allowedTypes = [];
+    if (Array.isArray(filters.vehicle_types)) {
+      allowedTypes = filters.vehicle_types.map(function(s) { return String(s).trim().toLowerCase(); });
+    } else if (typeof filters.vehicle_types === 'string') {
+      allowedTypes = filters.vehicle_types.split(',').map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean);
+    }
+    if (allowedTypes.length > 0 && allowedTypes.indexOf(meta.vehicleType.toLowerCase()) === -1) {
+      return false;
+    }
+  }
+
+  // 2. Operator filter (allowed_operators, excluded_operators, movacar_operators)
+  if (filters.allowed_operators) {
+    let allowedOps = [];
+    if (Array.isArray(filters.allowed_operators)) {
+      allowedOps = filters.allowed_operators.map(function(s) { return String(s).trim().toLowerCase(); });
+    } else if (typeof filters.allowed_operators === 'string') {
+      allowedOps = filters.allowed_operators.split(',').map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean);
+    }
+    if (allowedOps.length > 0 && allowedOps.indexOf(String(meta.operator || '').toLowerCase()) === -1) {
+      return false;
+    }
+  }
+  if (filters.excluded_operators) {
+    let excludedOps = [];
+    if (Array.isArray(filters.excluded_operators)) {
+      excludedOps = filters.excluded_operators.map(function(s) { return String(s).trim().toLowerCase(); });
+    } else if (typeof filters.excluded_operators === 'string') {
+      excludedOps = filters.excluded_operators.split(',').map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean);
+    }
+    if (excludedOps.length > 0 && excludedOps.indexOf(String(meta.operator || '').toLowerCase()) !== -1) {
+      return false;
+    }
+  }
+  if (String(offer.source || '').toLowerCase() === 'movacar' && filters.movacar_operators) {
+    let allowedMovacarOps = [];
+    if (Array.isArray(filters.movacar_operators)) {
+      allowedMovacarOps = filters.movacar_operators.map(function(s) { return String(s).trim().toLowerCase(); });
+    } else if (typeof filters.movacar_operators === 'string') {
+      allowedMovacarOps = filters.movacar_operators.split(',').map(function(s) { return s.trim().toLowerCase(); }).filter(Boolean);
+    }
+    if (allowedMovacarOps.length > 0 && allowedMovacarOps.indexOf(String(meta.operator || '').toLowerCase()) === -1) {
+      return false;
+    }
+  }
+
   if (!matchedRoute) {
     const origins = parseCountryList_(filters.allowed_origin_countries);
     const destinations = parseCountryList_(filters.allowed_destination_countries);

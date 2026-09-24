@@ -222,6 +222,10 @@ function getUiData(initData) {
       min_trip_days: filters.min_trip_days || '',
       max_trip_days: filters.max_trip_days || '',
       max_price: filters.max_price != null ? filters.max_price : '',
+      only_campers: filters.only_campers !== false && filters.vehicle_type !== 'all',
+      vehicle_type: filters.vehicle_type || 'camper',
+      allowed_operators: filters.allowed_operators ? (Array.isArray(filters.allowed_operators) ? filters.allowed_operators : String(filters.allowed_operators).split(',').map(function(s){return s.trim();}).filter(Boolean)) : [],
+      movacar_operators: filters.movacar_operators ? (Array.isArray(filters.movacar_operators) ? filters.movacar_operators : String(filters.movacar_operators).split(',').map(function(s){return s.trim();}).filter(Boolean)) : [],
     },
     routes: routes.map(function(r) {
       var w = buildDateWindow_(settings, filters, r.pickupDate || settings.pickup_date, r.returnDate || settings.return_date);
@@ -567,6 +571,10 @@ function saveUiData(payload, initData) {
           min_duration_days: f.min_trip_days ? Number(f.min_trip_days) : null,
           max_duration_days: f.max_trip_days ? Number(f.max_trip_days) : null,
           price_max: f.max_price != null && f.max_price !== '' ? Number(f.max_price) : null,
+          only_campers: f.only_campers !== false && f.vehicle_type !== 'all',
+          vehicle_type: f.vehicle_type || (f.only_campers === false ? 'all' : 'camper'),
+          allowed_operators: Array.isArray(f.allowed_operators) ? f.allowed_operators : (f.allowed_operators ? String(f.allowed_operators).split(',').map(function(s){return s.trim();}).filter(Boolean) : []),
+          movacar_operators: Array.isArray(f.movacar_operators) ? f.movacar_operators : (f.movacar_operators ? String(f.movacar_operators).split(',').map(function(s){return s.trim();}).filter(Boolean) : []),
           window_days: current.window_days || Number(DEFAULT_SETTINGS.window_days) || 14,
           window_start_rule: current.window_start_rule || 'today',
           roadsurfer_origins_per_run: current.roadsurfer_origins_per_run || 15,
@@ -848,9 +856,16 @@ function getOffers(filter, initData) {
       }
     }
     const tz = (spreadsheet && spreadsheet.getSpreadsheetTimeZone) ? spreadsheet.getSpreadsheetTimeZone() : (typeof Session !== 'undefined' && Session.getScriptTimeZone ? Session.getScriptTimeZone() : 'Europe/Berlin');
+    const meta = (typeof detectOfferVehicleMetadata_ === 'function')
+      ? detectOfferVehicleMetadata_({ source: row[1], vehicle: row[4], rawJson: row[17] })
+      : { operator: 'Unknown', vehicleType: 'camper', sleeping: 0, seats: 0 };
     return {
       timestamp: row[0] ? new Date(row[0]).toISOString() : null,
       source: String(row[1] || ''),
+      operator: meta.operator,
+      vehicleType: meta.vehicleType,
+      sleeping: meta.sleeping,
+      seats: meta.seats,
       offerId: String(row[2] || ''),
       vehicleId: String(row[3] || ''),
       vehicle: String(row[4] || ''),
@@ -875,19 +890,29 @@ function getOffers(filter, initData) {
     } catch (e) {}
   }
 
-  // Collect available sources from all offers
+  // Collect available sources and operators from all offers
   const availableSourcesMap = {};
+  const availableOperatorsMap = {};
   offers.forEach(function (o) {
     const s = String(o.source || '').trim().toLowerCase();
     if (s) { availableSourcesMap[s] = true; }
+    const op = String(o.operator || '').trim();
+    if (op && op !== 'Unknown') { availableOperatorsMap[op] = true; }
   });
   const availableSources = Object.keys(availableSourcesMap).sort();
+  const availableOperators = Object.keys(availableOperatorsMap).sort();
 
   // Apply filters
   let filtered = offers;
   if (filter) {
     if (filter.source) {
       filtered = filtered.filter(function (o) { return o.source.toLowerCase() === filter.source.toLowerCase(); });
+    }
+    if (filter.operator && filter.operator !== 'all') {
+      filtered = filtered.filter(function (o) { return String(o.operator || '').toLowerCase() === String(filter.operator).toLowerCase(); });
+    }
+    if (filter.vehicleType && filter.vehicleType !== 'all') {
+      filtered = filtered.filter(function (o) { return String(o.vehicleType || '').toLowerCase() === String(filter.vehicleType).toLowerCase(); });
     }
     if (filter.origin) {
       const originLower = filter.origin.toLowerCase();
@@ -962,6 +987,7 @@ function getOffers(filter, initData) {
     page: page,
     totalPages: Math.ceil(filtered.length / limit),
     availableSources: availableSources,
+    availableOperators: availableOperators,
   };
 }
 

@@ -35,15 +35,39 @@ function sendTelegramOffer_(secrets, offer, route, routeIndex, settings, chatId)
     }
   }
 
-  const sourceTitle = offer.source === 'roadsurfer' ? 'Roadsurfer Rally' : escapeHtml_(offer.source);
-  const vehicleLine = offer.vehicle ? '\n🚐 Модель: ' + escapeHtml_(offer.vehicle) : '';
+  const meta = (typeof detectOfferVehicleMetadata_ === 'function')
+    ? detectOfferVehicleMetadata_(offer)
+    : { operator: offer.operator || 'Unknown', vehicleType: offer.vehicleType || 'camper', sleeping: offer.sleeping };
+  const isCamper = meta.vehicleType === 'camper';
+  const icon = isCamper ? '🚐' : '🚗';
+
+  let sourceTitle = '';
+  if (offer.source === 'movacar') {
+    sourceTitle = 'Movacar' + (meta.operator && meta.operator !== 'Movacar' ? ' (' + meta.operator + ')' : '');
+  } else if (offer.source === 'roadsurfer') {
+    sourceTitle = 'Roadsurfer Rally';
+  } else if (offer.source === 'indiecampers') {
+    sourceTitle = 'Indie Campers';
+  } else if (offer.source === 'imoova') {
+    sourceTitle = 'Imoova';
+  } else {
+    sourceTitle = escapeHtml_(offer.source);
+  }
+
+  const sleepingDesc = (isCamper && meta.sleeping) ? (' (спальных мест: ' + meta.sleeping + ')') : '';
+  const typeDesc = isCamper
+    ? '🚐 <b>Дом на колёсах' + sleepingDesc + '</b>'
+    : '🚗 <b>Легковой авто (' + escapeHtml_(meta.operator || 'Sixt') + ', без спальных мест)</b>';
+
+  const vehicleLine = offer.vehicle ? ('\n' + icon + ' Модель: <b>' + escapeHtml_(offer.vehicle) + '</b>') : '';
   const priceLine = offer.price ? '\n💶 Цена: <b>' + escapeHtml_(String(offer.price)) + '</b> € / сутки' : '';
   const buttonLabel = 'Забронировать оффер ➔';
 
   const text =
-    '🚐 <b>' + sourceTitle + ' — найден слот за 1€!</b>\n' +
+    icon + ' <b>' + sourceTitle + ' — ' + (isCamper ? 'найден кемпер' : 'найден легковой перегон') + ' за 1€!</b>\n' +
     '📍 ' + escapeHtml_(offer.origin) + ' ➔ ' + escapeHtml_(offer.destination) + '\n' +
-    '📅 ' + escapeHtml_(offer.pickupDate || '') + ' – ' + escapeHtml_(offer.returnDate || '') + durationDays +
+    '📅 ' + escapeHtml_(offer.pickupDate || '') + ' – ' + escapeHtml_(offer.returnDate || '') + durationDays + '\n' +
+    '🏷 Тип: ' + typeDesc +
     vehicleLine +
     priceLine;
 
@@ -293,12 +317,14 @@ function buildDigestMessage_(spreadsheet) {
     if (foundAt >= oneDayAgo) {
       recentOffers.push({
         source: row[1] || '',
+        vehicle: row[4] || '',
         origin: row[5] || '',
         destination: row[7] || '',
         pickupDate: row[9] || '',
         returnDate: row[10] || '',
         price: row[11],
         url: row[13] || '',
+        rawJson: row[17] || '',
       });
     }
   }
@@ -315,8 +341,15 @@ function buildDigestMessage_(spreadsheet) {
   const maxItems = Math.min(recentOffers.length, 10);
   for (let j = 0; j < maxItems; j++) {
     const off = recentOffers[j];
-    const sourceLabel = off.source === 'roadsurfer' ? 'Roadsurfer' : off.source;
-    let itemLine = (j + 1) + '. 🚐 <b>' + escapeHtml_(sourceLabel) + '</b>: ' +
+    const meta = (typeof detectOfferVehicleMetadata_ === 'function')
+      ? detectOfferVehicleMetadata_(off)
+      : { operator: off.source, vehicleType: 'camper' };
+    const icon = meta.vehicleType === 'camper' ? '🚐' : '🚗';
+    let sourceLabel = off.source === 'roadsurfer' ? 'Roadsurfer' : off.source;
+    if (off.source === 'movacar' && meta.operator && meta.operator !== 'Movacar') {
+      sourceLabel = 'Movacar (' + meta.operator + ')';
+    }
+    let itemLine = (j + 1) + '. ' + icon + ' <b>' + escapeHtml_(sourceLabel) + '</b>: ' +
       escapeHtml_(off.origin) + ' ➔ ' + escapeHtml_(off.destination);
     if (off.pickupDate && off.returnDate) {
       itemLine += ' (' + escapeHtml_(off.pickupDate) + ' – ' + escapeHtml_(off.returnDate) + ')';
@@ -361,6 +394,7 @@ function buildActualOffersMessage_(spreadsheet, chatId) {
     const row = values[i];
     const offer = {
       source: row[1] || '',
+      vehicle: row[4] || '',
       origin: row[5] || '',
       originCountry: row[6] || '',
       destination: row[7] || '',
@@ -369,6 +403,7 @@ function buildActualOffersMessage_(spreadsheet, chatId) {
       returnDate: row[10] || '',
       price: row[11],
       bookingUrl: row[13] || '',
+      rawJson: row[17] || '',
     };
     
     if (offer.pickupDate && offer.pickupDate < todayStr) {
@@ -412,8 +447,15 @@ function buildActualOffersMessage_(spreadsheet, chatId) {
   const maxItems = Math.min(actualOffers.length, 10);
   for (let j = 0; j < maxItems; j++) {
     const off = actualOffers[j];
-    const sourceLabel = off.source === 'roadsurfer' ? 'Roadsurfer' : off.source;
-    let itemLine = (j + 1) + '. 🚐 <b>' + escapeHtml_(sourceLabel) + '</b>: ' +
+    const meta = (typeof detectOfferVehicleMetadata_ === 'function')
+      ? detectOfferVehicleMetadata_(off)
+      : { operator: off.source, vehicleType: 'camper' };
+    const icon = meta.vehicleType === 'camper' ? '🚐' : '🚗';
+    let sourceLabel = off.source === 'roadsurfer' ? 'Roadsurfer' : off.source;
+    if (off.source === 'movacar' && meta.operator && meta.operator !== 'Movacar') {
+      sourceLabel = 'Movacar (' + meta.operator + ')';
+    }
+    let itemLine = (j + 1) + '. ' + icon + ' <b>' + escapeHtml_(sourceLabel) + '</b>: ' +
       escapeHtml_(off.origin) + ' ➔ ' + escapeHtml_(off.destination);
     if (off.pickupDate && off.returnDate) {
       itemLine += ' (' + escapeHtml_(off.pickupDate) + ' – ' + escapeHtml_(off.returnDate) + ')';
@@ -473,11 +515,12 @@ function handleTelegramUpdate_(update) {
   if (command === '/start') {
     const welcome =
       '🚐 <b>Camper Monitor Bot</b>\n\n' +
-      'Мониторинг перегонов кемперов за 1€ (Roadsurfer Rally, Movacar).\n\n' +
+      'Мониторинг перегонов кемперов за 1€ (Roadsurfer Rally, Movacar, Indie Campers, Imoova).\n\n' +
       '<b>Доступные команды:</b>\n' +
       '📊 /status — статус мониторинга и статистика\n' +
       '📋 /digest — сводный дайджест офферов за 24ч\n' +
       '🎯 /actual — актуальные предложения по вашим фильтрам\n' +
+      '🚐 /campers — фильтр (только кемперы или все авто)\n' +
       '🌙 /silent — настройки режима тихих часов\n' +
       '🔍 /check — принудительный запуск сканирования\n' +
       '🚗 /routes — список отслеживаемых маршрутов\n' +
@@ -495,6 +538,7 @@ function handleTelegramUpdate_(update) {
       '/status — время последнего опроса, интервал, статистика за 24ч\n' +
       '/digest — сводный дайджест найденных офферов за 24ч\n' +
       '/actual — актуальные предложения по вашим фильтрам и маршрутам\n' +
+      '/campers [on|off] — только дома на колёсах (on) или все включая легковые (off)\n' +
       '/silent [on|off|HH:MM-HH:MM] — режим тихих часов (без звука)\n' +
       '/check — запустить проверку прямо сейчас\n' +
       '/routes — список активных направлений\n\n' +
@@ -555,6 +599,33 @@ function handleTelegramUpdate_(update) {
         '• <code>/silent on</code> — включить (23:00-07:00)\n' +
         '• <code>/silent off</code> — выключить\n' +
         '• <code>/silent 22:00-08:00</code> — изменить интервал';
+      sendTelegramMessage_(secrets, msg, chatId);
+    }
+  } else if (command === '/campers' || command === '/vehicle') {
+    let filters = (typeof getUserFilters === 'function' ? getUserFilters(userId) : null) || {};
+    const parts = text.split(/\s+/);
+    if (parts.length > 1) {
+      const mode = parts[1].toLowerCase();
+      if (mode === 'on' || mode === 'campers' || mode === '1' || mode === 'true') {
+        filters.only_campers = true;
+        filters.vehicle_type = 'camper';
+        if (typeof setUserFilters === 'function') setUserFilters(userId, filters);
+        sendTelegramMessage_(secrets, '🚐 <b>Фильтр включен:</b> присылать только дома на колёсах (кемперы). Легковые авто отсекаются.', chatId);
+      } else if (mode === 'off' || mode === 'all' || mode === '0' || mode === 'false') {
+        filters.only_campers = false;
+        filters.vehicle_type = 'all';
+        if (typeof setUserFilters === 'function') setUserFilters(userId, filters);
+        sendTelegramMessage_(secrets, '🚗 <b>Фильтр отключен:</b> присылать все типы (дома на колёсах + легковые авто).', chatId);
+      } else {
+        sendTelegramMessage_(secrets, 'Использование:\n• <code>/campers on</code> — только дома на колёсах\n• <code>/campers off</code> — все авто (включая легковые)', chatId);
+      }
+    } else {
+      const isOnlyCampers = filters.only_campers !== false && filters.vehicle_type !== 'all';
+      let msg = '🚐 <b>Фильтр типов автомобилей</b>\n\n' +
+        'Текущий режим: <b>' + (isOnlyCampers ? 'ТОЛЬКО ДОМА НА КОЛЁСАХ' : 'ВСЕ АВТО (включая легковые)') + '</b>\n\n' +
+        'Управление:\n' +
+        '• <code>/campers on</code> — только кемперы/дома на колёсах\n' +
+        '• <code>/campers off</code> — все авто (включая легковые Sixt)';
       sendTelegramMessage_(secrets, msg, chatId);
     }
   } else if (command === '/actual') {

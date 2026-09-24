@@ -960,9 +960,20 @@
       </div>
 
       <div class="card" id="cardFilters">
-        <div class="card-title">🌍 Фильтры стран и направлений</div>
+        <div class="card-title">🌍 Фильтры стран и типов ТС</div>
         <div style="font-size:12px;color:var(--hint);margin-bottom:12px;">
           Эти фильтры применяются синхронно и для приложения, и для Telegram-бота
+        </div>
+
+        <div class="field" style="margin-bottom:14px;">
+          <span class="field-label">🚐 Тип транспорта</span>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn-chip-action vehicle-type-btn" id="btnTypeCampers" style="flex:1; padding:8px 10px; font-weight:600; border-radius:8px;">🚐 Только кемперы</button>
+            <button type="button" class="btn-chip-action vehicle-type-btn" id="btnTypeAll" style="flex:1; padding:8px 10px; font-weight:600; border-radius:8px;">🚗 Все (вкл. легковые)</button>
+          </div>
+          <div style="font-size:11px;color:var(--hint);margin-top:4px;" id="vehicleTypeHelp">
+            Режим «Кемперы» отсекает обычные легковые авто (Sixt) и оставляет только дома на колёсах
+          </div>
         </div>
 
         <div class="field" style="margin-bottom:14px;">
@@ -1250,7 +1261,7 @@
     var state = null;
     var currentTab = 'main';
     var offersData = null;
-    var offerFilters = { source: '', sentStatus: '', page: 1, sortBy: 'added_desc', dateFrom: '', dateTo: '', isMatched: false };
+    var offerFilters = { source: '', operator: '', vehicleType: '', sentStatus: '', page: 1, sortBy: 'added_desc', dateFrom: '', dateTo: '', isMatched: false };
     var INTERVALS = [1, 5, 10, 15, 30];
     var WINDOWS = [7, 10, 14, 21, 30];
     var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -1465,6 +1476,8 @@
         sortBy: offerFilters.sortBy
       };
       if (offerFilters.source) { filter.source = offerFilters.source; }
+      if (offerFilters.operator) { filter.operator = offerFilters.operator; }
+      if (offerFilters.vehicleType) { filter.vehicleType = offerFilters.vehicleType; }
       if (offerFilters.sentStatus) { filter.sentStatus = offerFilters.sentStatus; }
       if (offerFilters.dateFrom) { filter.dateFrom = offerFilters.dateFrom; }
       if (offerFilters.dateTo) { filter.dateTo = offerFilters.dateTo; }
@@ -1619,6 +1632,24 @@
         applyOfferFilters();
       };
       container.appendChild(matchChip);
+
+      // Vehicle type filters
+      var typeChips = [
+        { value: 'camper', label: '🚐 Кемперы' },
+        { value: 'car', label: '🚗 Легковые' }
+      ];
+      typeChips.forEach(function (t) {
+        var chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'filter-chip' + (offerFilters.vehicleType === t.value ? ' active' : '');
+        chip.textContent = t.label;
+        chip.onclick = function () {
+          offerFilters.vehicleType = offerFilters.vehicleType === t.value ? '' : t.value;
+          offerFilters.page = 1;
+          applyOfferFilters();
+        };
+        container.appendChild(chip);
+      });
 
       // Spacer
       var spacer = document.createElement('div');
@@ -1825,15 +1856,29 @@
         escHtml(offer.destination || '—');
       header.appendChild(route);
 
+      var isCamper = offer.vehicleType === 'camper' || (!offer.vehicleType && offer.source !== 'movacar');
+      var vIcon = isCamper ? '🚐' : '🚗';
+      var srcText = offer.source || '';
+      if (offer.source === 'movacar' && offer.operator && offer.operator !== 'Movacar') {
+        srcText = 'Movacar (' + offer.operator + ')';
+      }
+
       var sourceBadge = document.createElement('span');
       sourceBadge.className = 'offer-source';
-      sourceBadge.textContent = offer.source || '';
+      sourceBadge.textContent = vIcon + ' ' + srcText;
       header.appendChild(sourceBadge);
       card.appendChild(header);
 
       // Details section: dates, vehicle, added timestamp
       var details = document.createElement('div');
       details.className = 'offer-details';
+
+      // Type tag
+      var typeTag = document.createElement('div');
+      typeTag.style.cssText = 'font-size:12px; font-weight:600; color:' + (isCamper ? 'var(--accent)' : 'var(--hint)') + '; margin-bottom:4px;';
+      var sleepingText = (isCamper && offer.sleeping) ? (' • ' + offer.sleeping + ' спальных мест') : '';
+      typeTag.textContent = (isCamper ? '🚐 Дом на колёсах' : '🚗 Легковой автомобиль') + (offer.operator ? ' (' + offer.operator + ')' : '') + sleepingText;
+      details.appendChild(typeTag);
 
       // Compact dates
       var dates = document.createElement('div');
@@ -1846,7 +1891,7 @@
         var vehicle = document.createElement('div');
         vehicle.className = 'offer-vehicle';
         vehicle.title = offer.vehicle;
-        vehicle.textContent = '🚐 ' + String(offer.vehicle).trim();
+        vehicle.textContent = vIcon + ' ' + String(offer.vehicle).trim();
         details.appendChild(vehicle);
       }
 
@@ -2355,6 +2400,44 @@
           state.filters.max_trip_days = this.value ? Number(this.value) : '';
         };
       }
+
+      function updateVehicleTypeButtons() {
+        var isOnlyCampers = state.filters && state.filters.only_campers !== false && state.filters.vehicle_type !== 'all';
+        var bCampers = document.getElementById('btnTypeCampers');
+        var bAll = document.getElementById('btnTypeAll');
+        if (bCampers && bAll) {
+          if (isOnlyCampers) {
+            bCampers.style.background = 'var(--accent)';
+            bCampers.style.color = 'var(--accent-text)';
+            bAll.style.background = 'var(--section)';
+            bAll.style.color = 'var(--text)';
+          } else {
+            bAll.style.background = 'var(--accent)';
+            bAll.style.color = 'var(--accent-text)';
+            bCampers.style.background = 'var(--section)';
+            bCampers.style.color = 'var(--text)';
+          }
+        }
+      }
+      var bCampers = document.getElementById('btnTypeCampers');
+      var bAll = document.getElementById('btnTypeAll');
+      if (bCampers) {
+        bCampers.onclick = function() {
+          if (!state.filters) state.filters = {};
+          state.filters.only_campers = true;
+          state.filters.vehicle_type = 'camper';
+          updateVehicleTypeButtons();
+        };
+      }
+      if (bAll) {
+        bAll.onclick = function() {
+          if (!state.filters) state.filters = {};
+          state.filters.only_campers = false;
+          state.filters.vehicle_type = 'all';
+          updateVehicleTypeButtons();
+        };
+      }
+      updateVehicleTypeButtons();
       var providers = [
         { id: 'providerRoadsurfer', key: 'provider_roadsurfer_enabled' },
         { id: 'providerMovacar', key: 'provider_movacar_enabled' },
@@ -2744,6 +2827,9 @@
       if (maxPriceEl) { state.filters.max_price = maxPriceEl.value.trim(); }
       if (minDaysEl) { state.filters.min_trip_days = minDaysEl.value ? Number(minDaysEl.value) : ''; }
       if (maxDaysEl) { state.filters.max_trip_days = maxDaysEl.value ? Number(maxDaysEl.value) : ''; }
+      var isOnlyCampers = state.filters.only_campers !== false && state.filters.vehicle_type !== 'all';
+      state.filters.only_campers = isOnlyCampers;
+      state.filters.vehicle_type = isOnlyCampers ? 'camper' : 'all';
 
       var payload = {
         settings: {
@@ -2765,7 +2851,11 @@
           allowed_destination_countries: (state.filters.allowed_destination_countries || []).slice(),
           min_trip_days: state.filters.min_trip_days != null ? state.filters.min_trip_days : '',
           max_trip_days: state.filters.max_trip_days != null ? state.filters.max_trip_days : '',
-          max_price: state.filters.max_price != null ? state.filters.max_price : ''
+          max_price: state.filters.max_price != null ? state.filters.max_price : '',
+          only_campers: state.filters.only_campers,
+          vehicle_type: state.filters.vehicle_type,
+          allowed_operators: state.filters.allowed_operators || [],
+          movacar_operators: state.filters.movacar_operators || [],
         },
         routes: state.routes.map(function (r) {
           var copy = {};

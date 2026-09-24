@@ -549,6 +549,10 @@ function fetchRoadsurferOffersForTimeframe_(pair, timeframe, route, searchRangeS
       price: price == null ? '' : Number(price),
       currency: String(firstDefined_(item.currency, 'EUR')),
       bookingUrl: bookingUrl,
+      operator: 'Roadsurfer',
+      vehicleType: 'camper',
+      sleeping: model.berths || model.sleeping || 4,
+      seats: model.seats || 4,
       rawJson: JSON.stringify(item),
     });
   }
@@ -695,6 +699,12 @@ function fetchMovacarOffers_(route, window) {
         ? 'https://www.movacar.com/offers?' + bookingParams.join('&')
         : 'https://www.movacar.com/offers';
 
+      const meta = detectOfferVehicleMetadata_({
+        source: 'movacar',
+        rawJson: item,
+        vehicle: vName,
+      });
+
       foundOffers.push({
         source: 'movacar',
         offerId: String(oId),
@@ -707,7 +717,13 @@ function fetchMovacarOffers_(route, window) {
         pickupDate: pDateStr.split('T')[0],
         returnDate: rDateStr.split('T')[0],
         price: priceVal,
-        bookingUrl: movacarUrl
+        currency: 'EUR',
+        bookingUrl: movacarUrl,
+        operator: meta.operator,
+        vehicleType: meta.vehicleType,
+        sleeping: meta.sleeping,
+        seats: meta.seats,
+        rawJson: JSON.stringify(item),
       });
     }
   }
@@ -1079,8 +1095,14 @@ function fetchIndieCampersOffers_(route, window) {
           pickupDate: item.checkin_date || pickupDate,
           returnDate: item.checkout_date || returnDate,
           price: price ? String(price) : null,
+          currency: 'EUR',
           vehicle: String(vehicle),
-          bookingUrl: bookingUrl
+          bookingUrl: bookingUrl,
+          operator: 'Indie Campers',
+          vehicleType: 'camper',
+          sleeping: 4,
+          seats: 4,
+          rawJson: JSON.stringify(item),
         });
       }
 
@@ -1200,6 +1222,7 @@ function fetchImoovaOffers_(route, window) {
     const vehicleName = (item.vehicle && item.vehicle.name) || item.name || 'Imoova vehicle';
     const price = item.hire_unit_rate || item.retail_rate || null;
 
+    const meta = detectOfferVehicleMetadata_({ source: 'imoova', vehicle: vehicleName });
     offers.push({
       source: 'imoova',
       offerId: String(relId),
@@ -1210,10 +1233,113 @@ function fetchImoovaOffers_(route, window) {
       pickupDate: item.available_from_date || (window && window.start) || '',
       returnDate: item.available_to_date || (window && window.end) || '',
       price: price ? String(price) : null,
+      currency: 'EUR',
       vehicle: String(vehicleName),
-      bookingUrl: bookingUrl
+      bookingUrl: bookingUrl,
+      operator: meta.operator,
+      vehicleType: meta.vehicleType,
+      sleeping: meta.sleeping,
+      seats: meta.seats,
+      rawJson: JSON.stringify(item),
     });
   }
   return offers;
+}
+
+function detectOfferVehicleMetadata_(offer) {
+  if (!offer) {
+    return { operator: 'Unknown', vehicleType: 'camper', sleeping: 0, seats: 0 };
+  }
+  const source = String(offer.source || '').toLowerCase().trim();
+  let operator = offer.operator || '';
+  let vehicleType = offer.vehicleType || '';
+  let sleeping = offer.sleeping != null ? Number(offer.sleeping) : null;
+  let seats = offer.seats != null ? Number(offer.seats) : null;
+
+  if (source === 'roadsurfer') {
+    operator = 'Roadsurfer';
+    vehicleType = 'camper';
+    if (sleeping == null) sleeping = 4;
+  } else if (source === 'indiecampers') {
+    operator = 'Indie Campers';
+    vehicleType = 'camper';
+    if (sleeping == null) sleeping = 4;
+  } else if (source === 'imoova') {
+    operator = 'Imoova';
+    const vName = String(offer.vehicle || '').toLowerCase();
+    if (vName.includes('car') || vName.includes('sedan') || vName.includes('suv') || vName.includes('auto')) {
+      vehicleType = 'car';
+      sleeping = 0;
+    } else {
+      vehicleType = 'camper';
+      if (sleeping == null) sleeping = 2;
+    }
+  } else if (source === 'movacar') {
+    let raw = {};
+    if (typeof offer.rawJson === 'string' && offer.rawJson) {
+      try { raw = JSON.parse(offer.rawJson); } catch (e) {}
+    } else if (offer.rawJson && typeof offer.rawJson === 'object') {
+      raw = offer.rawJson;
+    }
+    const attrs = raw.attributes || raw || {};
+    const addInfo = String(attrs.additional_info || offer.additional_info || '').toLowerCase();
+    const brandImg = String(attrs.brand_image_url || offer.brand_image_url || '').toLowerCase();
+    const brandName = String(attrs.brand_name || offer.brand_name || '').trim();
+    const vCat = String(attrs.vehicle_category_name || attrs.category || '').toLowerCase();
+    const vMake = String(attrs.make || offer.vehicle || '').toLowerCase();
+
+    // 1. Detect Operator / Fleet partner
+    if (!operator) {
+      if (brandName) {
+        operator = brandName;
+      } else if (addInfo.includes('sixt') || brandImg.includes('sixt') || vCat.includes('mystery auto') || vCat.includes('mystery van')) {
+        operator = 'Sixt';
+      } else if (addInfo.includes('roadsurfer') || brandImg.includes('roadsurfer')) {
+        operator = 'Roadsurfer';
+      } else if (addInfo.includes('indie') || brandImg.includes('indie')) {
+        operator = 'Indie Campers';
+      } else if (addInfo.includes('starcar') || brandImg.includes('starcar')) {
+        operator = 'Starcar';
+      } else {
+        operator = 'Movacar';
+      }
+    }
+
+    // 2. Detect sleeping / seats
+    if (sleeping == null && attrs.sleeping != null) {
+      sleeping = Number(attrs.sleeping);
+    }
+    if (seats == null && attrs.seats != null) {
+      seats = Number(attrs.seats);
+    }
+
+    // 3. Detect Vehicle Type
+    if (!vehicleType) {
+      if (operator === 'Sixt') {
+        vehicleType = 'car';
+        if (sleeping == null) sleeping = 0;
+      } else if (attrs.vehicle_type === 'crowd_vehicle_type_5' || (sleeping != null && sleeping > 0)) {
+        vehicleType = 'camper';
+      } else if (attrs.vehicle_type === 'crowd_vehicle_type_0' || attrs.vehicle_type === 'crowd_vehicle_type_2' || sleeping === 0) {
+        vehicleType = 'car';
+      } else if (operator === 'Roadsurfer' || operator === 'Indie Campers') {
+        vehicleType = 'camper';
+        if (sleeping == null) sleeping = 4;
+      } else {
+        if (vMake.includes('california') || vCat.includes('suite') || vCat.includes('cottage') || vCat.includes('hostel') || vCat.includes('finca') || vCat.includes('home') || vCat.includes('cabin') || vMake.includes('nugget')) {
+          vehicleType = 'camper';
+        } else {
+          vehicleType = 'car';
+        }
+      }
+    }
+  }
+
+  return {
+    operator: operator || 'Movacar',
+    vehicleType: vehicleType || 'camper',
+    sleeping: sleeping != null ? sleeping : (vehicleType === 'camper' ? 2 : 0),
+    seats: seats,
+  };
 }
 
