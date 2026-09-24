@@ -241,8 +241,29 @@ function getUiData(initData) {
       end: formatIsoDate_(dateWindow.end),
       days: dateWindow.windowDays,
     },
-    status: buildStatus_(spreadsheet, settings),
-    monitorError: PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.MONITOR_LAST_ERROR) || '',
+    status: (function() {
+      const st = buildStatus_(spreadsheet, settings);
+      return st;
+    })(),
+    monitorError: (function() {
+      const st = buildStatus_(spreadsheet, settings);
+      let err = PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.MONITOR_LAST_ERROR) || '';
+      if (err && st && st.lastRun) {
+        const errorMatch = err.match(/^(\d{4}-\d{2}-\d{2}T[\d:.]+Z?)/);
+        const lastRunTime = st.lastRun.finished_at || st.lastRun.started_at;
+        if (errorMatch && lastRunTime) {
+          const errorDate = new Date(errorMatch[1]);
+          const runDate = new Date(lastRunTime);
+          if (!isNaN(errorDate.getTime()) && !isNaN(runDate.getTime()) && runDate > errorDate) {
+            err = '';
+            try {
+              PropertiesService.getScriptProperties().deleteProperty(PROPERTY_KEYS.MONITOR_LAST_ERROR);
+            } catch (e) {}
+          }
+        }
+      }
+      return err;
+    })(),
     telegramReady: !!(secrets.telegramBotToken && secrets.telegramChatId),
     telegramMode: (typeof isTelegramWebhookActive_ === 'function' && isTelegramWebhookActive_()) ? 'webhook' : 'polling',
     telegramWebhookActive: typeof isTelegramWebhookActive_ === 'function' && isTelegramWebhookActive_(),

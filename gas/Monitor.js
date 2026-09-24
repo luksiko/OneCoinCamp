@@ -598,6 +598,8 @@ function runMonitorOnce() {
         PROPERTY_KEYS.MONITOR_LAST_ERROR,
         startedAt.toISOString() + ' :: ' + lastRouteError.slice(0, 500)
       );
+    } else {
+      PropertiesService.getScriptProperties().deleteProperty(PROPERTY_KEYS.MONITOR_LAST_ERROR);
     }
   } catch (error) {
     const errorMessage = (error.message || String(error)).slice(0, 500);

@@ -2293,7 +2293,18 @@
         parts.push('Ещё не запускался');
       }
       if (state.monitorError) {
-        parts.push('⚠️ ' + String(state.monitorError).slice(0, 120));
+        var isStaleErr = false;
+        var m = String(state.monitorError).match(/^(\d{4}-\d{2}-\d{2}T[\d:.]+Z?)/);
+        if (m && lastRun && (lastRun.finished_at || lastRun.started_at)) {
+          var errDate = new Date(m[1]);
+          var runDate = new Date(lastRun.finished_at || lastRun.started_at);
+          if (!isNaN(errDate.getTime()) && !isNaN(runDate.getTime()) && runDate > errDate) {
+            isStaleErr = true;
+          }
+        }
+        if (!isStaleErr) {
+          parts.push('⚠️ ' + String(state.monitorError).slice(0, 120));
+        }
       }
       bannerSub.innerHTML = '';
       parts.forEach(function (part, i) {
