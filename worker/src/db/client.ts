@@ -394,6 +394,11 @@ export class DbClient {
     return res as GlobalSettings;
   }
 
+  async getSetting(key: string): Promise<string | null> {
+    const row = await this.db.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first<{ value: string }>();
+    return row?.value ?? null;
+  }
+
   async setSetting(key: string, value: any): Promise<void> {
     await this.db
       .prepare(

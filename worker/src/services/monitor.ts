@@ -60,7 +60,7 @@ export async function runMonitorCycle(
 
     // Deduplicate routes to avoid redundant HTTP requests
     const uniqueRouteKey = (r: UserRoute) =>
-      r.source === 'movacar' && (!r.destination_id || r.destination_id === '*')
+      (!r.destination_id || r.destination_id === '*')
         ? `${r.source}|${r.origin_id || '*'}|${r.origin_country || ''}|*|*`
         : `${r.source}|${r.origin_id || '*'}|${r.origin_country || ''}|${r.destination_id || '*'}|${r.destination_country || ''}`;
     const routeIndexMap = new Map<string, number>();
@@ -75,7 +75,7 @@ export async function runMonitorCycle(
       const existingIdx = routeIndexMap.get(key);
       if (existingIdx === undefined) {
         routeIndexMap.set(key, routesToScan.length);
-        routesToScan.push(r.source === 'movacar' && (!r.destination_id || r.destination_id === '*')
+        routesToScan.push((!r.destination_id || r.destination_id === '*')
           ? { ...r, destination_country: '' }
           : { ...r });
       } else {

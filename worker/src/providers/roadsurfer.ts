@@ -240,9 +240,29 @@ export async function fetchRoadsurferOffers(
         (!route.origin_country || s.country === route.origin_country.toUpperCase()) &&
         (allowedOrigins.length === 0 || allowedOrigins.includes(s.country))
     );
-    // Limit origins to prevent timeout
-    const limit = filters?.roadsurfer_origins_per_run || 15;
-    originsToCheck = originsToCheck.slice(0, limit);
+    // Limit origins to prevent timeout and rotate cursor across runs
+    const limit = filters?.roadsurfer_origins_per_run || 10;
+    if (originsToCheck.length > limit && db) {
+      const cursorKey = `roadsurfer_cursor_${route.origin_country || 'ALL'}`;
+      const rawCursor = await db.getSetting(cursorKey);
+      let cursor = rawCursor ? Number(rawCursor) : 0;
+      if (isNaN(cursor) || cursor < 0 || cursor >= originsToCheck.length) {
+        cursor = 0;
+      }
+      const nextCursor = (cursor + limit) % originsToCheck.length;
+      await db.setSetting(cursorKey, nextCursor);
+
+      if (cursor + limit <= originsToCheck.length) {
+        originsToCheck = originsToCheck.slice(cursor, cursor + limit);
+      } else {
+        originsToCheck = [
+          ...originsToCheck.slice(cursor),
+          ...originsToCheck.slice(0, (cursor + limit) % originsToCheck.length),
+        ];
+      }
+    } else {
+      originsToCheck = originsToCheck.slice(0, limit);
+    }
   } else {
     const s = stationMap.get(String(route.origin_id));
     originsToCheck = [
