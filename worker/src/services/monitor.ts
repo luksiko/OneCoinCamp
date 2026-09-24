@@ -4,6 +4,7 @@ import { fetchOffersForRoute } from '../providers';
 import { computeOfferFingerprint } from '../utils/crypto';
 import { routeMatchesOffer, offerMatchesUserFilters, isSilentHoursActive, formatIsoDate, addDays } from './filters';
 import { NormalizedOffer, UserRoute, UserFilters, RunLog } from '../types';
+import { setGasProxyUrl } from '../utils/http';
 
 export async function runMonitorCycle(
   db: DbClient,
@@ -24,6 +25,9 @@ export async function runMonitorCycle(
 
   try {
     const settings = await db.getSettings();
+    if (settings.gas_proxy_url) {
+      setGasProxyUrl(settings.gas_proxy_url);
+    }
     if (settings.telegram_enabled === false) {
       console.log('Monitoring disabled by settings.');
       return { offersFound: 0, alertsSent: 0 };

@@ -5,7 +5,7 @@ import { getRoadsurferAllStations, fetchRoadsurferDestinations } from '../provid
 import { MOVACAR_COUNTRIES } from '../providers/movacar';
 import { INDIECAMPERS_CITIES } from '../providers/indiecampers';
 import { routeMatchesOffer, offerMatchesUserFilters } from '../services/filters';
-import { fetchJson } from '../utils/http';
+import { fetchJson, setGasProxyUrl } from '../utils/http';
 import { TelegramIdentity, verifyTelegramInitData } from '../utils/telegram-auth';
 
 export interface RpcContext {
@@ -365,6 +365,13 @@ async function getAnalytics(ctx: RpcContext, userId: string): Promise<any> {
 }
 
 async function handleCheckProvidersHealth(ctx: RpcContext): Promise<Record<string, any>> {
+  try {
+    const settings = await ctx.db.getSettings();
+    if (settings.gas_proxy_url) {
+      setGasProxyUrl(settings.gas_proxy_url);
+    }
+  } catch (e) {}
+
   const result: Record<string, any> = {
     roadsurfer: { ok: false, message: 'Проверка…' },
     movacar: { ok: false, message: 'Проверка…' },
@@ -388,7 +395,7 @@ async function handleCheckProvidersHealth(ctx: RpcContext): Promise<Record<strin
     const routesCount = rs && Array.isArray(rs.returns) ? rs.returns.length : (Array.isArray(rs) ? rs.length : 0);
     result.roadsurfer = { ok: true, message: `Онлайн (${routesCount} направлений, ${ms}мс)` };
   } catch (e: any) {
-    result.roadsurfer = { ok: false, message: `Ошибка: ${(e.message || String(e)).slice(0, 50)}` };
+    result.roadsurfer = { ok: false, message: `Ошибка: ${(e.message || String(e)).slice(0, 80)}` };
   }
 
   // 2. Movacar

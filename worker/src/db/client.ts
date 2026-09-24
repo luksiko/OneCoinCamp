@@ -237,8 +237,19 @@ export class DbClient {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
         ON CONFLICT(fingerprint) DO UPDATE SET
           is_active = CASE WHEN offers.is_dismissed = 1 THEN 0 ELSE 1 END,
-          price = excluded.price,
-          booking_url = excluded.booking_url`
+          price = COALESCE(excluded.price, offers.price),
+          booking_url = COALESCE(excluded.booking_url, offers.booking_url),
+          vehicle = COALESCE(excluded.vehicle, offers.vehicle),
+          vehicle_id = COALESCE(excluded.vehicle_id, offers.vehicle_id),
+          origin = COALESCE(excluded.origin, offers.origin),
+          origin_country = COALESCE(excluded.origin_country, offers.origin_country),
+          destination = COALESCE(excluded.destination, offers.destination),
+          destination_country = COALESCE(excluded.destination_country, offers.destination_country),
+          pickup_date = COALESCE(excluded.pickup_date, offers.pickup_date),
+          return_date = COALESCE(excluded.return_date, offers.return_date),
+          currency = COALESCE(excluded.currency, offers.currency),
+          offer_id = COALESCE(excluded.offer_id, offers.offer_id),
+          raw_json = COALESCE(excluded.raw_json, offers.raw_json)`
       )
       .bind(
         fingerprint,

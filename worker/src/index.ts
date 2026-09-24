@@ -2,6 +2,7 @@ import { DbClient } from './db/client';
 import { TelegramService } from './services/telegram';
 import { runMonitorCycle } from './services/monitor';
 import { handleRpcRequest } from './api/rpc';
+import { setGasProxyUrl } from './utils/http';
 
 export interface Env {
   DB: D1Database;
@@ -12,11 +13,15 @@ export interface Env {
   ALERTS_ENABLED?: string;
   WEBHOOK_CUTOVER?: string;
   WORKER_PUBLIC_URL?: string;
+  GAS_PROXY_URL?: string;
 }
 
 export default {
   // 1. Cron Trigger (Every 10 minutes)
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (env.GAS_PROXY_URL) {
+      setGasProxyUrl(env.GAS_PROXY_URL);
+    }
     const db = new DbClient(env.DB);
     const telegram = new TelegramService(
       {
@@ -51,6 +56,9 @@ export default {
 
   // 2. HTTP Request Handler (Telegram Webhook & Mini App RPC)
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    if (env.GAS_PROXY_URL) {
+      setGasProxyUrl(env.GAS_PROXY_URL);
+    }
     const url = new URL(request.url);
     const legacyUiOrigin = 'https://luksiko.github.io';
     const origin = request.headers.get('Origin');
@@ -87,6 +95,25 @@ export default {
         return telegram.handleWebhook(request, triggerMonitorFn);
       }
       return new Response('Webhook endpoint active. Send POST updates.', { status: 200 });
+    }
+
+    if (url.pathname === '/webhook/register') {
+      try {
+        const targetWorkerUrl = env.WORKER_PUBLIC_URL || `${url.protocol}//${url.host}`;
+        await telegram.registerWebhook(`${targetWorkerUrl}/webhook/telegram`);
+        await telegram.setChatMenuButton(undefined, targetWorkerUrl);
+        if (env.TELEGRAM_CHAT_ID) {
+          await telegram.setChatMenuButton(env.TELEGRAM_CHAT_ID, targetWorkerUrl);
+        }
+        return new Response(JSON.stringify({ ok: true, message: 'Webhook registered successfully with secret token' }), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (err: any) {
+        return new Response(JSON.stringify({ ok: false, error: err.message || String(err) }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // Mini App API / RPC endpoint

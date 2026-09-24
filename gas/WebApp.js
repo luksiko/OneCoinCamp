@@ -22,6 +22,9 @@ const WEBAPP_COUNTRIES = [
 const WEBAPP_INTERVALS = [1, 5, 10, 15, 30];
 
 function doPost(e) {
+  if (e && e.parameter && e.parameter.proxy === '1') {
+    return handleProxyRequest_(e);
+  }
   if (e && e.parameter && e.parameter.api === '1') {
     return handleApiRequest_(e);
   }
@@ -36,6 +39,89 @@ function doPost(e) {
   }
 
   return handleTelegramWebhook(e);
+}
+
+function handleProxyRequest_(e) {
+  try {
+    let targetUrl = '';
+    let method = 'get';
+    let headers = {};
+    let payload = null;
+
+    if (e && e.postData && e.postData.contents) {
+      let data = {};
+      try {
+        data = JSON.parse(e.postData.contents);
+      } catch (ex) {
+        data = {};
+      }
+      targetUrl = data.url || (e.parameter && e.parameter.url);
+      method = (data.method || (e.parameter && e.parameter.method) || 'get').toLowerCase();
+      headers = data.headers || {};
+      payload = data.payload || null;
+    } else if (e && e.parameter) {
+      targetUrl = e.parameter.url;
+      method = (e.parameter.method || 'get').toLowerCase();
+      if (e.parameter.headers) {
+        try {
+          headers = JSON.parse(e.parameter.headers);
+        } catch (ex) {
+          headers = {};
+        }
+      }
+    }
+
+    if (!targetUrl) {
+      return ContentService.createTextOutput(JSON.stringify({ status: 400, error: 'Missing target url' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const secrets = getScriptSecrets();
+    const expectedSecret = secrets.telegramWebhookSecret;
+    if (expectedSecret) {
+      const provided = (e && e.parameter && (e.parameter.secret || e.parameter.secret_token)) ||
+        (headers && (headers['x-secret'] || headers['X-Secret']));
+      if (provided && provided !== expectedSecret) {
+        return ContentService.createTextOutput(JSON.stringify({ status: 403, error: 'Unauthorized' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    const cleanedHeaders = {};
+    if (headers && typeof headers === 'object') {
+      for (const k in headers) {
+        const lower = k.toLowerCase();
+        if (lower !== 'host' && lower !== 'content-length' && lower !== 'connection' && lower !== 'x-secret') {
+          cleanedHeaders[k] = headers[k];
+        }
+      }
+    }
+
+    const fetchOptions = {
+      method: method,
+      headers: cleanedHeaders,
+      muteHttpExceptions: true,
+      followRedirects: true,
+    };
+    if (payload) {
+      fetchOptions.payload = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    }
+
+    const response = UrlFetchApp.fetch(targetUrl, fetchOptions);
+    const code = response.getResponseCode();
+    const content = response.getContentText();
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: code,
+      body: content,
+      headers: response.getAllHeaders(),
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      status: 500,
+      error: err.message || String(err),
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 function handleApiRequest_(e) {
@@ -81,6 +167,9 @@ function handleApiRequest_(e) {
 
 
 function doGet(e) {
+  if (e && e.parameter && e.parameter.proxy === '1') {
+    return handleProxyRequest_(e);
+  }
   if (e && e.parameter && e.parameter.debug === 'runs') {
     try {
       const sheet = getSpreadsheet().getSheetByName('Runs');
