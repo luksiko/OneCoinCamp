@@ -65,7 +65,7 @@ function isProviderEnabled_(source, settings) {
 
 const DEFAULT_FILTERS = {
   allowed_origin_countries: 'DE,AT,NL,BE,FR,CH',
-  allowed_destination_countries: 'ES,IT',
+  allowed_destination_countries: 'ES,IT,FR,DE,AT,NL,BE,PT,DK,HR,SI,CH,PL,CZ',
   roadsurfer_origins_per_run: 20,
   window_start_rule: 'next_sunday',
   window_days: 14,

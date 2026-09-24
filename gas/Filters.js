@@ -193,15 +193,14 @@ function offerMatchesFilter_(offer, filters, window, settings, matchedRoute) {
     } else {
       const windowDays = Number(filters.window_days);
       if (!isNaN(windowDays) && windowDays > 0) {
-        let start;
-        if (filters.window_start_rule === 'today') {
-          start = new Date();
-          start.setHours(0, 0, 0, 0);
-        } else {
-          start = nextSunday_(settings && settings.timezone ? settings.timezone : DEFAULT_SETTINGS.timezone);
-        }
-        const end = addDays_(start, windowDays);
-        if (pickup < start || pickup > end) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const nextSun = nextSunday_(settings && settings.timezone ? settings.timezone : DEFAULT_SETTINGS.timezone);
+        const end = Math.max(
+          addDays_(today, windowDays).getTime(),
+          addDays_(nextSun, windowDays).getTime()
+        );
+        if (pickup.getTime() < today.getTime() || pickup.getTime() > end) {
           return false;
         }
       }

@@ -202,15 +202,23 @@ function resolveRoadsurferPairsBatched_(route, filters) {
   const rawOriginCountry = String(route.originCountry || '').trim().toUpperCase();
   const targetOriginCountry = (rawOriginCountry === '*' || rawOriginCountry === 'ANY' || rawOriginCountry === 'ALL') ? '' : rawOriginCountry;
   const rawDestCountry = String(route.destinationCountry || '').trim().toUpperCase();
-  const targetDestCountry = (rawDestCountry === '*' || rawDestCountry === 'ANY' || rawDestCountry === 'ALL') ? '' : rawDestCountry;
+  const isWildDestCountry = !rawDestCountry || rawDestCountry === '*' || rawDestCountry === 'ANY' || rawDestCountry === 'ALL';
+  const targetDestCountry = isWildDestCountry ? '' : rawDestCountry;
   
   const allowedOriginCountries = targetOriginCountry
     ? [targetOriginCountry]
     : (filters && filters.allowed_origin_countries ? parseCountryList_(filters.allowed_origin_countries) : []);
     
-  const allowedDestCountries = targetDestCountry
-    ? [targetDestCountry]
-    : (filters && filters.allowed_destination_countries ? parseCountryList_(filters.allowed_destination_countries) : []);
+  let allowedDestCountries = targetDestCountry ? [targetDestCountry] : [];
+  if (!targetDestCountry && filters && filters.allowed_destination_countries) {
+    const parsed = parseCountryList_(filters.allowed_destination_countries);
+    const rDestName = String(route.destinationName || route.destination_name || '').trim();
+    const isWildDestName = !rDestName || rDestName === '*' || rDestName === 'Все города' || isWildDest;
+    // Only apply global filter if the route didn't explicitly select "Все города" / wildcard
+    if (!isWildDestName) {
+      allowedDestCountries = parsed;
+    }
+  }
 
   const allStations = getRoadsurferAllStations_();
   const originStations = allStations.filter(function (station) {

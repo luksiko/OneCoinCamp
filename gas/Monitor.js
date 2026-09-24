@@ -478,7 +478,7 @@ function runMonitorOnce() {
           } catch (error) {
             console.error('sendTelegramOffer_ failed for user ....' + String(user.telegram_id).slice(-4) + ' / ' + fp + ':', error.message || error);
             hasErrors = true;
-            failedFingerprints.add(fp);
+            lastRouteError = 'User ' + user.telegram_id + ' alert failed: ' + (error.message || String(error));
             return;
           }
 
@@ -588,7 +588,7 @@ function runMonitorOnce() {
       offersFiltered: rowsToAppend.length,
       telegramSent: telegramSentCount,
       status: hasErrors ? 'PARTIAL' : 'OK',
-      errorMessage: '',
+      errorMessage: hasErrors ? (lastRouteError || '') : '',
     });
 
     if (!hasErrors) {

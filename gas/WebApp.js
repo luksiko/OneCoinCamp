@@ -90,6 +90,156 @@ function doGet(e) {
       return ContentService.createTextOutput(err.toString());
     }
   }
+  if (e && e.parameter && e.parameter.debug === 'archive') {
+    try {
+      const sheet = getSpreadsheet().getSheetByName(SHEET_NAMES.ARCHIVE);
+      const data = sheet.getDataRange().getValues().slice(-20);
+      return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+    } catch(err) {
+      return ContentService.createTextOutput(err.toString());
+    }
+  }
+  if (e && e.parameter && e.parameter.debug === 'routes') {
+    try {
+      const sheet = getSpreadsheet().getSheetByName('Routes');
+      const data = sheet.getDataRange().getValues();
+      return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+    } catch(err) {
+      return ContentService.createTextOutput(err.toString());
+    }
+  }
+  if (e && e.parameter && e.parameter.debug === 'test_rs') {
+    try {
+      const route = {
+        source: 'roadsurfer',
+        originId: '*',
+        originCountry: 'DE',
+        destinationId: '*',
+        destinationCountry: ''
+      };
+      const t0 = Date.now();
+      const pairs = resolveRoadsurferPairs_(route, {});
+      const pairTime = Date.now() - t0;
+      let timeframesFound = 0;
+      let offersFound = 0;
+      const details = [];
+
+      for (let i = 0; i < Math.min(pairs.length, 10); i++) {
+        const pair = pairs[i];
+        const tf = fetchRoadsurferTimeframes_(pair.origin.id, pair.destination.id);
+        if (tf && tf.length) {
+          timeframesFound += tf.length;
+          const offers = fetchRoadsurferOffersForTimeframe_(pair, tf[0], route, '2026-09-21', '2026-10-31', pairs.length);
+          if (offers && offers.length) {
+            offersFound += offers.length;
+            details.push(offers[0]);
+          }
+        }
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        pairsCount: pairs.length,
+        pairTimeMs: pairTime,
+        timeframesFound: timeframesFound,
+        offersFound: offersFound,
+        details: details,
+        firstPairs: pairs.slice(0, 5)
+      }, null, 2)).setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput("Error: " + (err.stack || err.toString()));
+    }
+  }
+  if (e && e.parameter && e.parameter.debug === 'users') {
+    try {
+      const users = (typeof listActiveUsers === 'function') ? (listActiveUsers() || []) : [];
+      const res = users.map(function(u) {
+        return {
+          user: u,
+          routes: getUserRoutes(u.telegram_id),
+          filters: getUserFilters(u.telegram_id)
+        };
+      });
+      return ContentService.createTextOutput(JSON.stringify(res)).setMimeType(ContentService.MimeType.JSON);
+    } catch(err) {
+      return ContentService.createTextOutput(err.toString());
+    }
+  }
+  if (e && e.parameter && e.parameter.debug === 'test_dispatch') {
+    try {
+      const secrets = getScriptSecrets();
+      const spreadsheet = ensureWorkbook_();
+      const settings = readKeyValueSheet_(spreadsheet, SHEET_NAMES.SETTINGS, DEFAULT_SETTINGS);
+      const targetUserId = e.parameter.user_id || '369796958';
+      const userRoutes = getUserRoutes(targetUserId) || [];
+      const userFilters = getUserFilters(targetUserId) || {};
+
+      const route = userRoutes.find(function(r) { return r.enabled && r.source === 'roadsurfer'; }) || {
+        source: 'roadsurfer',
+        originId: '*',
+        originCountry: 'DE',
+        destinationId: '*',
+        destinationCountry: ''
+      };
+
+      const pairs = resolveRoadsurferPairs_(route, userFilters);
+      let sampleOffer = null;
+      let matchedRoute = null;
+      for (let i = 0; i < Math.min(pairs.length, 10); i++) {
+        const tf = fetchRoadsurferTimeframes_(pairs[i].origin.id, pairs[i].destination.id);
+        if (tf && tf.length) {
+          const offers = fetchRoadsurferOffersForTimeframe_(pairs[i], tf[0], route, '2026-09-21', '2026-10-31', pairs.length);
+          if (offers && offers.length) {
+            sampleOffer = offers[0];
+            break;
+          }
+        }
+      }
+
+      let routeMatches = false;
+      let filterMatches = false;
+      let sendResult = null;
+
+      if (sampleOffer) {
+        for (let i = 0; i < userRoutes.length; i++) {
+          if (routeMatchesOffer_(userRoutes[i], sampleOffer)) {
+            matchedRoute = userRoutes[i];
+            routeMatches = true;
+            break;
+          }
+        }
+        filterMatches = matchesFirestoreFilter_(sampleOffer, userFilters, settings, matchedRoute);
+        if (e.parameter.send === '1') {
+          sendTelegramOffer_(secrets, sampleOffer, matchedRoute, matchedRoute ? matchedRoute._id : 'test', settings, targetUserId);
+          sendResult = 'SENT';
+        }
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        targetUserId: targetUserId,
+        userRoutesCount: userRoutes.length,
+        userFilters: userFilters,
+        sampleOffer: sampleOffer,
+        matchedRoute: matchedRoute,
+        routeMatches: routeMatches,
+        filterMatches: filterMatches,
+        sendResult: sendResult
+      }, null, 2)).setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({
+        error: err.message || err.toString(),
+        stack: err.stack
+      }, null, 2)).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  if (e && e.parameter && e.parameter.debug === 'run') {
+    try {
+      runMonitorOnce();
+      const lastError = PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.MONITOR_LAST_ERROR) || 'NO_ERROR';
+      return ContentService.createTextOutput("Ran monitor. Last error: " + lastError).setMimeType(ContentService.MimeType.TEXT);
+    } catch(err) {
+      return ContentService.createTextOutput("Error running monitor: " + (err.stack || err.toString()));
+    }
+  }
   ensureTriggersFromWebApp_();
   return ContentService.createTextOutput("This web app UI has been moved to GitHub Pages.")
     .setMimeType(ContentService.MimeType.TEXT);
