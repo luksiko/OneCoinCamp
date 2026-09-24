@@ -729,9 +729,10 @@ function handleTelegramUpdate_(update) {
       const origCountry = r.origin_country || r.originCountry || '';
       const destCountry = r.destination_country || r.destinationCountry || '';
       const origFlag = origCountry ? flagEmoji_(origCountry) + ' ' : '';
-      const destFlag = destCountry ? flagEmoji_(destCountry) + ' ' : '';
-      const origCity = r.origin_name || r.originName || (r.origin_id === '*' || r.originId === '*' ? allCitiesLabel : (r.origin_id || r.originId || allCitiesLabel));
-      const destCity = r.destination_name || r.destinationName || (r.destination_id === '*' || r.destinationId === '*' ? allCitiesLabel : (r.destination_id || r.destinationId || allCitiesLabel));
+      const isWildOrig = (r.origin_id === '*' || r.originId === '*' || (typeof isWildcardCityName_ === 'function' && isWildcardCityName_(r.origin_name || r.originName)));
+      const isWildDest = (r.destination_id === '*' || r.destinationId === '*' || (typeof isWildcardCityName_ === 'function' && isWildcardCityName_(r.destination_name || r.destinationName)));
+      const origCity = isWildOrig ? allCitiesLabel : (r.origin_name || r.originName || r.origin_id || r.originId || allCitiesLabel);
+      const destCity = isWildDest ? allCitiesLabel : (r.destination_name || r.destinationName || r.destination_id || r.destinationId || allCitiesLabel);
       lines.push(statusIcon + ' <b>' + (r.source || routeWord).toUpperCase() + '</b>: ' + origFlag + origCity + ' ➔ ' + destFlag + destCity);
     });
     if (routes.length === 0) lines.push((typeof t_ === 'function') ? t_('routes_empty', userLang) : 'No routes.');

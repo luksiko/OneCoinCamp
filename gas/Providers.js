@@ -213,8 +213,8 @@ function resolveRoadsurferPairsBatched_(route, filters) {
   if (!targetDestCountry && filters && filters.allowed_destination_countries) {
     const parsed = parseCountryList_(filters.allowed_destination_countries);
     const rDestName = String(route.destinationName || route.destination_name || '').trim();
-    const isWildDestName = !rDestName || rDestName === '*' || rDestName === 'Все города' || isWildDest;
-    // Only apply global filter if the route didn't explicitly select "Все города" / wildcard
+    const isWildDestName = !rDestName || rDestName === '*' || (typeof isWildcardCityName_ === 'function' ? isWildcardCityName_(rDestName) : rDestName === 'Все города') || isWildDest;
+    // Only apply global filter if the route didn't explicitly select wildcard / all cities
     if (!isWildDestName) {
       allowedDestCountries = parsed;
     }

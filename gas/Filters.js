@@ -330,8 +330,9 @@ function routeMatchesOffer_(route, offer) {
 
   // 2. City / Station checks
   function matchLoc_(routeLoc, offerLoc, routeId, offerId) {
+    if (routeId && (String(routeId).trim() === '*' || String(routeId).trim().toUpperCase() === 'ALL' || String(routeId).trim().toUpperCase() === 'ANY')) return true;
     const rLoc = String(routeLoc || '').trim();
-    if (!rLoc || rLoc === '*' || rLoc.toUpperCase() === 'ALL' || rLoc.toUpperCase() === 'ANY' || rLoc === 'Все города') return true;
+    if (!rLoc || rLoc === '*' || rLoc.toUpperCase() === 'ALL' || rLoc.toUpperCase() === 'ANY' || (typeof isWildcardCityName_ === 'function' ? isWildcardCityName_(rLoc) : rLoc === 'Все города')) return true;
     if (routeId && offerId && String(routeId).trim() === String(offerId).trim()) return true;
     if (offerLoc && rLoc.toLowerCase() === String(offerLoc).trim().toLowerCase()) return true;
     return false;

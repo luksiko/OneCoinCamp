@@ -3432,8 +3432,8 @@
         return card;
       }
 
-      var origText = route.originName || (isWildcardStation(route.originId) ? tWeb('all_cities') : (tWeb('station_prefix') + route.originId));
-      var destText = route.destinationName || (isWildcardStation(route.destinationId) ? tWeb('all_cities') : (tWeb('station_prefix') + route.destinationId));
+      var origText = formatRouteStationName(route.originId, route.originName);
+      var destText = formatRouteStationName(route.destinationId, route.destinationName);
       var head = document.createElement('div');
       head.className = 'route-head';
       head.textContent = flagEmoji(route.originCountry) + ' ' + origText + '  ➔  ' +
@@ -3489,7 +3489,8 @@
       if (state.settings.check_neighbors) {
         var nbSpan = document.createElement('span');
         nbSpan.style.cssText = 'font-size:11px;color:var(--accent);margin-left:4px;';
-        nbSpan.textContent = '±2д';
+        var nbText = currentAppLang === 'ru' || currentAppLang === 'uk' ? '±2д' : (currentAppLang === 'de' ? '±2T' : (currentAppLang === 'it' ? '±2gg' : '±2d'));
+        nbSpan.textContent = nbText;
         foot.appendChild(nbSpan);
       }
 
@@ -3637,7 +3638,7 @@
           });
 
           var curVal = String(route[idKey] || '*');
-          if (isWildcardStation(curVal)) {
+          if (isWildcardStation(curVal) || isWildcardCityName(route[nameKey])) {
             sel.value = '*';
           } else {
             sel.value = curVal;
@@ -3647,7 +3648,7 @@
             var prevId = route[idKey];
             route[idKey] = sel.value;
             var opt = sel.options[sel.selectedIndex];
-            route[nameKey] = (opt && opt.dataset.name) || (sel.value === '*' ? tWeb('all_cities') : '');
+            route[nameKey] = (opt && opt.dataset.name) || (isWildcardStation(sel.value) ? tWeb('all_cities') : '');
             if (kind === 'origin' && prevId !== route.originId) {
               route.destinationId = '*';
               route.destinationName = tWeb('all_cities');
@@ -3697,7 +3698,7 @@
             sel.appendChild(option);
           });
           var curVal = String(route.destinationId || '*');
-          if (isWildcardStation(curVal)) {
+          if (isWildcardStation(curVal) || isWildcardCityName(route.destinationName)) {
             sel.value = '*';
           } else {
             sel.value = curVal;
@@ -3706,7 +3707,7 @@
           sel.onchange = function () {
             route.destinationId = sel.value;
             var opt = sel.options[sel.selectedIndex];
-            route.destinationName = (opt && opt.dataset.name) || (sel.value === '*' ? tWeb('all_cities') : '');
+            route.destinationName = (opt && opt.dataset.name) || (isWildcardStation(sel.value) ? tWeb('all_cities') : '');
           };
         })
         .withFailureHandler(function () {
@@ -3723,9 +3724,9 @@
         source: 'roadsurfer',
         vehicle_type: 'all',
         vehicleType: 'all',
-        originName: 'Все города',
+        originName: tWeb('all_cities'),
         originId: '*',
-        destinationName: 'Все города',
+        destinationName: tWeb('all_cities'),
         destinationId: '*',
         originCountry: 'DE',
         destinationCountry: 'IT',
@@ -4169,6 +4170,24 @@
     function isWildcardStation(value) {
       var s = String(value || '').trim().toUpperCase();
       return !s || s === '*' || s === 'ALL' || s === 'ANY';
+    }
+
+    function isWildcardCityName(name) {
+      if (!name) return true;
+      var s = String(name).trim().toLowerCase();
+      return s === '*' || s === 'all' || s === 'any' ||
+        s === 'все города' || s === 'всі міста' || s === 'all cities' ||
+        s === 'alle städte' || s === 'tutte le città' ||
+        s.indexOf('все города') !== -1 || s.indexOf('all cities') !== -1 ||
+        s.indexOf('alle städte') !== -1 || s.indexOf('tutte le città') !== -1 ||
+        s.indexOf('всі міста') !== -1;
+    }
+
+    function formatRouteStationName(id, name) {
+      if (isWildcardStation(id) || isWildcardCityName(name)) {
+        return tWeb('all_cities');
+      }
+      return name || (tWeb('station_prefix') + id);
     }
 
     function fieldLabel(text) {

@@ -47,9 +47,21 @@ export function routeMatchesOffer(route: UserRoute, offer: NormalizedOffer): boo
   }
 
   // 2. City / Station checks
+  function isWildcardCity(name?: string): boolean {
+    if (!name) return true;
+    const s = name.trim().toLowerCase();
+    return s === '*' || s === 'all' || s === 'any' ||
+      s === 'все города' || s === 'всі міста' || s === 'all cities' ||
+      s === 'alle städte' || s === 'tutte le città' ||
+      s.includes('все города') || s.includes('all cities') ||
+      s.includes('alle städte') || s.includes('tutte le città') ||
+      s.includes('всі міста');
+  }
+
   function matchLoc(routeLoc?: string, offerLoc?: string, routeId?: string, offerId?: string): boolean {
+    if (routeId && (routeId.trim() === '*' || routeId.trim().toUpperCase() === 'ALL' || routeId.trim().toUpperCase() === 'ANY')) return true;
     const rLoc = (routeLoc || '').trim();
-    if (!rLoc || rLoc === '*' || rLoc.toUpperCase() === 'ALL' || rLoc === 'Все города') return true;
+    if (!rLoc || rLoc === '*' || rLoc.toUpperCase() === 'ALL' || isWildcardCity(rLoc)) return true;
     if (routeId && offerId && routeId.trim() === offerId.trim()) return true;
     if (offerLoc && rLoc.toLowerCase() === offerLoc.trim().toLowerCase()) return true;
     return false;

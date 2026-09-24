@@ -1743,6 +1743,14 @@ if (testName === 'roadsurfer_429') {
   // Safe replacement: dynamic text containing $ values like $100 or $$$ must not trigger regex $ replacement patterns
   const replaced = context.t_('vehicle_model', 'en', { icon: '🚐', model: 'VW California ($100 & $200)' });
   assert.ok(replaced.includes('VW California ($100 & $200)'));
+  // isWildcardCityName_ recognizes all 5 languages and symbols
+  assert.strictEqual(context.isWildcardCityName_('*'), true);
+  assert.strictEqual(context.isWildcardCityName_('Все города'), true);
+  assert.strictEqual(context.isWildcardCityName_('All cities'), true);
+  assert.strictEqual(context.isWildcardCityName_('Alle Städte'), true);
+  assert.strictEqual(context.isWildcardCityName_('Tutte le città'), true);
+  assert.strictEqual(context.isWildcardCityName_('Всі міста'), true);
+  assert.strictEqual(context.isWildcardCityName_('Berlin'), false);
 } else if (testName === 'i18n_web_key_completeness') {
   const fs = require('fs');
   const path = require('path');
@@ -1765,6 +1773,24 @@ if (testName === 'roadsurfer_429') {
   langs.forEach(lang => {
     assert.deepStrictEqual(keySets[lang], ruKeys, 'Mismatch in web keys for lang: ' + lang);
   });
+  // Verify formatRouteStationName in web app converts Russian "Все города" into active language
+  const vm = require('vm');
+  const sandbox = { window: {}, document: { getElementById: () => null, querySelector: () => null, querySelectorAll: () => [] } };
+  vm.createContext(sandbox);
+  const scriptContent = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+  vm.runInContext(scriptContent, sandbox);
+  sandbox.setAppLanguage('en');
+  assert.strictEqual(sandbox.formatRouteStationName('*', 'Все города'), 'All cities');
+  assert.strictEqual(sandbox.formatRouteStationName('6', 'Все города'), 'All cities');
+  assert.strictEqual(sandbox.formatRouteStationName('6', 'Berlin'), 'Berlin');
+  sandbox.setAppLanguage('de');
+  assert.strictEqual(sandbox.formatRouteStationName('*', 'Все города'), 'Alle Städte');
+  sandbox.setAppLanguage('it');
+  assert.strictEqual(sandbox.formatRouteStationName('*', 'Все города'), 'Tutte le città');
+  sandbox.setAppLanguage('uk');
+  assert.strictEqual(sandbox.formatRouteStationName('*', 'Все города'), 'Всі міста');
+  sandbox.setAppLanguage('ru');
+  assert.strictEqual(sandbox.formatRouteStationName('*', 'Все города'), 'Все города');
 } else {
   throw new Error('Unknown test: ' + testName);
 }

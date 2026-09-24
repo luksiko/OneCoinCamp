@@ -674,3 +674,20 @@ function buildLanguageKeyboard_() {
     ]
   ];
 }
+
+/**
+ * Checks if a city/station name corresponds to a wildcard ("All cities").
+ * Supports localized names in all 5 supported languages.
+ * @param {string} name
+ * @returns {boolean}
+ */
+function isWildcardCityName_(name) {
+  if (!name) return true;
+  var s = String(name).trim().toLowerCase();
+  return s === '*' || s === 'all' || s === 'any' ||
+    s === 'все города' || s === 'всі міста' || s === 'all cities' ||
+    s === 'alle städte' || s === 'tutte le città' ||
+    s.indexOf('все города') !== -1 || s.indexOf('all cities') !== -1 ||
+    s.indexOf('alle städte') !== -1 || s.indexOf('tutte le città') !== -1 ||
+    s.indexOf('всі міста') !== -1;
+}
