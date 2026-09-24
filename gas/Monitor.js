@@ -476,9 +476,19 @@ function runMonitorOnce() {
               rowsToAppend[item.rowIndex][16] = formatIsoDate_(sentAt);
             }
           } catch (error) {
-            console.error('sendTelegramOffer_ failed for user ....' + String(user.telegram_id).slice(-4) + ' / ' + fp + ':', error.message || error);
-            hasErrors = true;
-            lastRouteError = 'User ' + user.telegram_id + ' alert failed: ' + (error.message || String(error));
+            const errStr = error.message || String(error);
+            console.error('sendTelegramOffer_ failed for user ....' + String(user.telegram_id).slice(-4) + ' / ' + fp + ':', errStr);
+            if (errStr.includes('403') || errStr.includes('blocked') || (errStr.includes('400') && errStr.includes('chat not found'))) {
+              try {
+                if (typeof firestoreUpdate === 'function') {
+                  firestoreUpdate('users/' + user.telegram_id, { status: 'inactive' });
+                  CacheService.getScriptCache().remove('active_users');
+                }
+              } catch (e) {}
+            } else {
+              hasErrors = true;
+              lastRouteError = 'User ' + user.telegram_id + ' alert failed: ' + errStr;
+            }
             return;
           }
 
