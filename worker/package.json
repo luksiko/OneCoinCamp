@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "build:assets": "node scripts/build_assets.js",
+    "set:menu": "node scripts/set_menu_button.js",
     "deploy": "npm run build:assets && wrangler deploy",
     "d1:migrate:local": "wrangler d1 execute camper_monitor_db --local --file=schema.sql",
     "d1:migrate:remote": "wrangler d1 execute camper_monitor_db --remote --file=schema.sql",

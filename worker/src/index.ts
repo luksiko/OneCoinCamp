@@ -23,6 +23,7 @@ export default {
         botToken: env.TELEGRAM_BOT_TOKEN_SECRET,
         chatId: env.TELEGRAM_CHAT_ID,
         webhookSecret: env.TELEGRAM_WEBHOOK_SECRET,
+        workerUrl: env.WORKER_PUBLIC_URL,
       },
       db
     );
@@ -33,8 +34,12 @@ export default {
           const settings = await db.getSettings();
           if (settings.webhook_cutover_complete !== true) {
             await telegram.registerWebhook(`${env.WORKER_PUBLIC_URL}/webhook/telegram`);
+            await telegram.setChatMenuButton(undefined, env.WORKER_PUBLIC_URL);
+            if (env.TELEGRAM_CHAT_ID) {
+              await telegram.setChatMenuButton(env.TELEGRAM_CHAT_ID, env.WORKER_PUBLIC_URL);
+            }
             await db.setSetting('webhook_cutover_complete', true);
-            console.log('Telegram webhook moved to Cloudflare Worker.');
+            console.log('Telegram webhook and menu button moved to Cloudflare Worker.');
           }
         } catch (error) {
           console.error('Telegram webhook cutover failed:', error);
@@ -49,12 +54,13 @@ export default {
     const url = new URL(request.url);
     const legacyUiOrigin = 'https://luksiko.github.io';
     const origin = request.headers.get('Origin');
+    const allowedOrigins = [legacyUiOrigin, env.WORKER_PUBLIC_URL, `${url.protocol}//${url.host}`].filter(Boolean);
     if (request.method === 'OPTIONS' && url.pathname === '/api/rpc') {
-      if (origin !== legacyUiOrigin) return new Response('Forbidden', { status: 403 });
+      if (!origin || !allowedOrigins.includes(origin)) return new Response('Forbidden', { status: 403 });
       return new Response(null, {
         status: 204,
         headers: {
-          'Access-Control-Allow-Origin': legacyUiOrigin,
+          'Access-Control-Allow-Origin': origin,
           'Access-Control-Allow-Methods': 'POST',
           'Access-Control-Allow-Headers': 'Content-Type, X-Telegram-Init-Data',
           Vary: 'Origin',
@@ -68,6 +74,7 @@ export default {
         botToken: env.TELEGRAM_BOT_TOKEN_SECRET,
         chatId: env.TELEGRAM_CHAT_ID,
         webhookSecret: env.TELEGRAM_WEBHOOK_SECRET,
+        workerUrl: env.WORKER_PUBLIC_URL || `${url.protocol}//${url.host}`,
       },
       db
     );
@@ -92,11 +99,13 @@ export default {
         workerUrl: `${url.protocol}//${url.host}`,
         triggerMonitorFn,
       });
-      if (origin !== legacyUiOrigin) return response;
-      const headers = new Headers(response.headers);
-      headers.set('Access-Control-Allow-Origin', legacyUiOrigin);
-      headers.set('Vary', 'Origin');
-      return new Response(response.body, { status: response.status, headers });
+      if (origin && allowedOrigins.includes(origin)) {
+        const headers = new Headers(response.headers);
+        headers.set('Access-Control-Allow-Origin', origin);
+        headers.set('Vary', 'Origin');
+        return new Response(response.body, { status: response.status, headers });
+      }
+      return response;
     }
 
     // Health check

@@ -488,11 +488,16 @@ async function handleCheckProvidersHealth(ctx: RpcContext): Promise<Record<strin
 
 async function registerTelegramWebhook(ctx: RpcContext): Promise<any> {
   const webhookUrl = `${ctx.workerUrl}/webhook/telegram`;
-  return fetchJson(`https://api.telegram.org/bot${ctx.botToken}/setWebhook`, {
+  const result = await fetchJson<any>(`https://api.telegram.org/bot${ctx.botToken}/setWebhook`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url: webhookUrl, secret_token: ctx.telegram.getWebhookSecret() }),
   });
+  await ctx.telegram.setChatMenuButton(undefined, ctx.workerUrl);
+  if (ctx.chatId) {
+    await ctx.telegram.setChatMenuButton(ctx.chatId, ctx.workerUrl);
+  }
+  return result;
 }
 
 async function deleteTelegramWebhook(ctx: RpcContext): Promise<any> {

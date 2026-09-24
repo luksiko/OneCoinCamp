@@ -8,6 +8,7 @@ export interface TelegramSecrets {
   botToken: string;
   chatId?: string;
   webhookSecret?: string;
+  workerUrl?: string;
 }
 
 export class TelegramService {
@@ -26,6 +27,25 @@ export class TelegramService {
       retries: 1,
     });
     if (!response?.ok) throw new Error(response?.description || 'Telegram rejected webhook');
+  }
+
+  async setChatMenuButton(chatId?: string | number, webAppUrl?: string): Promise<any> {
+    if (!this.secrets.botToken) return null;
+    const url = webAppUrl || this.secrets.workerUrl;
+    if (!url) return null;
+    return fetchJson(this.apiUrl('setChatMenuButton'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...(chatId ? { chat_id: String(chatId) } : {}),
+        menu_button: {
+          type: 'web_app',
+          text: 'Open Monitor',
+          web_app: { url },
+        },
+      }),
+      retries: 1,
+    });
   }
 
   private apiUrl(method: string): string {
@@ -174,6 +194,9 @@ export class TelegramService {
     await this.db.upsertUser(telegramId, chatId, msg.from?.username, msg.from?.first_name);
 
     if (text.startsWith('/start')) {
+      if (this.secrets.workerUrl) {
+        await this.setChatMenuButton(chatId, this.secrets.workerUrl);
+      }
       await this.sendMessage(chatId, t('start_welcome', 'ru'));
       return;
     }
