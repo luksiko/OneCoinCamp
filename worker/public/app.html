@@ -5712,7 +5712,7 @@
         btnRun.style.display = state.user.role === 'admin' ? 'block' : 'none';
       }
       
-      if (state.user.role === 'admin') {
+            if (state.user.role === 'admin') {
         banner.style.display = 'block';
         title.textContent = 'Admin Account';
         st.textContent = 'Unlimited access';
@@ -5721,6 +5721,20 @@
         if (btnStars) btnStars.style.display = 'none';
         if (btnCrypto) btnCrypto.style.display = 'none';
         rl.textContent = 'Routes: ' + currentRoutes + ' / ∞';
+        
+        var dBadgeA = document.getElementById('desktopSubBadge');
+        if (dBadgeA) {
+          dBadgeA.textContent = '🛡️ Admin';
+          dBadgeA.className = 'desktop-sub-badge';
+        }
+        var dAdminA = document.getElementById('dTabAdmin');
+        if (dAdminA) {
+          dAdminA.style.display = 'inline-flex';
+        }
+        var addRouteBtnA = document.getElementById('btnAddRoute');
+        if (addRouteBtnA) {
+          addRouteBtnA.style.display = 'block';
+        }
         return;
       }
       
