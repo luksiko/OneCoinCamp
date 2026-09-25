@@ -288,6 +288,100 @@ export default {
       );
     }
 
+    // Public API: Offers feed for landing page & desktop view
+    if (url.pathname === '/api/public/offers' && request.method === 'GET') {
+      try {
+        const offers = await db.getOffers(30, 0);
+        const mapped = offers.map((o) => ({
+          source: o.source,
+          vehicle: o.vehicle,
+          origin: o.origin,
+          origin_country: o.origin_country,
+          destination: o.destination,
+          destination_country: o.destination_country,
+          pickup_date: o.pickup_date,
+          return_date: o.return_date,
+          price: o.price,
+          currency: o.currency || 'EUR',
+          booking_url: o.booking_url,
+          found_at: (o as any).found_at || null,
+        }));
+        return withCors(jsonResponse({ ok: true, count: mapped.length, offers: mapped }), origin, allowedOrigins);
+      } catch (err: any) {
+        return withCors(jsonResponse({ ok: false, error: err.message || String(err), offers: [] }, 500), origin, allowedOrigins);
+      }
+    }
+
+    // Public API: Bot metadata for landing page links
+    if (url.pathname === '/api/public/bot-info' && request.method === 'GET') {
+      let username = 'CamperMonitorBot';
+      try {
+        if (env.TELEGRAM_BOT_TOKEN_SECRET) {
+          const bot = await fetchJson<any>(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN_SECRET}/getMe`, { retries: 0 });
+          if (bot?.ok && bot.result?.username) {
+            username = bot.result.username;
+          }
+        }
+      } catch {
+        // Fallback gracefully
+      }
+      return withCors(jsonResponse({
+        ok: true,
+        username,
+        paddlePriceId: env.PADDLE_PRICE_ID || null,
+        paddleClientToken: env.PADDLE_CLIENT_TOKEN || null,
+      }), origin, allowedOrigins);
+    }
+
+    // SEO: robots.txt
+    if (url.pathname === '/robots.txt' && (request.method === 'GET' || request.method === 'HEAD')) {
+      const baseUrl = env.WORKER_PUBLIC_URL || `${url.protocol}//${url.host}`;
+      const robots = `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /webhook\nDisallow: /health\nDisallow: /run\n\nSitemap: ${baseUrl}/sitemap.xml\n`;
+      return new Response(robots, {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'public, max-age=86400',
+        },
+      });
+    }
+
+    // SEO: sitemap.xml
+    if (url.pathname === '/sitemap.xml' && (request.method === 'GET' || request.method === 'HEAD')) {
+      const baseUrl = env.WORKER_PUBLIC_URL || `${url.protocol}//${url.host}`;
+      const today = new Date().toISOString().split('T')[0];
+      const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="${baseUrl}/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="de" href="${baseUrl}/?lang=de"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="${baseUrl}/?lang=ru"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="${baseUrl}/"/>
+  </url>
+  <url>
+    <loc>${baseUrl}/app</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>`;
+      return new Response(sitemap, {
+        headers: {
+          'Content-Type': 'application/xml; charset=utf-8',
+          'Cache-Control': 'public, max-age=86400',
+        },
+      });
+    }
+
+    // Rewrite /app to serve app.html
+    if (url.pathname === '/app' || url.pathname === '/app/') {
+      const appUrl = new URL('/app.html', request.url);
+      return env.ASSETS.fetch(new Request(appUrl.toString(), request));
+    }
+
     if (request.method === 'GET' || request.method === 'HEAD') return env.ASSETS.fetch(request);
     return new Response('Not Found', { status: 404 });
   },

@@ -1,13 +1,32 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, copyFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const workerDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const source = resolve(workerDir, '../docs/index.html');
+const docsDir = resolve(workerDir, '../docs');
 const targetDir = resolve(workerDir, 'public');
-const html = readFileSync(source, 'utf8').replace(
-  /var APPS_SCRIPT_URL\s*=\s*['"][^'"]*['"];/,
-  'var APPS_SCRIPT_URL = window.location.origin;'
-);
 mkdirSync(targetDir, { recursive: true });
-writeFileSync(resolve(targetDir, 'index.html'), html);
+
+// 1. Process index.html (Landing page)
+const indexPath = resolve(docsDir, 'index.html');
+if (existsSync(indexPath)) {
+  const indexHtml = readFileSync(indexPath, 'utf8');
+  writeFileSync(resolve(targetDir, 'index.html'), indexHtml);
+}
+
+// 2. Process app.html (Desktop & Mobile Mini App Dashboard)
+const appPath = resolve(docsDir, 'app.html');
+if (existsSync(appPath)) {
+  const appHtml = readFileSync(appPath, 'utf8').replace(
+    /var APPS_SCRIPT_URL\s*=\s*['"][^'"]*['"];/,
+    'var APPS_SCRIPT_URL = window.location.origin;'
+  );
+  writeFileSync(resolve(targetDir, 'app.html'), appHtml);
+}
+
+// 3. Process favicon.png
+const faviconPath = resolve(docsDir, 'favicon.png');
+if (existsSync(faviconPath)) {
+  copyFileSync(faviconPath, resolve(targetDir, 'favicon.png'));
+}
+

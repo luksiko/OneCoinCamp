@@ -151,6 +151,16 @@ export class TelegramService {
     });
   }
 
+  getMiniAppUrl(pathOrQuery: string = ''): string {
+    const raw = this.secrets.workerUrl || '';
+    if (!raw) return '';
+    const base = raw.replace(/\/+$/, '');
+    const cleanBase = base.endsWith('/app') ? base : `${base}/app`;
+    if (!pathOrQuery) return cleanBase;
+    const prefix = pathOrQuery.startsWith('?') ? '' : pathOrQuery.startsWith('/') ? '' : '?';
+    return `${cleanBase}${prefix}${pathOrQuery}`;
+  }
+
   async setChatMenuButton(
     chatId?: string | number,
     menuType: 'commands' | 'default' | 'web_app' | string = 'commands',
@@ -165,7 +175,7 @@ export class TelegramService {
         web_app: { url: menuType },
       };
     } else if (menuType === 'web_app') {
-      const url = webAppUrl || this.secrets.workerUrl;
+      const url = webAppUrl || this.getMiniAppUrl();
       if (!url) return null;
       menu_button = {
         type: 'web_app',
@@ -402,7 +412,7 @@ export class TelegramService {
 
   async sendMainMenu(chatId: string | number, lang: string = 'en'): Promise<void> {
     const l = resolveLanguage(lang);
-    const webAppUrl = this.secrets.workerUrl || '';
+    const webAppUrl = this.getMiniAppUrl();
     const welcomeText = t('menu_welcome', l);
 
     // Ensure user has commands button (≡) available in their chat bar
@@ -427,9 +437,9 @@ export class TelegramService {
       return r && offerMatchesUserFilters(offer, userFilters, r);
     });
 
-    const webAppUrl = this.secrets.workerUrl || '';
+    const webAppUrl = this.getMiniAppUrl();
     const premiumMsg = isPremium ? '' : '\n\n⚠️ <b>Ваша подписка истекла.</b> Чтобы получать новые уведомления автоматически, продлите Premium.';
-    const premiumBtn = isPremium ? null : { text: '💳 Продлить Premium', web_app: { url: webAppUrl + '?subscribe=1' } };
+    const premiumBtn = isPremium ? null : { text: '💳 Продлить Premium', web_app: { url: this.getMiniAppUrl('?subscribe=1') } };
 
     if (matched.length === 0) {
       const emptyButtons = [
@@ -466,7 +476,7 @@ export class TelegramService {
   async showRoutesMenu(chatId: string | number, telegramId: string, lang: string = 'en'): Promise<void> {
     const l = resolveLanguage(lang);
     const routes = await this.db.getUserRoutes(telegramId);
-    const webAppUrl = this.secrets.workerUrl || '';
+    const webAppUrl = this.getMiniAppUrl();
 
     let resp = '';
     if (routes.length === 0) {
@@ -552,13 +562,13 @@ export class TelegramService {
       return;
     }
 
-    const webAppUrl = this.secrets.workerUrl || '';
+    const webAppUrl = this.getMiniAppUrl('?subscribe=1');
     const text = t('sub_promo', l);
 
     const buttons: any[] = [];
     buttons.push([{ text: t('btn_pay_stars', l), callback_data: 'pay_stars' }]);
     if (webAppUrl) {
-      buttons.push([{ text: t('btn_pay_card', l), web_app: { url: webAppUrl + '?subscribe=1' } }]);
+      buttons.push([{ text: t('btn_pay_card', l), web_app: { url: webAppUrl } }]);
     }
     buttons.push([{ text: t('btn_pay_crypto', l), callback_data: 'pay_crypto' }]);
     buttons.push([{ text: t('btn_main_menu', l), callback_data: 'menu_main' }]);
