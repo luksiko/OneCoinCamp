@@ -23,8 +23,8 @@ export const TELEGRAM_STARS_DEFAULT_PRICE = 500;
 export const SUBSCRIPTION_DEFAULT_DAYS = 30;
 
 export const DEFAULT_FILTERS = {
-  allowed_origin_countries: 'DE,AT,NL,BE,FR,CH',
-  allowed_destination_countries: 'ES,IT,FR,DE,AT,NL,BE,PT,DK,HR,SI,CH,PL,CZ',
+  allowed_origin_countries: '',
+  allowed_destination_countries: '',
   max_price: null,
   only_campers: false,
   vehicle_type: 'all',

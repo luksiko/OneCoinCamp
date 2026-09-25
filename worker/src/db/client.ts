@@ -307,8 +307,8 @@ export class DbClient {
       )
       .bind(
         id,
-        merged.allowed_origin_countries || DEFAULT_FILTERS.allowed_origin_countries,
-        merged.allowed_destination_countries || DEFAULT_FILTERS.allowed_destination_countries,
+        merged.allowed_origin_countries ?? DEFAULT_FILTERS.allowed_origin_countries,
+        merged.allowed_destination_countries ?? DEFAULT_FILTERS.allowed_destination_countries,
         merged.max_price != null ? merged.max_price : null,
         merged.only_campers ? 1 : 0,
         merged.vehicle_type || 'all',

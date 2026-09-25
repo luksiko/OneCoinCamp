@@ -1157,8 +1157,8 @@
 
       <!-- User Preferences Card -->
       <div class="card" id="cardUserPreferences">
-        <div class="card-title" data-i18n="settings_title" style="margin-bottom:8px;">Настройки</div>
-        <div class="field" style="margin-bottom:0;">
+        <div class="card-title" data-i18n="settings_title" style="margin-bottom:12px;">Настройки</div>
+        <div class="field" style="margin-bottom:14px;">
           <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
             <span data-i18n="max_price">Макс. цена оффера, €</span>
             <input type="number" id="maxPriceInput" min="0" step="1"
@@ -1166,40 +1166,8 @@
               placeholder="1">
           </label>
         </div>
-      </div>
-
-      <div class="card" id="cardFilters">
-        <div class="card-title" data-i18n="country_filters">🌍 Фильтры стран</div>
-        <div style="font-size:12px;color:var(--hint);margin-bottom:12px;" data-i18n="country_filters_desc">
-          Эти фильтры применяются синхронно и для приложения, и для Telegram-бота
-        </div>
-
-        <div class="field" style="margin-bottom:14px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span class="field-label" style="margin-bottom:0;" data-i18n="origin_countries">🛫 Откуда (страны отправления)</span>
-            <div>
-              <button type="button" class="btn-chip-action" id="btnAllOriginCountries" data-i18n="btn_all">Все</button>
-              <button type="button" class="btn-chip-action" id="btnClearOriginCountries" data-i18n="btn_clear">Очистить</button>
-            </div>
-          </div>
-          <div style="font-size:11px;color:var(--hint);margin-bottom:6px;" id="originCountriesCount">Все страны разрешены</div>
-          <div class="chips-wrap" id="originCountriesChips"></div>
-        </div>
-
-        <div class="field" style="margin-bottom:14px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span class="field-label" style="margin-bottom:0;" data-i18n="dest_countries">🛬 Куда (страны прибытия)</span>
-            <div>
-              <button type="button" class="btn-chip-action" id="btnAllDestCountries" data-i18n="btn_all">Все</button>
-              <button type="button" class="btn-chip-action" id="btnClearDestCountries" data-i18n="btn_clear">Очистить</button>
-            </div>
-          </div>
-          <div style="font-size:11px;color:var(--hint);margin-bottom:6px;" id="destCountriesCount">Все страны разрешены</div>
-          <div class="chips-wrap" id="destCountriesChips"></div>
-        </div>
-
         <div class="field" style="margin-bottom:0;">
-          <span class="field-label" data-i18n="trip_duration">⏱ Длительность поездки (дней)</span>
+          <span class="field-label" data-i18n="trip_duration" style="margin-bottom:6px;display:block;">⏱ Длительность поездки (дней)</span>
           <div style="display:flex; align-items:center; gap:8px;">
             <input type="number" id="minTripDaysInput" min="0" max="60" placeholder="Мин. (любая)" style="flex:1; text-align:center; padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--text); font-size:14px;">
             <span style="color:var(--hint); font-weight:600;">–</span>
@@ -2613,20 +2581,6 @@
       if (state) {
         renderStatus();
         renderRoutes();
-        renderCountryChips(
-          'originCountriesChips',
-          'originCountriesCount',
-          'allowed_origin_countries',
-          'btnAllOriginCountries',
-          'btnClearOriginCountries'
-        );
-        renderCountryChips(
-          'destCountriesChips',
-          'destCountriesCount',
-          'allowed_destination_countries',
-          'btnAllDestCountries',
-          'btnClearDestCountries'
-        );
         var webhookActive = !!(state && state.telegramWebhookActive);
         var webhookBtn = document.getElementById('btnToggleWebhook');
         var webhookDesc = document.getElementById('webhookStatusDesc');
@@ -3919,21 +3873,6 @@
           state.settings.notify_all_by_price = notifyAllEl.checked;
         };
       }
-
-      renderCountryChips(
-        'originCountriesChips',
-        'originCountriesCount',
-        'allowed_origin_countries',
-        'btnAllOriginCountries',
-        'btnClearOriginCountries'
-      );
-      renderCountryChips(
-        'destCountriesChips',
-        'destCountriesCount',
-        'allowed_destination_countries',
-        'btnAllDestCountries',
-        'btnClearDestCountries'
-      );
 
       var minDaysEl = document.getElementById('minTripDaysInput');
       if (minDaysEl) {

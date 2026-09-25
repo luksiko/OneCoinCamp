@@ -235,13 +235,13 @@ export async function fetchRoadsurferOffers(
   // Determine origins to check
   let originsToCheck: RoadsurferStation[] = [];
   if (isWildOrigin) {
-    const allowedOrigins = filters?.allowed_origin_countries
-      ? filters.allowed_origin_countries.split(',').map((c) => c.trim().toUpperCase())
+    const allowedOrigins = (!route.origin_country || route.origin_country === '*') && filters?.allowed_origin_countries
+      ? filters.allowed_origin_countries.split(',').map((c) => c.trim().toUpperCase()).filter(Boolean)
       : [];
     originsToCheck = allStations.filter(
       (s) =>
         s.oneWay === true &&
-        (!route.origin_country || s.country === route.origin_country.toUpperCase()) &&
+        (!route.origin_country || route.origin_country === '*' || s.country === route.origin_country.toUpperCase()) &&
         (allowedOrigins.length === 0 || allowedOrigins.includes(s.country))
     );
     // Limit origins to prevent subrequest exhaustion and rotate cursor across runs
