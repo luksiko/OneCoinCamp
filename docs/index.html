@@ -77,14 +77,6 @@
           },
           {
             "@type": "Question",
-            "name": "Who pays for fuel and highway tolls?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Fuel and highway tolls are paid by the driver. Even with fuel costs, paying only €1/day saves over €800 compared to standard commercial campervan rentals."
-            }
-          },
-          {
-            "@type": "Question",
             "name": "How fast do 1€ camper deals sell out?",
             "acceptedAnswer": {
               "@type": "Answer",
@@ -470,7 +462,7 @@
       padding-top: 8px;
       border-top: 1px solid var(--border);
     }
-    .savings-badge, .fuel-bonus {
+    .savings-badge, .extra-bonus {
       font-size: 11px;
       font-weight: 700;
       color: #059669;
@@ -737,7 +729,7 @@
       color: var(--text);
       margin-bottom: 10px;
     }
-    .push-savings, .push-fuel {
+    .push-savings, .push-extra {
       color: #34d399;
       font-weight: 700;
       font-size: 11px;
@@ -836,7 +828,7 @@
       color: var(--text-muted);
       margin-bottom: 24px;
     }
-    .pricing-fuel-callout {
+    .pricing-savings-callout {
       background: rgba(255, 215, 0, 0.1);
       border: 1px solid rgba(255, 215, 0, 0.3);
       border-radius: 12px;
@@ -1094,7 +1086,7 @@
       .pricing-price {
         font-size: 38px;
       }
-      .pricing-fuel-callout {
+      .pricing-savings-callout {
         font-size: 12.5px;
         padding: 10px 12px;
       }
@@ -1462,7 +1454,7 @@
         <div class="pricing-period" data-i18n="pricing_period">per month (30 days access)</div>
 
         <!-- Vacation savings pays for itself callout -->
-        <div class="pricing-fuel-callout" data-i18n="pricing_fuel_callout">
+        <div class="pricing-savings-callout" data-i18n="pricing_fuel_callout">
           🔥 <strong>Pays for itself:</strong> Book just one camper trip from 1€ and you save €800+ compared to commercial rental rates!
         </div>
 
@@ -1543,16 +1535,6 @@
           </div>
           <div class="faq-answer" data-i18n="a1">
             Yes! The base rental price is exactly 1€ per day. Rental companies charge this nominal amount to enter a binding rental contract. You receive a fully insured, brand-new campervan or motorhome. The only condition is following the designated route and dates.
-          </div>
-        </div>
-
-        <div class="faq-item">
-          <div class="faq-question" onclick="toggleFaq(this)">
-            <span data-i18n="q2">Who pays for fuel and highway tolls?</span>
-            <span class="faq-toggle">+</span>
-          </div>
-          <div class="faq-answer" data-i18n="a2">
-            Fuel and highway tolls are paid by the driver, just like any standard road trip. However, because your base vehicle rental is only 1€/day instead of €180–€240/day, you still save hundreds of euros on your total vacation budget.
           </div>
         </div>
 
@@ -1856,8 +1838,6 @@
         faq_desc: 'Everything you need to know about camper rentals from 1€ and automated alerts.',
         q1: 'Is it really 1€? Are there any hidden catches?',
         a1: 'Yes! The base rental price is exactly 1€ per day. Rental companies charge this nominal amount to enter a binding rental contract. You receive a fully insured, brand-new campervan or motorhome. The only condition is following the designated route and dates.',
-        q2: 'Who pays for fuel and highway tolls?',
-        a2: 'Fuel and highway tolls are paid by the driver, just like any standard road trip. However, because your base vehicle rental is only 1€/day instead of €180–€240/day, you still save hundreds of euros on your total vacation budget.',
         q3: 'What driver\'s license do I need?',
         a3: '98% of campervans and motorhomes in Europe are under 3,500 kg, meaning a standard passenger car license (Category B in Europe, or regular US/UK driver\'s license) held for at least 1–2 years is completely sufficient.',
         q4: 'How fast do I need to book when an alert arrives?',
@@ -1943,8 +1923,6 @@
         faq_desc: 'Alles, was Sie über Wohnmobil-Überführungen ab 1€ wissen müssen.',
         q1: 'Kostet es wirklich nur 1€? Gibt es versteckte Kosten?',
         a1: 'Ja! Der Basis-Mietpreis beträgt exakt 1€ pro Tag. Vermieter erheben diesen symbolischen Betrag für einen rechtsgültigen Mietvertrag. Sie erhalten ein voll versichertes, neuwertiges Wohnmobil. Die einzige Bedingung ist die Einhaltung von Route und Zeitraum.',
-        q2: 'Wer zahlt Treibstoff und Autobahnmaut?',
-        a2: 'Treibstoff und Autobahnmaut werden wie gewohnt vom Fahrer getragen. Da die Fahrzeugmiete jedoch nur 1€/Tag statt 180€–240€/Tag beträgt, sparen Sie trotzdem viele hundert Euro bei Ihrer Reise.',
         q3: 'Welchen Führerschein brauche ich?',
         a3: 'Über 98% der Campervans und Wohnmobile in Europa wiegen unter 3.500 kg. Der normale Pkw-Führerschein (Klasse B), der seit mindestens 1–2 Jahren besteht, reicht vollkommen aus.',
         q4: 'Wie schnell muss ich buchen, wenn ein Alarm kommt?',
@@ -2030,8 +2008,6 @@
         faq_desc: 'Всё, что нужно знать об аренде кемперов от 1€ и работе сервиса.',
         q1: 'Это правда стоит 1€? Есть ли скрытые платежи?',
         a1: 'Да! Базовая аренда стоит ровно 1€ в день. Прокатные компании взимают эту символическую сумму для оформления официального договора аренды. Вы получаете полностью застрахованный новый кемпер. Единственное условие — придерживаться маршрута и дат.',
-        q2: 'Кто оплачивает топливо и платные дороги?',
-        a2: 'Топливо и дорожные сборы оплачивает водитель, как и в любой обычной поездке. Но поскольку аренда самого кемпера стоит всего 1€ в день вместо 180–240€, вы экономите более 800€ на бюджете отпуска.',
         q3: 'Какие водительские права нужны?',
         a3: 'Более 98% кемперов и автодомов в Европе имеют массу до 3,5 тонн, поэтому обычных легковых прав категории B (со стажем от 1–2 лет) абсолютно достаточно.',
         q4: 'Как быстро нужно бронировать при получении алерта?',
