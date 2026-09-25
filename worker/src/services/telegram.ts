@@ -249,7 +249,7 @@ export class TelegramService {
     chatId: string | number,
     telegramId: string | number,
     lang: string = 'en',
-    starsPrice: number = 250
+    starsPrice: number = 500
   ): Promise<any> {
     if (!this.secrets.botToken) throw new Error('Telegram Bot Token not configured');
     const l = resolveLanguage(lang);
@@ -277,7 +277,7 @@ export class TelegramService {
   async createStarsInvoiceLink(
     telegramId: string | number,
     lang: string = 'en',
-    starsPrice: number = 250
+    starsPrice: number = 500
   ): Promise<string> {
     if (!this.secrets.botToken) throw new Error('Telegram Bot Token not configured');
     const l = resolveLanguage(lang);
@@ -845,7 +845,7 @@ export class TelegramService {
         try {
           await this.answerCallbackQuery(cb.id);
           const settings = await this.db.getSettings();
-          const starsPrice = Number(settings.telegram_stars_price) || 250;
+          const starsPrice = Number(settings.telegram_stars_price) || 500;
           await this.sendStarsInvoice(chatId, fromId, lang, starsPrice);
         } catch (e: any) {
           console.error('Send stars invoice error:', e);
@@ -1047,7 +1047,7 @@ export class TelegramService {
 
     if (text.startsWith('/stars')) {
       const settings = await this.db.getSettings();
-      const starsPrice = Number(settings.telegram_stars_price) || 250;
+      const starsPrice = Number(settings.telegram_stars_price) || 500;
       await this.sendStarsInvoice(chatId, telegramId, lang, starsPrice);
       return;
     }

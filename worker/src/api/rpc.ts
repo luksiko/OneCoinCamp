@@ -89,7 +89,7 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
         break;
       case 'generateStarsInvoice': {
         const settings = await ctx.db.getSettings();
-        const starsPrice = Number(settings.telegram_stars_price) || 250;
+        const starsPrice = Number(settings.telegram_stars_price) || 500;
         result = await ctx.telegram.createStarsInvoiceLink(
           identity.id,
           user?.language || identity.language || 'ru',

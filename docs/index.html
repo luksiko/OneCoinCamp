@@ -911,7 +911,7 @@
             <div id="subStatusText" style="font-size:13px; color:var(--subtext); margin-top:4px;"></div>
             <div id="subRouteLimitText" style="font-size:12px; color:var(--hint); margin-top:4px;"></div>
             <button type="button" class="btn btn-accent" id="btnPaddleCheckout" style="margin-top:12px; max-width:280px; margin-left:auto; margin-right:auto; display:none;">💳 Subscribe (Card) — €4.99/mo</button>
-            <button type="button" class="btn btn-secondary" id="btnStarsCheckout" style="margin-top:8px; max-width:280px; margin-left:auto; margin-right:auto; display:none; background:var(--bg); border:1px solid var(--border);">⭐️ Subscribe (Stars) — 250 ⭐️</button>
+            <button type="button" class="btn btn-secondary" id="btnStarsCheckout" style="margin-top:8px; max-width:280px; margin-left:auto; margin-right:auto; display:none; background:var(--bg); border:1px solid var(--border);">⭐️ Subscribe (Stars) — 500 ⭐️</button>
             <button type="button" class="btn btn-secondary" id="btnCryptoCheckout" style="margin-top:8px; max-width:280px; margin-left:auto; margin-right:auto; display:none; background:var(--bg); border:1px solid var(--border);">💎 Subscribe (USDT) — $4.99</button>
           </div>
         </div>
@@ -5536,7 +5536,7 @@
           btnStars.textContent = '⏳ Loading...';
           callRpc('generateStarsInvoice', []).then(function(invoiceLink) {
             btnStars.disabled = false;
-            btnStars.textContent = '⭐️ Subscribe (Stars) — 250 ⭐️';
+            btnStars.textContent = '⭐️ Subscribe (Stars) — 500 ⭐️';
             if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openInvoice) {
               window.Telegram.WebApp.openInvoice(invoiceLink, function(status) {
                 if (status === 'paid') {
@@ -5556,7 +5556,7 @@
           }).catch(function(e) {
             toast('Error: ' + (e.message || e), true);
             btnStars.disabled = false;
-            btnStars.textContent = '⭐️ Subscribe (Stars) — 250 ⭐️';
+            btnStars.textContent = '⭐️ Subscribe (Stars) — 500 ⭐️';
           });
         };
       }

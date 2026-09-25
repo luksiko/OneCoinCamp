@@ -18,13 +18,13 @@ describe('Telegram Stars Payment Integration', () => {
       return { ok: true, result: { message_id: 123 } };
     });
 
-    await service.sendStarsInvoice('12345', '12345', 'ru', 250);
+    await service.sendStarsInvoice('12345', '12345', 'ru', 500);
 
     expect(apiUrl).toBe('https://api.telegram.org/botmock-bot-token/sendInvoice');
     expect(apiBody.chat_id).toBe('12345');
     expect(apiBody.currency).toBe('XTR');
     expect(apiBody.provider_token).toBe('');
-    expect(apiBody.prices).toEqual([{ label: 'Camper Monitor Premium (30 дней)', amount: 250 }]);
+    expect(apiBody.prices).toEqual([{ label: 'Camper Monitor Premium (30 дней)', amount: 500 }]);
     expect(JSON.parse(apiBody.payload)).toEqual({ telegram_id: '12345', plan: 'premium_30d' });
   });
 
@@ -40,13 +40,13 @@ describe('Telegram Stars Payment Integration', () => {
       return { ok: true, result: 'https://t.me/$invoice_link_xyz' };
     });
 
-    const link = await service.createStarsInvoiceLink('998877', 'en', 250);
+    const link = await service.createStarsInvoiceLink('998877', 'en', 500);
 
     expect(link).toBe('https://t.me/$invoice_link_xyz');
     expect(apiUrl).toBe('https://api.telegram.org/botmock-bot-token/createInvoiceLink');
     expect(apiBody.currency).toBe('XTR');
     expect(apiBody.provider_token).toBe('');
-    expect(apiBody.prices).toEqual([{ label: 'Camper Monitor Premium (30 Days)', amount: 250 }]);
+    expect(apiBody.prices).toEqual([{ label: 'Camper Monitor Premium (30 Days)', amount: 500 }]);
     expect(JSON.parse(apiBody.payload)).toEqual({ telegram_id: '998877', plan: 'premium_30d' });
   });
 
@@ -63,7 +63,7 @@ describe('Telegram Stars Payment Integration', () => {
           id: 'pcq_123',
           from: { id: 777, username: 'starbuyer' },
           currency: 'XTR',
-          total_amount: 250,
+          total_amount: 500,
           invoice_payload: JSON.stringify({ telegram_id: '777' }),
         },
       },
@@ -99,7 +99,7 @@ describe('Telegram Stars Payment Integration', () => {
           date: 1727260000,
           successful_payment: {
             currency: 'XTR',
-            total_amount: 250,
+            total_amount: 500,
             invoice_payload: JSON.stringify({ telegram_id: '888', plan: 'premium_30d' }),
             telegram_payment_charge_id: 'tg_charge_abc123',
             provider_payment_charge_id: '',
@@ -114,7 +114,7 @@ describe('Telegram Stars Payment Integration', () => {
     expect(fakeDb.recordPayment).toHaveBeenCalledWith({
       telegram_id: '888',
       paddle_transaction_id: 'stars_tg_charge_abc123',
-      amount: 250,
+      amount: 500,
       currency: 'XTR',
       status: 'completed',
       subscription_days: 30,
@@ -142,7 +142,7 @@ describe('Telegram Stars Payment Integration', () => {
           chat: { id: 888 },
           successful_payment: {
             currency: 'XTR',
-            total_amount: 250,
+            total_amount: 500,
             invoice_payload: JSON.stringify({ telegram_id: '888' }),
             telegram_payment_charge_id: 'tg_charge_abc123',
           },
@@ -156,11 +156,11 @@ describe('Telegram Stars Payment Integration', () => {
     expect(sendSpy).not.toHaveBeenCalled();
   });
 
-  it('pay_stars callback triggers sendStarsInvoice', async () => {
+  it('pay_stars callback triggers sendStarsInvoice with 500 stars default', async () => {
     const fakeDb = {
       upsertUser: vi.fn().mockResolvedValue(undefined),
       getUser: vi.fn().mockResolvedValue({ language: 'ru' }),
-      getSettings: vi.fn().mockResolvedValue({ telegram_stars_price: '250' }),
+      getSettings: vi.fn().mockResolvedValue({ telegram_stars_price: '500' }),
     } as any;
     const service = new TelegramService({ botToken: 'mock-bot-token' }, fakeDb);
 
@@ -180,10 +180,10 @@ describe('Telegram Stars Payment Integration', () => {
     );
 
     expect(answerSpy).toHaveBeenCalledWith('cb_stars_1');
-    expect(sendInvoiceSpy).toHaveBeenCalledWith(555, '555', 'ru', 250);
+    expect(sendInvoiceSpy).toHaveBeenCalledWith(555, '555', 'ru', 500);
   });
 
-  it('showSubscriptionMenu contains Stars payment button', async () => {
+  it('showSubscriptionMenu contains Stars payment button with 500 Stars', async () => {
     const fakeDb = {
       getUser: vi.fn().mockResolvedValue({ subscription_status: 'inactive' }),
       isSubscriptionActive: vi.fn().mockReturnValue(false),
@@ -202,20 +202,19 @@ describe('Telegram Stars Payment Integration', () => {
     const starsBtn = flatButtons.find((b) => b.callback_data === 'pay_stars');
     expect(starsBtn).toBeDefined();
     expect(starsBtn.text).toContain('Оплатить звездами');
-    expect(starsBtn.text).toContain('250 ⭐️');
+    expect(starsBtn.text).toContain('500 ⭐️');
   });
 
-  it('generateStarsInvoice RPC method returns invoice link', async () => {
+  it('generateStarsInvoice RPC method returns invoice link with 500 Stars', async () => {
     const fakeDb = {
       getUser: vi.fn().mockResolvedValue({ role: 'free', language: 'en' }),
-      getSettings: vi.fn().mockResolvedValue({ telegram_stars_price: '250' }),
+      getSettings: vi.fn().mockResolvedValue({ telegram_stars_price: '500' }),
     } as any;
 
     const fakeTelegram = {
       createStarsInvoiceLink: vi.fn().mockResolvedValue('https://t.me/$stars_invoice_link'),
     } as any;
 
-    // Use fake bot token
     const botToken = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11';
 
     const req = new Request('https://worker.test/api/rpc', {
@@ -230,7 +229,6 @@ describe('Telegram Stars Payment Integration', () => {
       }),
     });
 
-    // Mock verifyBrowserSession
     const loginUtils = await import('../src/utils/telegram-login');
     vi.spyOn(loginUtils, 'verifyBrowserSession').mockResolvedValue({
       id: '123456',
@@ -250,6 +248,6 @@ describe('Telegram Stars Payment Integration', () => {
     expect(res.status).toBe(200);
     const data = await res.json<any>();
     expect(data.result).toBe('https://t.me/$stars_invoice_link');
-    expect(fakeTelegram.createStarsInvoiceLink).toHaveBeenCalledWith('123456', 'en', 250);
+    expect(fakeTelegram.createStarsInvoiceLink).toHaveBeenCalledWith('123456', 'en', 500);
   });
 });
