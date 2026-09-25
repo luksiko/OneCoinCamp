@@ -5565,6 +5565,11 @@
       var maxRoutes = state.user.maxRoutes || 3;
       var currentRoutes = state.user.routeCount || 0;
       
+      var btnRun = document.getElementById('btnRun');
+      if (btnRun) {
+        btnRun.style.display = state.user.role === 'admin' ? 'block' : 'none';
+      }
+      
       if (state.user.role === 'admin') {
         banner.style.display = 'block';
         title.textContent = 'Admin Account';

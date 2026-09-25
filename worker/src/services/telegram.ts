@@ -337,6 +337,13 @@ export class TelegramService {
 
   async showActualOffers(chatId: string | number, telegramId: string, lang: string = 'en'): Promise<void> {
     const l = resolveLanguage(lang);
+    
+    const user = await this.db.getUser(telegramId);
+    if (!this.db.isSubscriptionActive(user) && user?.role !== 'admin') {
+      await this.sendMessage(chatId, '💎 ' + t('premium_required', lang));
+      return;
+    }
+
     const userFilters = await this.db.getUserFilters(telegramId);
     const userRoutes = await this.db.getUserRoutes(telegramId);
     const activeOffers = await this.db.getOffers(50, 0);
@@ -862,6 +869,11 @@ export class TelegramService {
     }
 
     if (text.startsWith('/check')) {
+      const user = await this.db.getUser(telegramId);
+      if (user?.role !== 'admin') {
+        await this.sendMessage(chatId, '❌ Эта команда доступна только администраторам.');
+        return;
+      }
       await this.sendMessage(chatId, t('check_starting', lang));
       try {
         const result = await triggerMonitorFn();
