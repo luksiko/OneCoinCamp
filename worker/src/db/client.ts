@@ -111,21 +111,24 @@ export class DbClient {
     telegramId: string | number,
     chatId: string | number,
     username?: string,
-    firstName?: string
+    firstName?: string,
+    language?: string
   ): Promise<void> {
     const id = String(telegramId);
     const chat = String(chatId);
+    const lang = language ? language.toLowerCase().slice(0, 2) : null;
     await this.db
       .prepare(
-        `INSERT INTO users (telegram_id, chat_id, username, first_name, status, last_active_at)
-         VALUES (?, ?, ?, ?, 'active', CURRENT_TIMESTAMP)
+        `INSERT INTO users (telegram_id, chat_id, username, first_name, language, status, last_active_at)
+         VALUES (?, ?, ?, ?, COALESCE(?, 'en'), 'active', CURRENT_TIMESTAMP)
          ON CONFLICT(telegram_id) DO UPDATE SET
            chat_id = excluded.chat_id,
            username = COALESCE(excluded.username, users.username),
            first_name = COALESCE(excluded.first_name, users.first_name),
+           language = COALESCE(users.language, excluded.language),
            last_active_at = CURRENT_TIMESTAMP`
       )
-      .bind(id, chat, username || null, firstName || null)
+      .bind(id, chat, username || null, firstName || null, lang)
       .run();
 
     const user = await this.getUser(telegramId);
@@ -621,24 +624,63 @@ export class DbClient {
     ).bind(status, startedAt, expiresAt, String(telegramId)).run();
   }
 
-  async activateSubscription(telegramId: string, days: number): Promise<void> {
+  async adjustSubscription(telegramId: string, days: number): Promise<{ expiresAt: string | null; status: string; role: string }> {
     const user = await this.getUser(telegramId);
+    if (!user) throw new Error('User not found');
     const now = new Date();
-    let startFrom = now;
-    if (user?.subscription_expires_at) {
-      const currentExpiry = new Date(user.subscription_expires_at);
-      if (currentExpiry > now) startFrom = currentExpiry;
+    let currentExpiry = user.subscription_expires_at ? new Date(user.subscription_expires_at) : null;
+    let baseTime: number;
+
+    if (days >= 0) {
+      if (currentExpiry && currentExpiry.getTime() > now.getTime()) {
+        baseTime = currentExpiry.getTime();
+      } else {
+        baseTime = now.getTime();
+      }
+      const newExpiry = new Date(baseTime + days * 86400000);
+      const newStatus = 'active';
+      await this.setSubscription(
+        telegramId,
+        newStatus,
+        user.subscription_started_at || now.toISOString(),
+        newExpiry.toISOString()
+      );
+      if (user.role !== 'admin') {
+        await this.setUserRole(telegramId, 'premium');
+      }
+      return { expiresAt: newExpiry.toISOString(), status: newStatus, role: user.role === 'admin' ? 'admin' : 'premium' };
+    } else {
+      // Subtracting days
+      if (!currentExpiry || currentExpiry.getTime() <= now.getTime()) {
+        return { expiresAt: null, status: user.subscription_status, role: user.role };
+      }
+      const newExpiry = new Date(currentExpiry.getTime() + days * 86400000);
+      if (newExpiry.getTime() <= now.getTime()) {
+        // Expired immediately
+        await this.setSubscription(
+          telegramId,
+          'expired',
+          user.subscription_started_at || now.toISOString(),
+          new Date().toISOString()
+        );
+        if (user.role !== 'admin') {
+          await this.setUserRole(telegramId, 'free');
+        }
+        return { expiresAt: new Date().toISOString(), status: 'expired', role: user.role === 'admin' ? 'admin' : 'free' };
+      } else {
+        await this.setSubscription(
+          telegramId,
+          'active',
+          user.subscription_started_at || now.toISOString(),
+          newExpiry.toISOString()
+        );
+        return { expiresAt: newExpiry.toISOString(), status: 'active', role: user.role };
+      }
     }
-    const expiresAt = new Date(startFrom.getTime() + days * 86400000);
-    await this.setSubscription(
-      telegramId, 'active',
-      user?.subscription_started_at || now.toISOString(),
-      expiresAt.toISOString()
-    );
-    // Upgrade to premium with unlimited routes
-    await this.db.prepare(
-      'UPDATE users SET role = ?, max_routes = NULL WHERE telegram_id = ? AND role != ?'
-    ).bind('premium', String(telegramId), 'admin').run();
+  }
+
+  async activateSubscription(telegramId: string, days: number): Promise<void> {
+    await this.adjustSubscription(telegramId, days);
   }
 
   async activateTrial(telegramId: string): Promise<boolean> {
@@ -663,11 +705,15 @@ export class DbClient {
     return (results || []) as User[];
   }
 
-  async listAllUsers(): Promise<User[]> {
+  async listAllUsers(): Promise<(User & { route_count?: number; payment_count?: number })[]> {
     const { results } = await this.db.prepare(
-      'SELECT * FROM users ORDER BY created_at DESC'
+      `SELECT u.*, 
+        (SELECT COUNT(*) FROM user_routes r WHERE r.telegram_id = u.telegram_id) as route_count,
+        (SELECT COUNT(*) FROM payments p WHERE p.telegram_id = u.telegram_id) as payment_count
+       FROM users u 
+       ORDER BY u.created_at DESC`
     ).all<any>();
-    return (results || []) as User[];
+    return (results || []) as (User & { route_count?: number; payment_count?: number })[];
   }
 
   async recordPayment(payment: Partial<Payment>): Promise<void> {
@@ -689,6 +735,43 @@ export class DbClient {
       'SELECT * FROM payments WHERE telegram_id = ? ORDER BY created_at DESC LIMIT 50'
     ).bind(String(telegramId)).all<any>();
     return (results || []) as Payment[];
+  }
+
+  async getAllPayments(limit: number = 100): Promise<(Payment & { username?: string; first_name?: string })[]> {
+    const { results } = await this.db.prepare(
+      `SELECT p.*, u.username, u.first_name 
+       FROM payments p 
+       LEFT JOIN users u ON p.telegram_id = u.telegram_id 
+       ORDER BY p.created_at DESC 
+       LIMIT ?`
+    ).bind(limit).all<any>();
+    return (results || []) as (Payment & { username?: string; first_name?: string })[];
+  }
+
+  async getAdminStats(): Promise<{
+    totalUsers: number;
+    activeSubscribers: number;
+    totalRoutes: number;
+    totalOffers: number;
+    totalPayments: number;
+    totalRevenue: number;
+  }> {
+    const [usersRes, subsRes, routesRes, offersRes, paymentsRes] = await Promise.all([
+      this.db.prepare('SELECT COUNT(*) as count FROM users').first<{ count: number }>(),
+      this.db.prepare("SELECT COUNT(*) as count FROM users WHERE subscription_status = 'active' OR role = 'premium'").first<{ count: number }>(),
+      this.db.prepare('SELECT COUNT(*) as count FROM user_routes').first<{ count: number }>(),
+      this.db.prepare('SELECT COUNT(*) as count FROM offers WHERE is_active = 1').first<{ count: number }>(),
+      this.db.prepare("SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total FROM payments WHERE status = 'completed'").first<{ count: number; total: number }>(),
+    ]);
+
+    return {
+      totalUsers: usersRes?.count || 0,
+      activeSubscribers: subsRes?.count || 0,
+      totalRoutes: routesRes?.count || 0,
+      totalOffers: offersRes?.count || 0,
+      totalPayments: paymentsRes?.count || 0,
+      totalRevenue: paymentsRes?.total || 0,
+    };
   }
 
   async setPaddleIds(telegramId: string, customerId: string, subscriptionId?: string): Promise<void> {

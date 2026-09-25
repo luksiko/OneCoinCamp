@@ -14,11 +14,15 @@ export interface User {
   language: string;
   created_at?: string;
   last_active_at?: string;
+  route_count?: number;
+  payment_count?: number;
 }
 
 export interface Payment {
   id?: number;
   telegram_id: string;
+  username?: string;
+  first_name?: string;
   paddle_transaction_id?: string;
   amount: number;
   currency: string;

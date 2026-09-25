@@ -58,6 +58,32 @@ const BOT_COMMANDS_EN = [
   { command: 'help', description: 'Help & instructions' },
 ];
 
+const BOT_COMMANDS_DE = [
+  { command: 'start', description: 'Hauptmenü' },
+  { command: 'actual', description: 'Aktuelle 1€-Angebote' },
+  { command: 'routes', description: 'Meine Routen' },
+  { command: 'check', description: 'Jetzt prüfen' },
+  { command: 'digest', description: '24-Stunden-Übersicht' },
+  { command: 'subscribe', description: 'Premium-Abonnement' },
+  { command: 'account', description: 'Mein Konto' },
+  { command: 'silent', description: 'Ruhezeiten' },
+  { command: 'status', description: 'Monitor-Status' },
+  { command: 'help', description: 'Hilfe und Anleitung' },
+];
+
+const BOT_COMMANDS_IT = [
+  { command: 'start', description: 'Menu principale' },
+  { command: 'actual', description: 'Offerte attive a 1€' },
+  { command: 'routes', description: 'I miei percorsi' },
+  { command: 'check', description: 'Controlla ora' },
+  { command: 'digest', description: 'Riepilogo 24 ore' },
+  { command: 'subscribe', description: 'Abbonamento Premium' },
+  { command: 'account', description: 'Il mio account' },
+  { command: 'silent', description: 'Ore silenziose' },
+  { command: 'status', description: 'Stato del monitor' },
+  { command: 'help', description: 'Guida e istruzioni' },
+];
+
 async function setCommands() {
   console.log('Registering bot commands (EN / default)...');
   const resEn = await fetch(`https://api.telegram.org/bot${botToken}/setMyCommands`, {
@@ -74,6 +100,22 @@ async function setCommands() {
     body: JSON.stringify({ commands: BOT_COMMANDS_RU, language_code: 'ru' }),
   });
   console.log('Response RU:', await resRu.json());
+
+  console.log('Registering bot commands (DE)...');
+  const resDe = await fetch(`https://api.telegram.org/bot${botToken}/setMyCommands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ commands: BOT_COMMANDS_DE, language_code: 'de' }),
+  });
+  console.log('Response DE:', await resDe.json());
+
+  console.log('Registering bot commands (IT)...');
+  const resIt = await fetch(`https://api.telegram.org/bot${botToken}/setMyCommands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ commands: BOT_COMMANDS_IT, language_code: 'it' }),
+  });
+  console.log('Response IT:', await resIt.json());
 }
 
 async function setMenu(chatId) {

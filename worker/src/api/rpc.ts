@@ -43,9 +43,16 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
     if (!identity) return jsonError('Unauthorized', 401);
     const user = await ctx.db.getUser(identity.id);
     const isAdmin = user?.role === 'admin';
-    if (['deleteOffer', 'runMonitorFromUi', 'registerTelegramWebhookWeb', 'deleteTelegramWebhookWeb', 'checkOffersAvailabilityWeb', 'adminListUsers', 'adminSetRole', 'adminGrantSubscription', 'adminRevokeSubscription', 'adminGetPayments'].includes(method) && !isAdmin) {
+    if (['deleteOffer', 'runMonitorFromUi', 'registerTelegramWebhookWeb', 'deleteTelegramWebhookWeb', 'checkOffersAvailabilityWeb', 'adminListUsers', 'adminSetRole', 'adminGrantSubscription', 'adminAdjustSubscription', 'adminRevokeSubscription', 'adminGetPayments', 'adminGetStats'].includes(method) && !isAdmin) {
       return jsonError('Forbidden', 403);
     }
+
+    const extractAdminArgs = (a: any[]) => {
+      if (typeof a[0] === 'string' && (a[0].includes('hash=') || a[0].includes('user='))) {
+        return { targetId: String(a[1] || ''), param: a[2] };
+      }
+      return { targetId: String(a[0] || ''), param: a[1] };
+    };
 
     let result: any = null;
 
@@ -94,29 +101,47 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
         if (!isAdmin) return jsonError('Forbidden', 403);
         result = await ctx.db.listAllUsers();
         break;
-      case 'adminSetRole':
+      case 'adminSetRole': {
         if (!isAdmin) return jsonError('Forbidden', 403);
-        await ctx.db.setUserRole(args[0], args[1]);
+        const { targetId, param } = extractAdminArgs(args);
+        await ctx.db.setUserRole(targetId, param);
         result = { ok: true };
         break;
+      }
       case 'adminGrantSubscription':
+      case 'adminAdjustSubscription': {
         if (!isAdmin) return jsonError('Forbidden', 403);
-        await ctx.db.activateSubscription(args[0], Number(args[1]) || 30);
-        result = { ok: true };
+        const { targetId, param } = extractAdminArgs(args);
+        result = await ctx.db.adjustSubscription(targetId, Number(param) || 0);
         break;
-      case 'adminRevokeSubscription':
+      }
+      case 'adminRevokeSubscription': {
         if (!isAdmin) return jsonError('Forbidden', 403);
-        const targetUser = await ctx.db.getUser(args[0]);
+        const { targetId } = extractAdminArgs(args);
+        const targetUser = await ctx.db.getUser(targetId);
         if (targetUser) {
-          await ctx.db.setSubscription(args[0], 'expired',
+          await ctx.db.setSubscription(targetId, 'expired',
             targetUser.subscription_started_at || '', new Date().toISOString());
-          await ctx.db.setUserRole(args[0], 'free');
+          if (targetUser.role !== 'admin') {
+            await ctx.db.setUserRole(targetId, 'free');
+          }
         }
         result = { ok: true };
         break;
-      case 'adminGetPayments':
+      }
+      case 'adminGetPayments': {
         if (!isAdmin) return jsonError('Forbidden', 403);
-        result = await ctx.db.getUserPayments(args[0] || '');
+        const { targetId } = extractAdminArgs(args);
+        if (targetId && targetId !== 'undefined' && targetId !== 'null') {
+          result = await ctx.db.getUserPayments(targetId);
+        } else {
+          result = await ctx.db.getAllPayments(100);
+        }
+        break;
+      }
+      case 'adminGetStats':
+        if (!isAdmin) return jsonError('Forbidden', 403);
+        result = await ctx.db.getAdminStats();
         break;
       case 'deleteTelegramWebhookWeb':
         result = await deleteTelegramWebhook(ctx);

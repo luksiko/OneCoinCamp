@@ -1249,12 +1249,95 @@
     </div>
 
     <div id="screenAdmin" style="display:none;">
-      <div class="card">
-        <div class="card-title">Admin Panel</div>
-        <div style="margin-bottom:10px;">
-          <button type="button" class="btn btn-secondary" style="margin:0;" onclick="adminListUsers()">Load Users</button>
+      <!-- KPI / Dashboard Header -->
+      <div class="card" style="padding:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;">👑 Управление проектом</div>
+          <button type="button" class="btn btn-secondary" style="padding:4px 10px;font-size:12px;margin:0;" onclick="adminRefreshAll()">🔄 Обновить</button>
         </div>
-        <div id="adminUserList" style="font-size:12px;"></div>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="adminStatsGrid">
+          <div style="background:var(--section);border-radius:10px;padding:8px 10px;border:1px solid var(--border);">
+            <div style="font-size:11px;color:var(--hint);">👥 Пользователи</div>
+            <div style="font-size:15px;font-weight:700;margin-top:2px;" id="kpiUsers">—</div>
+          </div>
+          <div style="background:var(--section);border-radius:10px;padding:8px 10px;border:1px solid var(--border);">
+            <div style="font-size:11px;color:var(--hint);">💳 Доход / Оплаты</div>
+            <div style="font-size:15px;font-weight:700;margin-top:2px;" id="kpiRevenue">—</div>
+          </div>
+          <div style="background:var(--section);border-radius:10px;padding:8px 10px;border:1px solid var(--border);">
+            <div style="font-size:11px;color:var(--hint);">🚗 Маршруты</div>
+            <div style="font-size:15px;font-weight:700;margin-top:2px;" id="kpiRoutes">—</div>
+          </div>
+          <div style="background:var(--section);border-radius:10px;padding:8px 10px;border:1px solid var(--border);">
+            <div style="font-size:11px;color:var(--hint);">🎫 Активные офферы</div>
+            <div style="font-size:15px;font-weight:700;margin-top:2px;" id="kpiOffers">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Sub-navigation -->
+      <div class="seg" style="margin-bottom:10px;">
+        <button type="button" class="selected" id="btnAdminTabUsers" onclick="adminSwitchSubTab('users')">👥 Пользователи</button>
+        <button type="button" id="btnAdminTabPayments" onclick="adminSwitchSubTab('payments')">💳 Оплаты</button>
+        <button type="button" id="btnAdminTabSystem" onclick="adminSwitchSubTab('system')">⚙️ Система</button>
+      </div>
+
+      <!-- SubTab: Users -->
+      <div id="adminViewUsers">
+        <div class="card" style="padding:12px;">
+          <div style="margin-bottom:10px;">
+            <input type="text" id="adminUserSearch" placeholder="🔍 Поиск по имени, @username или ID..." 
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;"
+              oninput="adminFilterUsers()">
+          </div>
+          <div class="chips" style="margin-bottom:12px;" id="adminRoleChips">
+            <button type="button" class="chip selected" onclick="adminFilterRole('all', this)">Все (<span id="countAllUsers">0</span>)</button>
+            <button type="button" class="chip" onclick="adminFilterRole('active', this)">👑 Premium (<span id="countActiveUsers">0</span>)</button>
+            <button type="button" class="chip" onclick="adminFilterRole('free', this)">⚪ Free (<span id="countFreeUsers">0</span>)</button>
+            <button type="button" class="chip" onclick="adminFilterRole('admin', this)">🛡️ Admin (<span id="countAdminUsers">0</span>)</button>
+          </div>
+          <div id="adminUserList" style="display:flex;flex-direction:column;gap:10px;"></div>
+        </div>
+      </div>
+
+      <!-- SubTab: Payments -->
+      <div id="adminViewPayments" style="display:none;">
+        <div class="card" style="padding:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div class="card-title" style="margin:0;">💳 История транзакций</div>
+            <button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;margin:0;" onclick="adminLoadPayments(adminSelectedPaymentUserId)">🔄 Обновить</button>
+          </div>
+          <div id="adminPaymentsFilterNotice" style="display:none;background:rgba(46,166,255,0.12);border:1px solid var(--accent);border-radius:8px;padding:6px 10px;margin-bottom:10px;font-size:12px;justify-content:space-between;align-items:center;">
+            <span id="adminPaymentsFilterUser">Оплаты пользователя: ...</span>
+            <button type="button" class="btn btn-secondary" style="padding:2px 8px;font-size:11px;margin:0;" onclick="adminResetPaymentFilter()">Показать все</button>
+          </div>
+          <div id="adminPaymentsList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+
+      <!-- SubTab: System & Monitor -->
+      <div id="adminViewSystem" style="display:none;">
+        <div class="card" style="padding:12px;">
+          <div class="card-title" style="margin-bottom:8px;">📡 Состояние монитора</div>
+          <div id="adminMonitorStatusText" style="font-size:13px;line-height:1.6;color:var(--text);margin-bottom:12px;background:var(--section);padding:10px;border-radius:8px;border:1px solid var(--border);">
+            Загрузка статуса...
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <button type="button" class="btn btn-accent" id="btnAdminRunMonitor" onclick="adminRunMonitorNow()" style="margin:0;padding:10px;font-size:13px;">
+              🚀 Запустить сканирование сейчас
+            </button>
+            <button type="button" class="btn btn-secondary" id="btnAdminExpireOffers" onclick="adminExpireOffersNow()" style="margin:0;padding:8px;font-size:12px;">
+              🧹 Очистить истекшие офферы
+            </button>
+            <button type="button" class="btn btn-secondary" id="btnAdminWebhook" onclick="adminRegisterWebhookNow()" style="margin:0;padding:8px;font-size:12px;">
+              🔄 Переподключить вебхук Telegram
+            </button>
+            <button type="button" class="btn btn-secondary" id="btnAdminHealth" onclick="adminCheckHealthNow()" style="margin:0;padding:8px;font-size:12px;">
+              🏥 Проверить API провайдеров
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1462,6 +1545,7 @@
         tab_offers: 'Angebote',
         tab_analytics: 'Statistik',
         tab_settings: 'Optionen',
+        tab_admin: 'Admin',
         all_cities: 'Alle Städte',
         station_prefix: 'Station ',
         any_country: '🌍 Beliebiges Land',
@@ -1619,6 +1703,7 @@
         tab_offers: 'Offerte',
         tab_analytics: 'Statistiche',
         tab_settings: 'Opzioni',
+        tab_admin: 'Admin',
         all_cities: 'Tutte le città',
         station_prefix: 'Stazione ',
         any_country: '🌍 Qualsiasi paese',
@@ -1776,6 +1861,7 @@
         tab_offers: 'Offers',
         tab_analytics: 'Analytics',
         tab_settings: 'Settings',
+        tab_admin: 'Admin',
         all_cities: 'All cities',
         station_prefix: 'Station ',
         any_country: '🌍 Any country',
@@ -1933,6 +2019,7 @@
         tab_offers: 'Офери',
         tab_analytics: 'Аналітика',
         tab_settings: 'Налаштування',
+        tab_admin: 'Адмін',
         all_cities: 'Всі міста',
         station_prefix: 'Станція ',
         any_country: '🌍 Будь-яка країна',
@@ -2090,6 +2177,7 @@
         tab_offers: 'Офферы',
         tab_analytics: 'Аналитика',
         tab_settings: 'Настройки',
+        tab_admin: 'Админ',
         all_cities: 'Все города',
         station_prefix: 'Станция ',
         any_country: '🌍 Любая страна',
@@ -2388,6 +2476,7 @@
       if (tab === 'settings')  updateGitVersionDisplay();
       if (tab === 'offers')    loadOffers();
       if (tab === 'analytics') loadAnalytics();
+      if (tab === 'admin')     adminInit();
     }
 
     // ── Analytics ───────────────────────────────────────────────
@@ -4450,35 +4539,441 @@
       toastTimer = setTimeout(function () { el.className = ''; }, 2500);
     }
 
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    var adminInitialized = false;
+    var adminUsersData = [];
+    var adminActiveRoleFilter = 'all';
+    var adminPaymentsData = [];
+    var adminSelectedPaymentUserId = null;
+
+    function adminInit() {
+      if (!adminInitialized) {
+        adminInitialized = true;
+        adminSwitchSubTab('users');
+      }
+      adminRefreshAll();
+    }
+
+    function adminSwitchSubTab(subTab) {
+      var tabUsers = document.getElementById('btnAdminTabUsers');
+      var tabPayments = document.getElementById('btnAdminTabPayments');
+      var tabSystem = document.getElementById('btnAdminTabSystem');
+      var viewUsers = document.getElementById('adminViewUsers');
+      var viewPayments = document.getElementById('adminViewPayments');
+      var viewSystem = document.getElementById('adminViewSystem');
+
+      if (tabUsers) tabUsers.classList.toggle('selected', subTab === 'users');
+      if (tabPayments) tabPayments.classList.toggle('selected', subTab === 'payments');
+      if (tabSystem) tabSystem.classList.toggle('selected', subTab === 'system');
+
+      if (viewUsers) viewUsers.style.display = subTab === 'users' ? 'block' : 'none';
+      if (viewPayments) viewPayments.style.display = subTab === 'payments' ? 'block' : 'none';
+      if (viewSystem) viewSystem.style.display = subTab === 'system' ? 'block' : 'none';
+
+      if (subTab === 'payments' && (!adminPaymentsData || !adminPaymentsData.length)) {
+        adminLoadPayments(adminSelectedPaymentUserId);
+      }
+      if (subTab === 'system') {
+        adminUpdateSystemStatus();
+      }
+    }
+
+    function adminRefreshAll() {
+      adminLoadStats();
+      adminListUsers();
+      if (document.getElementById('adminViewPayments')?.style.display !== 'none') {
+        adminLoadPayments(adminSelectedPaymentUserId);
+      }
+      adminUpdateSystemStatus();
+    }
+
+    function adminLoadStats() {
+      google.script.run
+        .withSuccessHandler(function(stats) {
+          if (!stats) return;
+          var elUsers = document.getElementById('kpiUsers');
+          var elRev = document.getElementById('kpiRevenue');
+          var elRoutes = document.getElementById('kpiRoutes');
+          var elOffers = document.getElementById('kpiOffers');
+
+          if (elUsers) elUsers.textContent = (stats.totalUsers || 0) + ' (👑 ' + (stats.activeSubscribers || 0) + ')';
+          if (elRev) elRev.textContent = '€' + (stats.totalRevenue ? Number(stats.totalRevenue).toFixed(2) : '0') + ' (' + (stats.totalPayments || 0) + ')';
+          if (elRoutes) elRoutes.textContent = (stats.totalRoutes || 0) + ' шт';
+          if (elOffers) elOffers.textContent = (stats.totalOffers || 0) + ' акт.';
+        })
+        .adminGetStats();
+    }
+
     function adminListUsers() {
       var container = document.getElementById('adminUserList');
-      container.textContent = 'Loading...';
+      if (!container) return;
+      container.innerHTML = '<div style="color:var(--hint);padding:8px;">Загрузка пользователей...</div>';
       google.script.run
         .withSuccessHandler(function(users) {
-          container.innerHTML = '';
-          users.forEach(function(u) {
-            var div = document.createElement('div');
-            div.style.padding = '8px';
-            div.style.borderBottom = '1px solid var(--border)';
-            var subText = u.subscription_status === 'active' ? ('Active until ' + new Date(u.subscription_expires_at).toLocaleDateString()) : String(u.subscription_status);
-            div.innerHTML = `<strong>${u.username || u.telegram_id}</strong> (${u.role})<br>Sub: ${subText}<br>
-            <button class="btn btn-secondary" style="display:inline-block;padding:4px 8px;font-size:11px;margin:2px;" onclick="adminGrantSub('${u.telegram_id}', 30)">+30d Premium</button>
-            <button class="btn btn-secondary" style="display:inline-block;padding:4px 8px;font-size:11px;margin:2px;" onclick="adminRevokeSub('${u.telegram_id}')">Revoke</button>`;
-            container.appendChild(div);
-          });
+          adminUsersData = users || [];
+          adminUpdateUserFilterCounts();
+          adminRenderUsers();
         })
-        .withFailureHandler(function(e) { container.textContent = 'Error: ' + e; })
-        .adminListUsers(getInitData());
+        .withFailureHandler(function(e) {
+          container.innerHTML = '<div style="color:var(--danger);padding:8px;">Ошибка: ' + (e && e.message || e) + '</div>';
+        })
+        .adminListUsers();
     }
-    
-    function adminGrantSub(userId, days) {
-      if(!confirm('Grant ' + days + ' days to ' + userId + '?')) return;
-      google.script.run.withSuccessHandler(function(){ adminListUsers(); }).adminGrantSubscription(getInitData(), userId, days);
+
+    function adminUpdateUserFilterCounts() {
+      var all = adminUsersData.length;
+      var active = 0, free = 0, admin = 0;
+      adminUsersData.forEach(function(u) {
+        if (u.role === 'admin') admin++;
+        else if (u.subscription_status === 'active' || u.role === 'premium') active++;
+        else free++;
+      });
+      var cAll = document.getElementById('countAllUsers');
+      var cAct = document.getElementById('countActiveUsers');
+      var cFree = document.getElementById('countFreeUsers');
+      var cAdm = document.getElementById('countAdminUsers');
+      if (cAll) cAll.textContent = all;
+      if (cAct) cAct.textContent = active;
+      if (cFree) cFree.textContent = free;
+      if (cAdm) cAdm.textContent = admin;
     }
-    
+
+    function adminFilterRole(role, btn) {
+      adminActiveRoleFilter = role;
+      var chips = document.querySelectorAll('#adminRoleChips .chip');
+      chips.forEach(function(c) { c.classList.remove('selected'); });
+      if (btn) btn.classList.add('selected');
+      adminRenderUsers();
+    }
+
+    function adminFilterUsers() {
+      adminRenderUsers();
+    }
+
+    function adminRenderUsers() {
+      var container = document.getElementById('adminUserList');
+      if (!container) return;
+      var q = (document.getElementById('adminUserSearch')?.value || '').toLowerCase().trim();
+
+      var filtered = adminUsersData.filter(function(u) {
+        if (adminActiveRoleFilter === 'admin' && u.role !== 'admin') return false;
+        if (adminActiveRoleFilter === 'active' && !(u.subscription_status === 'active' || u.role === 'premium')) return false;
+        if (adminActiveRoleFilter === 'free' && (u.role === 'admin' || u.subscription_status === 'active' || u.role === 'premium')) return false;
+
+        if (q) {
+          var matchName = (u.first_name || '').toLowerCase().indexOf(q) !== -1;
+          var matchUser = (u.username || '').toLowerCase().indexOf(q) !== -1;
+          var matchId = String(u.telegram_id || '').indexOf(q) !== -1;
+          return matchName || matchUser || matchId;
+        }
+        return true;
+      });
+
+      if (!filtered.length) {
+        container.innerHTML = '<div style="color:var(--hint);padding:12px;text-align:center;">Пользователи не найдены</div>';
+        return;
+      }
+
+      container.innerHTML = '';
+      filtered.forEach(function(u) {
+        var card = document.createElement('div');
+        card.style.cssText = 'background:var(--section);border:1px solid var(--border);border-radius:12px;padding:10px;';
+        
+        var userName = escapeHtml(u.first_name || (u.username ? '@' + u.username : ('ID ' + u.telegram_id)));
+        var userAt = u.username ? `<span style="font-size:12px;font-weight:normal;color:var(--hint);">@${escapeHtml(u.username)}</span>` : '';
+        
+        var roleBadge = '';
+        if (u.role === 'admin') {
+          roleBadge = '<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:rgba(255,149,0,0.15);color:#ff9500;font-weight:700;">🛡️ ADMIN</span>';
+        } else if (u.role === 'premium' || u.subscription_status === 'active') {
+          roleBadge = '<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:rgba(76,217,100,0.15);color:var(--success);font-weight:700;">👑 PREMIUM</span>';
+        } else {
+          roleBadge = '<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:rgba(255,255,255,0.06);color:var(--hint);font-weight:600;">⚪ FREE</span>';
+        }
+
+        var expiryDesc = '';
+        if (u.subscription_expires_at) {
+          var exp = new Date(u.subscription_expires_at);
+          var now = new Date();
+          var daysLeft = Math.ceil((exp.getTime() - now.getTime()) / 86400000);
+          if (daysLeft > 0) {
+            expiryDesc = `<span style="color:var(--success);">до ${exp.toLocaleDateString()} (${daysLeft} дн.)</span>`;
+          } else {
+            expiryDesc = `<span style="color:var(--danger);">истекла ${exp.toLocaleDateString()}</span>`;
+          }
+        } else {
+          expiryDesc = '<span style="color:var(--hint);">нет подписки</span>';
+        }
+
+        var statusBadge = '';
+        if (u.subscription_status === 'active') statusBadge = '🟢 Активна';
+        else if (u.subscription_status === 'trial') statusBadge = '🟡 Пробная';
+        else if (u.subscription_status === 'expired') statusBadge = '🔴 Истекла';
+        else statusBadge = '⚪ Неактивна';
+
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+            <div>
+              <div style="font-weight:700;font-size:14px;color:var(--text);">${userName} ${userAt}</div>
+              <div style="font-size:11px;color:var(--hint);font-family:monospace;margin-top:2px;">ID: ${u.telegram_id}</div>
+            </div>
+            <div>${roleBadge}</div>
+          </div>
+
+          <div style="font-size:12px;margin-bottom:8px;color:var(--subtext);background:var(--card);padding:6px 8px;border-radius:8px;border:1px solid var(--border);">
+            <div><b>Подписка:</b> ${statusBadge} • ${expiryDesc}</div>
+            <div style="font-size:11px;margin-top:2px;color:var(--hint);">
+              🚗 Маршрутов: <b>${u.route_count || 0}</b> • 💳 Оплат: <b>${u.payment_count || 0}</b> • Язык: <b>${(u.language || 'ru').toUpperCase()}</b>
+            </div>
+          </div>
+
+          <div style="margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:600;color:var(--hint);margin-bottom:4px;">⏱️ Изменить время подписки:</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">
+              <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;margin:0;color:var(--success);border-color:rgba(76,217,100,0.3);" onclick="adminAdjustSub('${u.telegram_id}', 30)">+30д</button>
+              <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;margin:0;color:var(--success);border-color:rgba(76,217,100,0.3);" onclick="adminAdjustSub('${u.telegram_id}', 7)">+7д</button>
+              <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;margin:0;color:#ff9500;border-color:rgba(255,149,0,0.3);" onclick="adminAdjustSub('${u.telegram_id}', -7)">-7д</button>
+              <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;margin:0;color:#ff9500;border-color:rgba(255,149,0,0.3);" onclick="adminAdjustSub('${u.telegram_id}', -30)">-30д</button>
+              <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;margin:0;" onclick="adminPromptCustomDays('${u.telegram_id}', '${userName}')">⏳ +/- Дней</button>
+              <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;margin:0;color:var(--danger);border-color:rgba(255,91,102,0.3);" onclick="adminRevokeSub('${u.telegram_id}')">❌ Сбросить</button>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:11px;color:var(--hint);">Роль:</span>
+              <select style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:11px;padding:2px 6px;" onchange="adminChangeRole('${u.telegram_id}', this.value)">
+                <option value="free" ${u.role === 'free' ? 'selected' : ''}>⚪ Free</option>
+                <option value="premium" ${u.role === 'premium' ? 'selected' : ''}>👑 Premium</option>
+                <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>🛡️ Admin</option>
+              </select>
+            </div>
+            <div>
+              <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;margin:0;" onclick="adminViewUserPayments('${u.telegram_id}', '${userName}')">
+                💳 Оплаты (${u.payment_count || 0})
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function adminAdjustSub(userId, days) {
+      var actionText = days > 0 ? ('Добавить ' + days + ' дн.') : ('Убрать ' + Math.abs(days) + ' дн.');
+      if (!confirm(actionText + ' пользователю ' + userId + '?')) return;
+      toast('Обновление подписки...');
+      google.script.run
+        .withSuccessHandler(function(res) {
+          toast('Подписка обновлена!');
+          adminRefreshAll();
+        })
+        .withFailureHandler(function(e) {
+          toast('Ошибка: ' + (e && e.message || e), true);
+        })
+        .adminAdjustSubscription(userId, days);
+    }
+
+    function adminPromptCustomDays(userId, userName) {
+      var input = prompt('Введите количество дней для добавления (+) или вычитания (-):\nНапример: 14 или -7', '7');
+      if (input === null || input.trim() === '') return;
+      var days = parseInt(input.trim(), 10);
+      if (isNaN(days) || days === 0) {
+        toast('Некорректное число дней', true);
+        return;
+      }
+      adminAdjustSub(userId, days);
+    }
+
     function adminRevokeSub(userId) {
-      if(!confirm('Revoke sub for ' + userId + '?')) return;
-      google.script.run.withSuccessHandler(function(){ adminListUsers(); }).adminRevokeSubscription(getInitData(), userId);
+      if (!confirm('Полностью аннулировать подписку для ' + userId + '?')) return;
+      toast('Аннулирование подписки...');
+      google.script.run
+        .withSuccessHandler(function() {
+          toast('Подписка аннулирована');
+          adminRefreshAll();
+        })
+        .withFailureHandler(function(e) {
+          toast('Ошибка: ' + (e && e.message || e), true);
+        })
+        .adminRevokeSubscription(userId);
+    }
+
+    function adminChangeRole(userId, newRole) {
+      if (!confirm('Изменить роль пользователя ' + userId + ' на ' + newRole + '?')) {
+        adminListUsers();
+        return;
+      }
+      toast('Смена роли...');
+      google.script.run
+        .withSuccessHandler(function() {
+          toast('Роль изменена на ' + newRole);
+          adminRefreshAll();
+        })
+        .withFailureHandler(function(e) {
+          toast('Ошибка: ' + (e && e.message || e), true);
+        })
+        .adminSetRole(userId, newRole);
+    }
+
+    function adminLoadPayments(filterUserId) {
+      var container = document.getElementById('adminPaymentsList');
+      if (!container) return;
+      container.innerHTML = '<div style="color:var(--hint);padding:8px;">Загрузка оплат...</div>';
+      adminSelectedPaymentUserId = filterUserId || null;
+
+      var notice = document.getElementById('adminPaymentsFilterNotice');
+      var filterUserText = document.getElementById('adminPaymentsFilterUser');
+      if (notice) {
+        if (adminSelectedPaymentUserId) {
+          notice.style.display = 'flex';
+          if (filterUserText) filterUserText.textContent = 'Оплаты пользователя ID: ' + adminSelectedPaymentUserId;
+        } else {
+          notice.style.display = 'none';
+        }
+      }
+
+      google.script.run
+        .withSuccessHandler(function(payments) {
+          adminPaymentsData = payments || [];
+          adminRenderPayments();
+        })
+        .withFailureHandler(function(e) {
+          container.innerHTML = '<div style="color:var(--danger);padding:8px;">Ошибка: ' + (e && e.message || e) + '</div>';
+        })
+        .adminGetPayments(adminSelectedPaymentUserId || '');
+    }
+
+    function adminRenderPayments() {
+      var container = document.getElementById('adminPaymentsList');
+      if (!container) return;
+      if (!adminPaymentsData || !adminPaymentsData.length) {
+        container.innerHTML = '<div style="color:var(--hint);padding:12px;text-align:center;">Транзакций пока нет</div>';
+        return;
+      }
+      container.innerHTML = '';
+      adminPaymentsData.forEach(function(p) {
+        var card = document.createElement('div');
+        card.style.cssText = 'background:var(--section);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px;';
+        var dateStr = p.created_at ? new Date(p.created_at).toLocaleString() : '—';
+        var userDisplay = p.username ? ('@' + escapeHtml(p.username)) : escapeHtml(p.first_name || ('ID: ' + p.telegram_id));
+        var isSuccess = p.status === 'completed';
+        var statusColor = isSuccess ? 'var(--success)' : (p.status === 'refunded' ? 'var(--danger)' : 'var(--hint)');
+        var amountStr = (p.amount ? (p.amount + ' ' + (p.currency || 'EUR')) : '—');
+        
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <div style="font-weight:700;font-size:13px;">${amountStr}</div>
+            <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.06);color:${statusColor};font-weight:600;text-transform:uppercase;">${escapeHtml(p.status || 'completed')}</span>
+          </div>
+          <div style="color:var(--text);margin-bottom:2px;">
+            👤 <b>${userDisplay}</b> <span style="color:var(--hint);font-size:11px;">(ID: ${p.telegram_id})</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;color:var(--hint);font-size:11px;">
+            <span>🗓 ${dateStr}</span>
+            <span>⏳ +${p.subscription_days || 30} дн.</span>
+          </div>
+          ${p.paddle_transaction_id ? `<div style="font-size:10px;color:var(--hint);margin-top:3px;font-family:monospace;word-break:break-all;">TX: ${escapeHtml(p.paddle_transaction_id)}</div>` : ''}
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function adminViewUserPayments(userId, userName) {
+      adminSwitchSubTab('payments');
+      adminLoadPayments(userId);
+    }
+
+    function adminResetPaymentFilter() {
+      adminSelectedPaymentUserId = null;
+      adminLoadPayments();
+    }
+
+    function adminUpdateSystemStatus() {
+      var statusEl = document.getElementById('adminMonitorStatusText');
+      if (!statusEl) return;
+      var s = state || {};
+      var st = s.status || {};
+      var lastRun = st.lastRun;
+      var webhookActive = s.telegramWebhookActive;
+
+      var lines = [];
+      lines.push('<b>Webhook Telegram:</b> ' + (webhookActive ? '🟢 Активен' : '🔴 Не активен'));
+      lines.push('<b>Интервал опроса:</b> ' + (st.intervalMinutes || 10) + ' мин.');
+      if (lastRun) {
+        var runTime = lastRun.finished_at ? new Date(lastRun.finished_at).toLocaleString() : (lastRun.started_at ? new Date(lastRun.started_at).toLocaleString() : '—');
+        var runStatus = lastRun.status === 'ok' ? '🟢 OK' : ('🔴 ' + (lastRun.error || 'Ошибка'));
+        lines.push('<b>Последний прогон:</b> ' + runTime + ' (' + runStatus + ')');
+        lines.push('<b>Офферов найдено:</b> ' + (lastRun.offers_found || 0) + ' • <b>Алертов:</b> ' + (lastRun.alerts_sent || 0));
+      } else {
+        lines.push('<b>Последний прогон:</b> данных пока нет');
+      }
+      statusEl.innerHTML = lines.join('<br>');
+    }
+
+    function adminRunMonitorNow() {
+      var btn = document.getElementById('btnAdminRunMonitor');
+      if (btn) btn.disabled = true;
+      toast('Запуск сканирования...');
+      google.script.run
+        .withSuccessHandler(function(res) {
+          toast('Сканирование завершено! Найдено: ' + (res?.offersFound || 0));
+          if (btn) btn.disabled = false;
+          adminRefreshAll();
+        })
+        .withFailureHandler(function(e) {
+          toast('Ошибка: ' + (e && e.message || e), true);
+          if (btn) btn.disabled = false;
+        })
+        .runMonitorFromUi();
+    }
+
+    function adminExpireOffersNow() {
+      toast('Очистка устаревших офферов...');
+      google.script.run
+        .withSuccessHandler(function(res) {
+          toast('Устаревшие офферы деактивированы');
+          adminRefreshAll();
+        })
+        .withFailureHandler(function(e) {
+          toast('Ошибка: ' + (e && e.message || e), true);
+        })
+        .checkOffersAvailabilityWeb();
+    }
+
+    function adminRegisterWebhookNow() {
+      toast('Подключение вебхука...');
+      google.script.run
+        .withSuccessHandler(function(res) {
+          toast('Вебхук Telegram обновлен');
+          adminUpdateSystemStatus();
+        })
+        .withFailureHandler(function(e) {
+          toast('Ошибка: ' + (e && e.message || e), true);
+        })
+        .registerTelegramWebhookWeb();
+    }
+
+    function adminCheckHealthNow() {
+      toast('Проверка API провайдеров...');
+      google.script.run
+        .withSuccessHandler(function(res) {
+          var details = (res && res.details) ? JSON.stringify(res.details) : 'OK';
+          alert('Здоровье провайдеров:\n' + details);
+        })
+        .withFailureHandler(function(e) {
+          toast('Ошибка: ' + (e && e.message || e), true);
+        })
+        .checkProvidersHealth();
     }
 
     function initPaddle(data) {
@@ -4539,8 +5034,8 @@
       }
       
       banner.style.display = 'block';
-      if (isActive) {
-        title.textContent = isTrial ? 'Premium (Trial)' : 'Premium Active';
+      if (isActive && !isTrial) {
+        title.textContent = 'Premium Active';
         emoji.textContent = '👑';
         if (state.user.subscriptionExpiresAt) {
            var date = new Date(state.user.subscriptionExpiresAt).toLocaleDateString();
@@ -4549,17 +5044,24 @@
         btn.style.display = 'none';
         rl.textContent = 'Routes: ' + currentRoutes + ' / ' + (maxRoutes >= 999 ? '∞' : maxRoutes);
       } else {
-        title.textContent = 'Free Plan';
-        emoji.textContent = '⚪';
-        st.textContent = 'Subscribe for unlimited routes & analytics';
+        if (isTrial) {
+          title.textContent = 'Premium (Trial)';
+          emoji.textContent = '👑';
+          var date = state.user.subscriptionExpiresAt ? new Date(state.user.subscriptionExpiresAt).toLocaleDateString() : '?';
+          st.textContent = 'Valid until ' + date;
+        } else {
+          title.textContent = 'Free Plan';
+          emoji.textContent = '⚪';
+          st.textContent = 'Subscribe for unlimited routes & analytics';
+        }
         btn.style.display = 'block';
         rl.textContent = 'Routes: ' + currentRoutes + ' / ' + maxRoutes;
-        
-        var urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('subscribe') === '1' && window.Paddle) {
-          setTimeout(function() { btn.click(); }, 1000);
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
+      }
+      
+      var urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('subscribe') === '1' && window.Paddle) {
+        setTimeout(function() { btn.click(); }, 1000);
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
 
