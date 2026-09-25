@@ -17,7 +17,6 @@ import {
   Check, 
   AlertCircle,
   ShieldCheck,
-  Activity,
   Calendar,
   Save,
   Clock,
@@ -655,11 +654,10 @@ onMounted(() => {
 
     <!-- 6. SYSTEM SUBTAB (Restored full system settings) -->
     <div v-else-if="activeSubTab === 'system'" class="system-section">
-      <!-- Provider Health -->
+      <!-- Provider Health & Toggles (Unified) -->
       <div class="glass-card system-card">
         <div class="system-header-row">
           <div class="section-title">
-            <Activity :size="15" />
             <span>{{ t('site_status') }}</span>
           </div>
           <button class="btn btn-secondary btn-sm" :disabled="isHealthLoading" @click="checkHealth">
@@ -667,101 +665,102 @@ onMounted(() => {
             <span>{{ t('refresh') }}</span>
           </button>
         </div>
-        <div class="health-list">
-          <div class="health-row">
-            <span>🚐 Roadsurfer Rally</span>
-            <span class="badge" :class="providersHealth?.roadsurfer?.ok ? 'badge-success' : 'badge-neutral'">
-              {{ providersHealth?.roadsurfer?.ok ? t('status_operational') : (providersHealth ? t('status_error_state') : t('status_checking')) }}
-            </span>
+        <div class="providers-unified-list">
+          <!-- Roadsurfer Rally -->
+          <div class="provider-row">
+            <div class="provider-info">
+              <div class="provider-name">🚐 Roadsurfer Rally</div>
+              <div class="provider-sub">{{ t('provider_desc_roadsurfer') }}</div>
+            </div>
+            <div class="provider-controls">
+              <span class="badge" :class="providersHealth?.roadsurfer?.ok ? 'badge-success' : 'badge-neutral'">
+                {{ providersHealth?.roadsurfer?.ok ? t('status_operational') : (providersHealth ? t('status_error_state') : t('status_checking')) }}
+              </span>
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  :checked="appState?.settings?.provider_roadsurfer_enabled !== false"
+                  @change="(e) => handleToggleProvider('provider_roadsurfer_enabled', (e.target as HTMLInputElement).checked)"
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
           </div>
-          <div class="health-row">
-            <span>🚗 Movacar API</span>
-            <span class="badge" :class="providersHealth?.movacar?.ok ? 'badge-success' : 'badge-neutral'">
-              {{ providersHealth?.movacar?.ok ? t('status_operational') : (providersHealth ? t('status_error_state') : t('status_checking')) }}
-            </span>
-          </div>
-          <div class="health-row">
-            <span>⛺ Indie Campers</span>
-            <span class="badge" :class="providersHealth?.indiecampers?.ok ? 'badge-success' : 'badge-neutral'">
-              {{ providersHealth?.indiecampers?.ok ? t('status_operational') : (providersHealth ? t('status_error_state') : t('status_checking')) }}
-            </span>
-          </div>
-          <div class="health-row">
-            <span>🌐 Imoova</span>
-            <span class="badge" :class="providersHealth?.imoova?.ok ? 'badge-success' : 'badge-neutral'">
-              {{ providersHealth?.imoova?.ok ? t('status_operational') : (providersHealth ? t('status_error_state') : t('status_checking')) }}
-            </span>
-          </div>
-          <div class="health-row">
-            <span>🤖 Telegram Bot</span>
-            <span class="badge" :class="appState?.telegramWebhookActive ? 'badge-success' : 'badge-warning'">
-              {{ appState?.telegramWebhookActive ? t('webhook_active_desc') : t('webhook_inactive_desc') }}
-            </span>
-          </div>
-        </div>
-      </div>
 
-      <!-- Provider Global Toggles -->
-      <div class="glass-card system-card">
-        <div class="section-title">
-          <span>{{ t('admin_providers_toggle') }}</span>
-        </div>
-        <div class="toggles-list">
-          <div class="toggle-item">
-            <div>
-              <div class="toggle-name">🚐 Roadsurfer Rally</div>
-              <div class="toggle-sub">Кемперы по всей Европе</div>
+          <!-- Movacar API -->
+          <div class="provider-row">
+            <div class="provider-info">
+              <div class="provider-name">🚗 Movacar API</div>
+              <div class="provider-sub">{{ t('provider_desc_movacar') }}</div>
             </div>
-            <label class="toggle-switch">
-              <input
-                type="checkbox"
-                :checked="appState?.settings?.provider_roadsurfer_enabled !== false"
-                @change="(e) => handleToggleProvider('provider_roadsurfer_enabled', (e.target as HTMLInputElement).checked)"
-              />
-              <span class="toggle-slider"></span>
-            </label>
+            <div class="provider-controls">
+              <span class="badge" :class="providersHealth?.movacar?.ok ? 'badge-success' : 'badge-neutral'">
+                {{ providersHealth?.movacar?.ok ? t('status_operational') : (providersHealth ? t('status_error_state') : t('status_checking')) }}
+              </span>
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  :checked="appState?.settings?.provider_movacar_enabled !== false"
+                  @change="(e) => handleToggleProvider('provider_movacar_enabled', (e.target as HTMLInputElement).checked)"
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
           </div>
-          <div class="toggle-item">
-            <div>
-              <div class="toggle-name">🚗 Movacar</div>
-              <div class="toggle-sub">Автомобили и кемперы</div>
+
+          <!-- Indie Campers -->
+          <div class="provider-row">
+            <div class="provider-info">
+              <div class="provider-name">⛺ Indie Campers</div>
+              <div class="provider-sub">{{ t('provider_desc_indiecampers') }}</div>
             </div>
-            <label class="toggle-switch">
-              <input
-                type="checkbox"
-                :checked="appState?.settings?.provider_movacar_enabled !== false"
-                @change="(e) => handleToggleProvider('provider_movacar_enabled', (e.target as HTMLInputElement).checked)"
-              />
-              <span class="toggle-slider"></span>
-            </label>
+            <div class="provider-controls">
+              <span class="badge" :class="providersHealth?.indiecampers?.ok ? 'badge-success' : 'badge-neutral'">
+                {{ providersHealth?.indiecampers?.ok ? t('status_operational') : (providersHealth ? t('status_error_state') : t('status_checking')) }}
+              </span>
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  :checked="appState?.settings?.provider_indiecampers_enabled !== false"
+                  @change="(e) => handleToggleProvider('provider_indiecampers_enabled', (e.target as HTMLInputElement).checked)"
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
           </div>
-          <div class="toggle-item">
-            <div>
-              <div class="toggle-name">⛺ Indie Campers</div>
-              <div class="toggle-sub">Кемпервэны</div>
+
+          <!-- Imoova -->
+          <div class="provider-row">
+            <div class="provider-info">
+              <div class="provider-name">🌍 Imoova</div>
+              <div class="provider-sub">{{ t('provider_desc_imoova') }}</div>
             </div>
-            <label class="toggle-switch">
-              <input
-                type="checkbox"
-                :checked="appState?.settings?.provider_indiecampers_enabled !== false"
-                @change="(e) => handleToggleProvider('provider_indiecampers_enabled', (e.target as HTMLInputElement).checked)"
-              />
-              <span class="toggle-slider"></span>
-            </label>
+            <div class="provider-controls">
+              <span class="badge" :class="providersHealth?.imoova?.ok ? 'badge-success' : 'badge-neutral'">
+                {{ providersHealth?.imoova?.ok ? t('status_operational') : (providersHealth ? t('status_error_state') : t('status_checking')) }}
+              </span>
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  :checked="appState?.settings?.provider_imoova_enabled !== false"
+                  @change="(e) => handleToggleProvider('provider_imoova_enabled', (e.target as HTMLInputElement).checked)"
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
           </div>
-          <div class="toggle-item">
-            <div>
-              <div class="toggle-name">🌍 Imoova</div>
-              <div class="toggle-sub">Международные перегоны</div>
+
+          <!-- Telegram Bot -->
+          <div class="provider-row">
+            <div class="provider-info">
+              <div class="provider-name">🤖 Telegram Bot</div>
+              <div class="provider-sub">{{ t('provider_desc_telegram') }}</div>
             </div>
-            <label class="toggle-switch">
-              <input
-                type="checkbox"
-                :checked="appState?.settings?.provider_imoova_enabled !== false"
-                @change="(e) => handleToggleProvider('provider_imoova_enabled', (e.target as HTMLInputElement).checked)"
-              />
-              <span class="toggle-slider"></span>
-            </label>
+            <div class="provider-controls">
+              <span class="badge" :class="appState?.telegramWebhookActive ? 'badge-success' : 'badge-warning'">
+                {{ appState?.telegramWebhookActive ? t('webhook_active_desc') : t('webhook_inactive_desc') }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -1119,32 +1118,64 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
-.health-list, .toggles-list {
+.providers-unified-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.health-row, .toggle-item {
+.provider-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 0;
+  padding: 10px 0;
   border-bottom: 1px solid var(--border-subtle);
+  gap: 12px;
 }
 
-.health-row:last-child, .toggle-item:last-child {
+.provider-row:last-child {
   border-bottom: none;
+  padding-bottom: 2px;
 }
 
-.toggle-name {
+.provider-row:first-child {
+  padding-top: 2px;
+}
+
+.provider-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.provider-name {
   font-size: 13px;
   font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.toggle-sub {
+.provider-sub {
   font-size: 11px;
   color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.provider-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.provider-controls .badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  white-space: nowrap;
 }
 
 .actions-stack {
