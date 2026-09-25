@@ -24,7 +24,7 @@
     "ALERTS_ENABLED": "true",
     "WEBHOOK_CUTOVER": "true",
     "WORKER_PUBLIC_URL": "https://camper-monitor.luksiko90.workers.dev",
-    "GAS_PROXY_URL": "https://script.google.com/macros/s/AKfycbxYkBcGj8-TMe_4TocnDgUCdh8I3AKqayAZwve-dgt21R6U6UQxa24lF5eQUvHUKn9FNw/exec"
+    "GAS_PROXY_URL": "https://camper-proxy.vercel.app"
   },
   "secrets": {
     "required": ["TELEGRAM_BOT_TOKEN_SECRET", "TELEGRAM_WEBHOOK_SECRET"]
