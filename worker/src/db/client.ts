@@ -1,8 +1,47 @@
 import { User, UserRoute, UserFilters, NormalizedOffer, RunLog, GlobalSettings } from '../types';
 import { DEFAULT_SETTINGS, DEFAULT_FILTERS } from '../config';
+import { sha256 } from '../utils/crypto';
+import type { BrowserTelegramIdentity } from '../utils/telegram-login';
 
 export class DbClient {
   constructor(private db: D1Database) {}
+
+  private async browserLoginKey(token: string): Promise<string> {
+    return `browser-login:${await sha256(token)}`;
+  }
+
+  async createBrowserLoginChallenge(token: string): Promise<void> {
+    const now = Math.floor(Date.now() / 1000);
+    await this.db.prepare("DELETE FROM cache WHERE key LIKE 'browser-login:%' AND expires_at <= ?").bind(now).run();
+    await this.db.prepare('INSERT INTO cache (key, value, expires_at) VALUES (?, ?, ?)')
+      .bind(await this.browserLoginKey(token), JSON.stringify({ status: 'pending' }), now + 600).run();
+  }
+
+  async hasBrowserLoginChallenge(token: string): Promise<boolean> {
+    const row = await this.db.prepare('SELECT value FROM cache WHERE key = ? AND expires_at > ?')
+      .bind(await this.browserLoginKey(token), Math.floor(Date.now() / 1000)).first<{ value: string }>();
+    return row?.value === JSON.stringify({ status: 'pending' });
+  }
+
+  async approveBrowserLoginChallenge(token: string, identity: BrowserTelegramIdentity): Promise<boolean> {
+    const key = await this.browserLoginKey(token);
+    const result = await this.db.prepare('UPDATE cache SET value = ? WHERE key = ? AND value = ? AND expires_at > ?')
+      .bind(JSON.stringify({ status: 'approved', identity }), key, JSON.stringify({ status: 'pending' }), Math.floor(Date.now() / 1000)).run();
+    return (result.meta.changes || 0) === 1;
+  }
+
+  async consumeBrowserLoginChallenge(token: string): Promise<{ status: 'pending' | 'approved' | 'expired'; identity?: BrowserTelegramIdentity }> {
+    const key = await this.browserLoginKey(token);
+    const row = await this.db.prepare('SELECT value FROM cache WHERE key = ? AND expires_at > ?')
+      .bind(key, Math.floor(Date.now() / 1000)).first<{ value: string }>();
+    if (!row) return { status: 'expired' };
+    const value = JSON.parse(row.value);
+    if (value.status !== 'approved') return { status: 'pending' };
+    const consumed = await this.db.prepare('DELETE FROM cache WHERE key = ? AND value = ? RETURNING value')
+      .bind(key, row.value).first<{ value: string }>();
+    if (!consumed) return { status: 'expired' };
+    return { status: 'approved', identity: value.identity };
+  }
 
   async acquireMonitorLock(owner: string): Promise<boolean> {
     const now = Math.floor(Date.now() / 1000);

@@ -7,6 +7,7 @@ import { INDIECAMPERS_CITIES } from '../providers/indiecampers';
 import { routeMatchesOffer, offerMatchesUserFilters } from '../services/filters';
 import { fetchJson, setGasProxyUrl } from '../utils/http';
 import { TelegramIdentity, verifyTelegramInitData } from '../utils/telegram-auth';
+import { verifyBrowserSession } from '../utils/telegram-login';
 
 export interface RpcContext {
   db: DbClient;
@@ -33,7 +34,9 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
     const authArg = args[authArgIndex[String(method)]];
     const initData = request.headers.get('X-Telegram-Init-Data') ||
       (typeof authArg === 'string' ? authArg : '');
-    const identity = await verifyTelegramInitData(initData, ctx.botToken);
+    const bearer = request.headers.get('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1] || '';
+    const identity = (initData ? await verifyTelegramInitData(initData, ctx.botToken) : null) ||
+      (bearer ? await verifyBrowserSession(bearer, ctx.botToken) : null);
     if (!identity) return jsonError('Unauthorized', 401);
     const isAdmin = identity.id === ctx.chatId;
     if (['deleteOffer', 'runMonitorFromUi', 'registerTelegramWebhookWeb', 'deleteTelegramWebhookWeb', 'checkOffersAvailabilityWeb'].includes(method) && !isAdmin) {

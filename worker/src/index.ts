@@ -3,6 +3,7 @@ import { TelegramService } from './services/telegram';
 import { runMonitorCycle } from './services/monitor';
 import { handleRpcRequest } from './api/rpc';
 import { setGasProxyUrl, fetchJson } from './utils/http';
+import { browserLoginCode, createBrowserLoginToken, createBrowserSession } from './utils/telegram-login';
 
 export interface Env {
   DB: D1Database;
@@ -63,20 +64,52 @@ export default {
     const legacyUiOrigin = 'https://luksiko.github.io';
     const origin = request.headers.get('Origin');
     const allowedOrigins = [legacyUiOrigin, env.WORKER_PUBLIC_URL, `${url.protocol}//${url.host}`].filter(Boolean);
-    if (request.method === 'OPTIONS' && url.pathname === '/api/rpc') {
+    const authPaths = ['/api/rpc', '/api/auth/telegram/start', '/api/auth/telegram/status'];
+    if (request.method === 'OPTIONS' && authPaths.includes(url.pathname)) {
       if (!origin || !allowedOrigins.includes(origin)) return new Response('Forbidden', { status: 403 });
       return new Response(null, {
         status: 204,
         headers: {
           'Access-Control-Allow-Origin': origin,
-          'Access-Control-Allow-Methods': 'POST',
-          'Access-Control-Allow-Headers': 'Content-Type, X-Telegram-Init-Data',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Telegram-Init-Data',
           Vary: 'Origin',
         },
       });
     }
 
     const db = new DbClient(env.DB);
+    if (url.pathname === '/api/auth/telegram/start' && request.method === 'POST') {
+      if (origin && !allowedOrigins.includes(origin)) return jsonResponse({ error: 'Forbidden' }, 403);
+      try {
+        const bot = await fetchJson<any>(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN_SECRET}/getMe`, { retries: 0 });
+        if (!bot?.ok || !bot.result?.username) throw new Error('Telegram bot is not configured');
+        const token = createBrowserLoginToken();
+        await db.createBrowserLoginChallenge(token);
+        return withCors(jsonResponse({ token, code: await browserLoginCode(token), loginUrl: `https://t.me/${bot.result.username}?start=login_${token}` }), origin, allowedOrigins);
+      } catch {
+        return withCors(jsonResponse({ error: 'Telegram login is unavailable' }, 503), origin, allowedOrigins);
+      }
+    }
+
+    if (url.pathname === '/api/auth/telegram/status' && request.method === 'POST') {
+      if (origin && !allowedOrigins.includes(origin)) return jsonResponse({ error: 'Forbidden' }, 403);
+      try {
+        const payload = await request.json<any>();
+        if (!payload || typeof payload.token !== 'string' || !/^[A-Za-z0-9_-]{32}$/.test(payload.token)) {
+          return withCors(jsonResponse({ error: 'Invalid login request' }, 400), origin, allowedOrigins);
+        }
+        const attempt = await db.consumeBrowserLoginChallenge(payload.token);
+        if (attempt.status !== 'approved' || !attempt.identity) {
+          return withCors(jsonResponse({ status: attempt.status }), origin, allowedOrigins);
+        }
+        const session = await createBrowserSession(attempt.identity, env.TELEGRAM_BOT_TOKEN_SECRET);
+        return withCors(jsonResponse({ status: 'approved', token: session }), origin, allowedOrigins);
+      } catch {
+        return withCors(jsonResponse({ error: 'Invalid Telegram login request' }, 400), origin, allowedOrigins);
+      }
+    }
+
     const telegram = new TelegramService(
       {
         botToken: env.TELEGRAM_BOT_TOKEN_SECRET,
@@ -161,3 +194,15 @@ export default {
     return new Response('Not Found', { status: 404 });
   },
 };
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+}
+
+function withCors(response: Response, origin: string | null, allowedOrigins: Array<string | undefined>): Response {
+  if (!origin || !allowedOrigins.includes(origin)) return response;
+  const headers = new Headers(response.headers);
+  headers.set('Access-Control-Allow-Origin', origin);
+  headers.set('Vary', 'Origin');
+  return new Response(response.body, { status: response.status, headers });
+}

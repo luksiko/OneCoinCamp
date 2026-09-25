@@ -3,6 +3,7 @@ import { NormalizedOffer, UserRoute, UserFilters } from '../types';
 import { t, pluralizeDays } from './i18n';
 import { fetchJson } from '../utils/http';
 import { routeMatchesOffer, offerMatchesUserFilters, isSilentHoursActive, parseIsoDate } from './filters';
+import { browserLoginCode } from '../utils/telegram-login';
 
 export interface TelegramSecrets {
   botToken: string;
@@ -184,6 +185,26 @@ export class TelegramService {
       const data = String(cb.data || '');
       const chatId = cb.message?.chat?.id;
 
+      const browserLogin = data.match(/^browser_login:([A-Za-z0-9_-]{32})$/);
+      if (browserLogin) {
+        if (cb.message?.chat?.type !== 'private' || String(chatId) !== String(cb.from?.id)) {
+          await this.answerCallbackQuery(cb.id, 'Подтверждение доступно только в личном чате.');
+          return;
+        }
+        const approved = await this.db.approveBrowserLoginChallenge(browserLogin[1], {
+          id: String(cb.from.id), username: cb.from.username, language: cb.from.language_code,
+        });
+        await this.answerCallbackQuery(cb.id, approved ? 'Вход подтверждён' : 'Ссылка устарела');
+        if (approved) {
+          try {
+            await this.sendMessage(chatId, '✅ Вернитесь на вкладку с Camper Monitor — вход завершится автоматически.');
+          } catch (error) {
+            console.error('Could not send browser login confirmation:', error);
+          }
+        }
+        return;
+      }
+
       if (data.startsWith('disable_route:')) {
         const routeId = data.replace('disable_route:', '');
         if (chatId) {
@@ -204,6 +225,21 @@ export class TelegramService {
 
     // Register / update user in DB
     await this.db.upsertUser(telegramId, chatId, msg.from?.username, msg.from?.first_name);
+
+    const browserLogin = text.match(/^\/start(?:@\w+)?\s+login_([A-Za-z0-9_-]{32})$/);
+    if (browserLogin) {
+      if (msg.chat?.type !== 'private' || !msg.from?.id) return;
+      const available = await this.db.hasBrowserLoginChallenge(browserLogin[1]);
+      if (!available) {
+        await this.sendMessage(chatId, '⏱ Ссылка для входа устарела. Вернитесь на сайт и нажмите «Открыть бота в Telegram» ещё раз.');
+        return;
+      }
+      const code = await browserLoginCode(browserLogin[1]);
+      await this.sendMessage(chatId, `🔐 Вход в Camper Monitor. Код на сайте: <b>${code}</b>. Если код совпадает, подтвердите вход.`, {
+        reply_markup: { inline_keyboard: [[{ text: '✅ Подтвердить вход', callback_data: `browser_login:${browserLogin[1]}` }]] },
+      });
+      return;
+    }
 
     if (text.startsWith('/start')) {
       if (this.secrets.workerUrl) {

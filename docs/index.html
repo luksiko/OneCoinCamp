@@ -5,6 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>try { if (!(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) && !localStorage.getItem('camper_monitor_telegram_session')) document.documentElement.classList.add('browser-auth-required'); } catch (e) { document.documentElement.classList.add('browser-auth-required'); }</script>
   <title>Camper Monitor</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,6 +29,18 @@
       -webkit-tap-highlight-color: transparent;
     }
     .container { max-width: 520px; margin: 0 auto; }
+    .browser-auth-required #mainForm, .browser-auth-required #tabNav { display: none !important; }
+    #browserLogin { display: none; max-width: 420px; margin: 12vh auto 0; text-align: center; }
+    .browser-auth-required #browserLogin { display: block; }
+    #telegramLoginLink { display: block; margin-top: 22px; text-decoration: none; text-align: center; }
+    #telegramLoginLink[aria-disabled="true"] { opacity: 0.55; pointer-events: none; }
+    #browserLoginCode { margin-top: 12px; color: var(--subtext); font-size: 14px; }
+    #browserLoginCode[hidden] { display: none; }
+    #browserLoginCode strong { color: var(--text); font-size: 19px; letter-spacing: 2px; }
+    #browserLoginError { color: var(--subtext); margin-top: 12px; font-size: 13px; }
+    #browserLoginError.error { color: var(--danger); }
+    #browserSessionActions { display: none; text-align: right; margin: 6px 0; }
+    .browser-authenticated #browserSessionActions { display: block; }
 
     .card {
       background: var(--card);
@@ -858,6 +871,16 @@
 <body>
   <div class="container">
 
+    <div class="card" id="browserLogin">
+      <div style="font-size:40px;margin-bottom:10px;">🚐</div>
+      <div style="font-size:20px;font-weight:700;">Camper Monitor</div>
+      <div style="color:var(--subtext);margin-top:8px;">Откройте бота, нажмите «Старт», сверьте код и подтвердите вход. Затем вернитесь на эту вкладку.</div>
+      <a class="btn btn-accent" id="telegramLoginLink" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">Открыть бота в Telegram</a>
+      <div id="browserLoginCode" hidden>Код для сверки: <strong id="browserLoginCodeValue"></strong></div>
+      <div id="browserLoginError" role="status"></div>
+    </div>
+    <div id="browserSessionActions"><button type="button" class="btn btn-secondary" id="browserLogout" style="width:auto;padding:6px 10px;font-size:12px;">Выйти</button></div>
+
     <div id="mainForm">
       <div id="screenMain">
         <!-- Компактный статус -->
@@ -967,10 +990,10 @@
         <div class="field" id="webhookField">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
             <div>
-              <span style="font-weight:500;font-size:14px;" data-i18n="bot_mode">Режим Telegram бота</span>
-              <div style="font-size:11px;color:var(--hint);" id="webhookStatusDesc">Загрузка режима…</div>
+              <span style="font-weight:500;font-size:14px;" data-i18n="bot_mode">Webhook Telegram-бота</span>
+              <div style="font-size:11px;color:var(--hint);" id="webhookStatusDesc">Загрузка…</div>
             </div>
-            <button type="button" id="btnToggleWebhook" class="btn btn-secondary" style="width:auto;padding:5px 10px;font-size:12px;margin:0;white-space:nowrap;" data-i18n="btn_enable_webhook">⚡ Включить Webhook</button>
+            <button type="button" id="btnToggleWebhook" class="btn btn-secondary" style="width:auto;padding:5px 10px;font-size:12px;margin:0;white-space:nowrap;" data-i18n="btn_reconnect_webhook">🔄 Перепривязать Webhook</button>
           </div>
         </div>
         <div class="field">
@@ -1263,10 +1286,18 @@
               body: JSON.stringify({ method: method, args: args }),
               headers: {
                 'Content-Type': 'application/json',
-                'X-Telegram-Init-Data': getInitData()
+                'X-Telegram-Init-Data': getInitData(),
+                ...(getBrowserSession() ? { 'Authorization': 'Bearer ' + getBrowserSession() } : {})
               }
             })
-            .then(function(res) { return res.json(); })
+            .then(function(res) {
+              if (res.status === 401 && getBrowserSession()) {
+                localStorage.removeItem('camper_monitor_telegram_session');
+                location.reload();
+                throw new Error('Сессия истекла. Войдите через Telegram ещё раз.');
+              }
+              return res.json();
+            })
             .then(function(data) {
               if (data.error) {
                 if (onFailure) onFailure(new Error(data.error));
@@ -1353,11 +1384,13 @@
         poll_interval: 'Abfrageintervall, Min.',
         check_neighbors: 'Flexible Daten prüfen (±2 Tage)',
         telegram_notifications: 'Telegram-Benachrichtigungen',
-        bot_mode: 'Telegram-Bot-Modus',
+        bot_mode: 'Telegram-Bot-Webhook',
         btn_enable_webhook: '⚡ Webhook aktivieren',
         btn_disable_webhook: 'Webhook deaktivieren',
-        webhook_active_desc: '🟢 Webhook aktiv (Polling aus, kein Quotenverbrauch)',
-        webhook_polling_desc: '🟡 Polling (alle 1 Min., verbraucht ~1440 Anfragen/Tag)',
+        btn_reconnect_webhook: '🔄 Webhook neu verbinden',
+        webhook_active_desc: '🟢 Webhook aktiv',
+        webhook_inactive_desc: '🔴 Webhook inaktiv',
+        webhook_polling_desc: '🔴 Webhook inaktiv',
         max_price: 'Max. Angebotspreis, €',
         notify_all_by_price: 'Über alle Slots bis zum Höchstpreis benachrichtigen',
         notify_all_desc: 'Datums- und Länderfilter für Telegram ignorieren, wenn Angebotspreis ≤ Höchstpreis',
@@ -1507,11 +1540,13 @@
         poll_interval: 'Intervallo di scansione, min',
         check_neighbors: 'Controlla date flessibili (±2 giorni)',
         telegram_notifications: 'Notifiche Telegram',
-        bot_mode: 'Modalità bot Telegram',
+        bot_mode: 'Webhook bot Telegram',
         btn_enable_webhook: '⚡ Abilita Webhook',
         btn_disable_webhook: 'Disabilita Webhook',
-        webhook_active_desc: '🟢 Webhook attivo (polling disattivato, zero quota consumata)',
-        webhook_polling_desc: '🟡 Polling (ogni 1 min, consuma ~1440 richieste/giorno)',
+        btn_reconnect_webhook: '🔄 Ricollega Webhook',
+        webhook_active_desc: '🟢 Webhook attivo',
+        webhook_inactive_desc: '🔴 Webhook non attivo',
+        webhook_polling_desc: '🔴 Webhook non attivo',
         max_price: 'Prezzo max offerta, €',
         notify_all_by_price: 'Notifica per tutti gli slot fino al prezzo max',
         notify_all_desc: 'Ignora filtri date e paesi per Telegram se prezzo offerta ≤ prezzo max',
@@ -1661,11 +1696,13 @@
         poll_interval: 'Polling interval, min',
         check_neighbors: 'Check flexible dates (±2 days)',
         telegram_notifications: 'Telegram notifications',
-        bot_mode: 'Telegram bot mode',
+        bot_mode: 'Telegram bot webhook',
         btn_enable_webhook: '⚡ Enable Webhook',
         btn_disable_webhook: 'Disable Webhook',
-        webhook_active_desc: '🟢 Webhook active (polling off, zero quota consumed)',
-        webhook_polling_desc: '🟡 Polling (every 1 min, consumes ~1440 req/day)',
+        btn_reconnect_webhook: '🔄 Reconnect Webhook',
+        webhook_active_desc: '🟢 Webhook active',
+        webhook_inactive_desc: '🔴 Webhook inactive',
+        webhook_polling_desc: '🔴 Webhook inactive',
         max_price: 'Max offer price, €',
         notify_all_by_price: 'Notify for all slots up to max price',
         notify_all_desc: 'Bypass date & country filters for Telegram when offer price ≤ max price',
@@ -1815,11 +1852,13 @@
         poll_interval: 'Інтервал опитування, хв',
         check_neighbors: 'Перевіряти сусідні дати (±2 дні)',
         telegram_notifications: 'Telegram-сповіщення',
-        bot_mode: 'Режим Telegram бота',
+        bot_mode: 'Webhook Telegram-бота',
         btn_enable_webhook: '⚡ Увімкнути Webhook',
         btn_disable_webhook: 'Вимкнути Webhook',
-        webhook_active_desc: '🟢 Webhook активний (полінг вимкнено, квота не витрачається)',
-        webhook_polling_desc: '🟡 Polling (раз на 1 хв, витрачає ~1440 запитів/день)',
+        btn_reconnect_webhook: '🔄 Перепідключити Webhook',
+        webhook_active_desc: '🟢 Webhook активний',
+        webhook_inactive_desc: '🔴 Webhook неактивний',
+        webhook_polling_desc: '🔴 Webhook неактивний',
         max_price: 'Макс. ціна оферу, €',
         notify_all_by_price: 'Сповіщати про всі слоти до макс. ціни',
         notify_all_desc: 'Ігнорувати фільтри дат і країн для Telegram, якщо ціна слота ≤ макс. ціни',
@@ -1969,11 +2008,13 @@
         poll_interval: 'Интервал опроса, мин',
         check_neighbors: 'Проверять соседние даты (±2 дня)',
         telegram_notifications: 'Telegram-уведомления',
-        bot_mode: 'Режим Telegram-бота',
+        bot_mode: 'Webhook Telegram-бота',
         btn_enable_webhook: '⚡ Включить Webhook',
         btn_disable_webhook: 'Отключить Webhook',
-        webhook_active_desc: '🟢 Webhook активен (поллинг отключен, квота не тратится)',
-        webhook_polling_desc: '🟡 Polling (раз в 1 мин, тратит ~1440 запросов/день)',
+        btn_reconnect_webhook: '🔄 Перепривязать Webhook',
+        webhook_active_desc: '🟢 Webhook активен',
+        webhook_inactive_desc: '🔴 Webhook не активен',
+        webhook_polling_desc: '🔴 Webhook не активен',
         max_price: 'Макс. цена оффера, €',
         notify_all_by_price: 'Уведомлять обо всех слотах до макс. цены',
         notify_all_desc: 'Игнорировать фильтры дат и стран для Telegram, если цена слота ≤ макс. цены',
@@ -2178,13 +2219,8 @@
         var webhookBtn = document.getElementById('btnToggleWebhook');
         var webhookDesc = document.getElementById('webhookStatusDesc');
         if (webhookBtn && webhookDesc) {
-          if (webhookActive) {
-            webhookDesc.textContent = tWeb('webhook_active_desc');
-            webhookBtn.textContent = tWeb('btn_disable_webhook');
-          } else {
-            webhookDesc.textContent = tWeb('webhook_polling_desc');
-            webhookBtn.textContent = tWeb('btn_enable_webhook');
-          }
+          webhookDesc.textContent = webhookActive ? tWeb('webhook_active_desc') : tWeb('webhook_inactive_desc');
+          webhookBtn.textContent = tWeb('btn_reconnect_webhook');
         }
         var isSilent = state.settings && isTruthy(state.settings.silent_hours_enabled);
         var silentStatusTextEl = document.getElementById('silentHoursStatusText');
@@ -2211,6 +2247,83 @@
         return window.Telegram.WebApp.initData;
       }
       return '';
+    }
+
+    function getBrowserSession() {
+      try { return localStorage.getItem('camper_monitor_telegram_session') || ''; } catch (e) { return ''; }
+    }
+
+    function setupBrowserTelegramLogin() {
+      var link = document.getElementById('telegramLoginLink');
+      var status = document.getElementById('browserLoginError');
+      var code = document.getElementById('browserLoginCode');
+      status.classList.remove('error');
+      if (location.protocol === 'file:') {
+        code.hidden = true;
+        link.href = APPS_SCRIPT_URL;
+        link.textContent = 'Открыть сайт для входа';
+        link.removeAttribute('aria-disabled');
+        status.textContent = 'Для входа откройте опубликованный сайт по HTTPS.';
+        return;
+      }
+
+      var pending = null;
+      try { pending = JSON.parse(sessionStorage.getItem('camper_monitor_login_pending') || 'null'); } catch (e) {}
+      if (pending && pending.expiresAt > Date.now() && pending.token && pending.loginUrl && pending.code) {
+        activateBrowserTelegramLogin(pending, link, status);
+        return;
+      }
+
+      link.setAttribute('aria-disabled', 'true');
+      code.hidden = true;
+      status.textContent = 'Готовим ссылку для входа…';
+      fetch(APPS_SCRIPT_URL + '/api/auth/telegram/start', { method: 'POST' })
+        .then(function (res) { return res.json().then(function (data) { if (!res.ok) throw new Error(data.error || 'Не удалось создать ссылку'); return data; }); })
+        .then(function (data) {
+          pending = { token: data.token, code: data.code, loginUrl: data.loginUrl, expiresAt: Date.now() + 9 * 60 * 1000 };
+          try { sessionStorage.setItem('camper_monitor_login_pending', JSON.stringify(pending)); } catch (e) {}
+          activateBrowserTelegramLogin(pending, link, status);
+        })
+        .catch(function (err) {
+          status.classList.add('error');
+          status.textContent = (err.message || String(err)) + '. Обновите страницу, чтобы повторить.';
+        });
+    }
+
+    function activateBrowserTelegramLogin(pending, link, status) {
+      document.getElementById('browserLoginCodeValue').textContent = pending.code;
+      document.getElementById('browserLoginCode').hidden = false;
+      link.href = pending.loginUrl;
+      link.removeAttribute('aria-disabled');
+      status.textContent = 'Ожидаем подтверждения в Telegram…';
+      status.classList.remove('error');
+      link.onclick = function () { status.textContent = 'Нажмите «Старт», сверьте код и подтвердите вход в боте.'; };
+      pollBrowserTelegramLogin(pending.token, status);
+    }
+
+    function pollBrowserTelegramLogin(token, status) {
+      fetch(APPS_SCRIPT_URL + '/api/auth/telegram/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token })
+      }).then(function (res) { return res.json().then(function (data) { if (!res.ok) throw new Error(data.error || 'Ошибка проверки входа'); return data; }); })
+        .then(function (data) {
+          if (data.status === 'approved' && data.token) {
+            localStorage.setItem('camper_monitor_telegram_session', data.token);
+            sessionStorage.removeItem('camper_monitor_login_pending');
+            location.reload();
+          } else if (data.status === 'expired') {
+            sessionStorage.removeItem('camper_monitor_login_pending');
+            setupBrowserTelegramLogin();
+          } else {
+            setTimeout(function () { pollBrowserTelegramLogin(token, status); }, 2000);
+          }
+        })
+        .catch(function (err) {
+          status.classList.add('error');
+          status.textContent = 'Не удаётся проверить вход: ' + (err.message || String(err));
+          setTimeout(function () { pollBrowserTelegramLogin(token, status); }, 4000);
+        });
     }
 
     function switchTab(tab) {
@@ -3027,6 +3140,18 @@
     }
 
     function init() {
+      if (!(tg && getInitData()) && !getBrowserSession()) {
+        setupBrowserTelegramLogin();
+        return;
+      }
+      document.documentElement.classList.remove('browser-auth-required');
+      if (!(tg && getInitData())) {
+        document.documentElement.classList.add('browser-authenticated');
+        document.getElementById('browserLogout').onclick = function () {
+          localStorage.removeItem('camper_monitor_telegram_session');
+          location.reload();
+        };
+      }
       if (tg && getInitData()) {
         tg.ready();
         tg.expand();
@@ -3073,21 +3198,22 @@
       var btnToggleWebhook = document.getElementById('btnToggleWebhook');
       if (btnToggleWebhook) {
         btnToggleWebhook.onclick = function () {
-          var isCurrentlyActive = !!(state && state.telegramWebhookActive);
-          var method = isCurrentlyActive ? 'deleteTelegramWebhookWeb' : 'registerTelegramWebhookWeb';
           btnToggleWebhook.disabled = true;
-          btnToggleWebhook.textContent = 'Подождите…';
+          btnToggleWebhook.textContent = tWeb('loading') || 'Подождите…';
           google.script.run
             .withSuccessHandler(function (res) {
               btnToggleWebhook.disabled = false;
-              toast(res && res.message ? res.message : 'Готово!', !(res && res.ok));
+              btnToggleWebhook.textContent = tWeb('btn_reconnect_webhook');
+              toast(res && res.description ? res.description : (res && res.message ? res.message : 'Готово!'), !(res && res.ok));
               load();
             })
             .withFailureHandler(function (err) {
               btnToggleWebhook.disabled = false;
+              btnToggleWebhook.textContent = tWeb('btn_reconnect_webhook');
               var msg = (err && err.message) || String(err);
               toast(msg, true);
-            })[method](getInitData());
+            })
+            .registerTelegramWebhookWeb(getInitData());
         };
       }
       // Show offers tab only in development (when skipAuth is enabled)
@@ -3207,15 +3333,9 @@
       var webhookBtn = document.getElementById('btnToggleWebhook');
       var webhookDesc = document.getElementById('webhookStatusDesc');
       if (webhookBtn && webhookDesc) {
-        if (webhookActive) {
-          webhookDesc.textContent = tWeb('webhook_active_desc');
-          webhookBtn.textContent = tWeb('btn_disable_webhook');
-          webhookBtn.style.color = 'var(--danger)';
-        } else {
-          webhookDesc.textContent = tWeb('webhook_polling_desc');
-          webhookBtn.textContent = tWeb('btn_enable_webhook');
-          webhookBtn.style.color = 'var(--accent)';
-        }
+        webhookDesc.textContent = webhookActive ? tWeb('webhook_active_desc') : tWeb('webhook_inactive_desc');
+        webhookBtn.textContent = tWeb('btn_reconnect_webhook');
+        webhookBtn.style.color = '';
       }
       renderStatus();
       renderSettings();
