@@ -892,6 +892,34 @@ export class TelegramService {
       return;
     }
 
+    if (text.startsWith('/promo')) {
+      const parts = text.split(/\s+/);
+      const code = (parts[1] || '').trim();
+      if (!code) {
+        await this.sendMessage(chatId, t('promo_prompt', lang), {
+          reply_markup: { inline_keyboard: [[{ text: t('btn_main_menu', lang), callback_data: 'menu_main' }]] },
+        });
+        return;
+      }
+
+      const res = await this.db.redeemPromoCode(telegramId, code);
+      if (!res.success) {
+        let errKey = 'promo_err_invalid';
+        if (res.error === 'code_expired') errKey = 'promo_err_expired';
+        else if (res.error === 'code_exhausted') errKey = 'promo_err_exhausted';
+        else if (res.error === 'code_already_used') errKey = 'promo_err_used';
+        await this.sendMessage(chatId, t(errKey, lang), {
+          reply_markup: { inline_keyboard: [[{ text: t('btn_main_menu', lang), callback_data: 'menu_main' }]] },
+        });
+      } else {
+        const expStr = res.expiresAt ? new Date(res.expiresAt).toLocaleDateString() : '';
+        await this.sendMessage(chatId, t('promo_success', lang, { days: res.days, expiry: expStr }), {
+          reply_markup: { inline_keyboard: [[{ text: t('btn_main_menu', lang), callback_data: 'menu_main' }]] },
+        });
+      }
+      return;
+    }
+
     if (text.startsWith('/account')) {
       await this.showAccountMenu(chatId, telegramId, lang);
       return;

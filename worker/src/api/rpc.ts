@@ -43,7 +43,7 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
     if (!identity) return jsonError('Unauthorized', 401);
     const user = await ctx.db.getUser(identity.id);
     const isAdmin = user?.role === 'admin';
-    if (['deleteOffer', 'runMonitorFromUi', 'registerTelegramWebhookWeb', 'deleteTelegramWebhookWeb', 'checkOffersAvailabilityWeb', 'adminListUsers', 'adminSetRole', 'adminGrantSubscription', 'adminAdjustSubscription', 'adminRevokeSubscription', 'adminGetPayments', 'adminGetStats'].includes(method) && !isAdmin) {
+    if (['deleteOffer', 'runMonitorFromUi', 'registerTelegramWebhookWeb', 'deleteTelegramWebhookWeb', 'checkOffersAvailabilityWeb', 'adminListUsers', 'adminSetRole', 'adminGrantSubscription', 'adminAdjustSubscription', 'adminRevokeSubscription', 'adminGetPayments', 'adminGetStats', 'adminListPromoCodes', 'adminCreatePromoCode', 'adminDeletePromoCode', 'adminSetProviderToggle', 'adminGetRecentRuns', 'adminSendBroadcast'].includes(method) && !isAdmin) {
       return jsonError('Forbidden', 403);
     }
 
@@ -143,6 +143,89 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
         if (!isAdmin) return jsonError('Forbidden', 403);
         result = await ctx.db.getAdminStats();
         break;
+      case 'adminListPromoCodes':
+        if (!isAdmin) return jsonError('Forbidden', 403);
+        result = await ctx.db.listPromoCodes();
+        break;
+      case 'adminCreatePromoCode': {
+        if (!isAdmin) return jsonError('Forbidden', 403);
+        const payload = (args[0] && typeof args[0] === 'object') ? args[0] : {
+          code: args[0], days: args[1], maxUses: args[2], expiresAt: args[3]
+        };
+        await ctx.db.createPromoCode(
+          String(payload.code || ''),
+          Number(payload.days) || 30,
+          Number(payload.maxUses) || 1,
+          payload.expiresAt || null
+        );
+        result = { ok: true };
+        break;
+      }
+      case 'adminDeletePromoCode': {
+        if (!isAdmin) return jsonError('Forbidden', 403);
+        const { targetId: promoCode } = extractAdminArgs(args);
+        await ctx.db.deletePromoCode(promoCode);
+        result = { ok: true };
+        break;
+      }
+      case 'redeemPromoCodeWeb': {
+        const promoCode = String(args[0] || '').trim();
+        result = await ctx.db.redeemPromoCode(identity.id, promoCode);
+        break;
+      }
+      case 'adminSetProviderToggle': {
+        if (!isAdmin) return jsonError('Forbidden', 403);
+        const { targetId: providerKey, param: enabledVal } = extractAdminArgs(args);
+        const validKeys = [
+          'provider_roadsurfer_enabled',
+          'provider_movacar_enabled',
+          'provider_indiecampers_enabled',
+          'provider_imoova_enabled',
+        ];
+        if (!validKeys.includes(providerKey)) {
+          return jsonError('Invalid provider key', 400);
+        }
+        await ctx.db.setSetting(providerKey, enabledVal ? 'true' : 'false');
+        result = { ok: true, key: providerKey, value: Boolean(enabledVal) };
+        break;
+      }
+      case 'adminGetRecentRuns': {
+        if (!isAdmin) return jsonError('Forbidden', 403);
+        result = await ctx.db.getRecentRuns(20);
+        break;
+      }
+      case 'adminSendBroadcast': {
+        if (!isAdmin) return jsonError('Forbidden', 403);
+        const { targetId: targetRole, param: broadcastText } = extractAdminArgs(args);
+        const text = String(broadcastText || '').trim();
+        if (!text) return jsonError('Message text is required', 400);
+
+        const recipients = await ctx.db.getRecipientsForBroadcast((targetRole as any) || 'all');
+        let sent = 0;
+        let failed = 0;
+
+        for (const r of recipients) {
+          try {
+            await fetchJson(`https://api.telegram.org/bot${ctx.botToken}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: r.chat_id,
+                text: text,
+                parse_mode: 'HTML',
+                disable_web_page_preview: true,
+              }),
+              retries: 0,
+            });
+            sent++;
+          } catch {
+            failed++;
+          }
+        }
+
+        result = { total: recipients.length, sent, failed };
+        break;
+      }
       case 'deleteTelegramWebhookWeb':
         result = await deleteTelegramWebhook(ctx);
         break;

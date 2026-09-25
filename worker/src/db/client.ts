@@ -1,4 +1,4 @@
-import { User, UserRoute, UserFilters, NormalizedOffer, RunLog, GlobalSettings, Payment } from '../types';
+import { User, UserRoute, UserFilters, NormalizedOffer, RunLog, GlobalSettings, Payment, PromoCode } from '../types';
 import { DEFAULT_SETTINGS, DEFAULT_FILTERS } from '../config';
 import { sha256 } from '../utils/crypto';
 import type { BrowserTelegramIdentity } from '../utils/telegram-login';
@@ -568,6 +568,14 @@ export class DbClient {
     return row ? (row as RunLog) : null;
   }
 
+  async getRecentRuns(limit: number = 20): Promise<RunLog[]> {
+    const { results } = await this.db
+      .prepare('SELECT * FROM runs ORDER BY datetime(started_at) DESC, id DESC LIMIT ?')
+      .bind(limit)
+      .all<any>();
+    return (results || []) as RunLog[];
+  }
+
   async addSentAlertsToLatestRun(count: number): Promise<void> {
     if (count <= 0) return;
     await this.db.prepare(
@@ -793,5 +801,93 @@ export class DbClient {
     if (user.role === 'admin') return 999;
     if (user.max_routes === null || user.max_routes === undefined) return 999;
     return user.max_routes;
+  }
+
+  // --- Broadcast & Promo Codes ---
+
+  async getRecipientsForBroadcast(targetRole: 'all' | 'free' | 'premium' | 'admin' = 'all'): Promise<{ chat_id: string; telegram_id: string }[]> {
+    let query = "SELECT chat_id, telegram_id FROM users WHERE status = 'active' AND chat_id IS NOT NULL";
+    if (targetRole === 'premium') {
+      query += " AND (role = 'premium' OR subscription_status = 'active')";
+    } else if (targetRole === 'free') {
+      query += " AND role = 'free' AND subscription_status != 'active'";
+    } else if (targetRole === 'admin') {
+      query += " AND role = 'admin'";
+    }
+    const { results } = await this.db.prepare(query).all<any>();
+    return (results || []) as { chat_id: string; telegram_id: string }[];
+  }
+
+  async createPromoCode(code: string, days: number, maxUses: number = 1, expiresAt?: string | null): Promise<void> {
+    const cleanCode = code.trim().toUpperCase();
+    if (!cleanCode) throw new Error('Promo code cannot be empty');
+    if (days <= 0) throw new Error('Days must be greater than 0');
+
+    await this.db.prepare(
+      `INSERT INTO promo_codes (code, days, max_uses, expires_at)
+       VALUES (?, ?, ?, ?)`
+    ).bind(cleanCode, days, maxUses || 1, expiresAt || null).run();
+  }
+
+  async listPromoCodes(): Promise<PromoCode[]> {
+    const { results } = await this.db.prepare(
+      'SELECT * FROM promo_codes ORDER BY created_at DESC'
+    ).all<any>();
+    return (results || []) as PromoCode[];
+  }
+
+  async deletePromoCode(code: string): Promise<void> {
+    await this.db.prepare('DELETE FROM promo_codes WHERE code = ?').bind(code.trim().toUpperCase()).run();
+  }
+
+  async redeemPromoCode(
+    telegramId: string,
+    rawCode: string
+  ): Promise<{ success: boolean; error?: string; days?: number; expiresAt?: string }> {
+    const code = rawCode.trim().toUpperCase();
+    if (!code) return { success: false, error: 'code_empty' };
+
+    const promo = await this.db.prepare(
+      'SELECT * FROM promo_codes WHERE code = ?'
+    ).bind(code).first<PromoCode>();
+
+    if (!promo) {
+      return { success: false, error: 'code_not_found' };
+    }
+
+    if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+      return { success: false, error: 'code_expired' };
+    }
+
+    if (promo.max_uses > 0 && promo.used_count >= promo.max_uses) {
+      return { success: false, error: 'code_exhausted' };
+    }
+
+    // Check if this user already redeemed this promo code
+    const alreadyRedeemed = await this.db.prepare(
+      'SELECT 1 FROM promo_code_redemptions WHERE code = ? AND telegram_id = ?'
+    ).bind(code, String(telegramId)).first<any>();
+
+    if (alreadyRedeemed) {
+      return { success: false, error: 'code_already_used' };
+    }
+
+    // Record redemption
+    await this.db.prepare(
+      'INSERT INTO promo_code_redemptions (code, telegram_id) VALUES (?, ?)'
+    ).bind(code, String(telegramId)).run();
+
+    // Increment usage count
+    await this.db.prepare(
+      'UPDATE promo_codes SET used_count = used_count + 1 WHERE code = ?'
+    ).bind(code).run();
+
+    // Grant days to user
+    const res = await this.adjustSubscription(telegramId, promo.days);
+    return {
+      success: true,
+      days: promo.days,
+      expiresAt: res.expiresAt || undefined,
+    };
   }
 }

@@ -31,6 +31,15 @@ export interface Payment {
   created_at?: string;
 }
 
+export interface PromoCode {
+  code: string;
+  days: number;
+  max_uses: number;
+  used_count: number;
+  expires_at?: string | null;
+  created_at?: string;
+}
+
 export interface UserRoute {
   id: string;
   telegram_id: string;

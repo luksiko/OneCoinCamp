@@ -117,4 +117,87 @@ describe('Admin Subscription & Payments', () => {
     expect(result.role).toBe('admin');
     expect(setRoleSpy).not.toHaveBeenCalled(); // Admin role preserved!
   });
+
+  it('redeems promo code successfully and grants subscription days', async () => {
+    const d1 = createMockD1();
+    const client = new DbClient(d1);
+
+    // Mock promo code exists
+    const promoCode = {
+      code: 'TEST30',
+      days: 30,
+      max_uses: 5,
+      used_count: 1,
+      expires_at: null,
+    };
+    d1.prepare.mockImplementation((sql: string) => {
+      return {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockImplementation(() => {
+          if (sql.includes('SELECT * FROM promo_codes')) return Promise.resolve(promoCode);
+          if (sql.includes('SELECT 1 FROM promo_code_redemptions')) return Promise.resolve(null); // not redeemed yet
+          return Promise.resolve(null);
+        }),
+        all: vi.fn().mockResolvedValue({ results: [] }),
+        run: vi.fn().mockResolvedValue({ success: true }),
+      };
+    });
+
+    vi.spyOn(client, 'adjustSubscription').mockResolvedValue({
+      expiresAt: '2026-10-25T00:00:00.000Z',
+      status: 'active',
+      role: 'premium',
+    });
+
+    const res = await client.redeemPromoCode('user10', 'test30');
+    expect(res.success).toBe(true);
+    expect(res.days).toBe(30);
+    expect(client.adjustSubscription).toHaveBeenCalledWith('user10', 30);
+  });
+
+  it('rejects already redeemed promo code for the same user', async () => {
+    const d1 = createMockD1();
+    const client = new DbClient(d1);
+
+    const promoCode = { code: 'VIP', days: 14, max_uses: 10, used_count: 1 };
+    d1.prepare.mockImplementation((sql: string) => {
+      return {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockImplementation(() => {
+          if (sql.includes('SELECT * FROM promo_codes')) return Promise.resolve(promoCode);
+          if (sql.includes('SELECT 1 FROM promo_code_redemptions')) return Promise.resolve({ 1: 1 }); // already redeemed!
+          return Promise.resolve(null);
+        }),
+        all: vi.fn().mockResolvedValue({ results: [] }),
+        run: vi.fn().mockResolvedValue({ success: true }),
+      };
+    });
+
+    const res = await client.redeemPromoCode('user10', 'VIP');
+    expect(res.success).toBe(false);
+    expect(res.error).toBe('code_already_used');
+  });
+
+  it('rejects expired promo code', async () => {
+    const d1 = createMockD1();
+    const client = new DbClient(d1);
+
+    const pastDate = new Date(Date.now() - 86400000).toISOString();
+    const promoCode = { code: 'OLD', days: 7, max_uses: 10, used_count: 0, expires_at: pastDate };
+    d1.prepare.mockImplementation((sql: string) => {
+      return {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockImplementation(() => {
+          if (sql.includes('SELECT * FROM promo_codes')) return Promise.resolve(promoCode);
+          return Promise.resolve(null);
+        }),
+        all: vi.fn().mockResolvedValue({ results: [] }),
+        run: vi.fn().mockResolvedValue({ success: true }),
+      };
+    });
+
+    const res = await client.redeemPromoCode('user10', 'OLD');
+    expect(res.success).toBe(false);
+    expect(res.error).toBe('code_expired');
+  });
 });

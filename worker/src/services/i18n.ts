@@ -57,6 +57,12 @@ export const I18N_STRINGS: Record<string, Record<string, string>> = {
     days_1: 'день',
     days_2_4: 'дня',
     days_5: 'дней',
+    promo_prompt: '🎁 <b>Активация промокода</b>\n\nОтправьте команду вместе с промокодом:\n<code>/promo ВАШКОД</code>',
+    promo_success: '🎉 <b>Промокод активирован!</b>\n\nВам начислено дней: <b>%days%</b>\nПодписка активна до: <b>%expiry%</b>',
+    promo_err_invalid: '❌ Промокод не найден или указан неверно.',
+    promo_err_expired: '⏱ Срок действия этого промокода истёк.',
+    promo_err_exhausted: '⚠️ Лимит активаций этого промокода исчерпан.',
+    promo_err_used: '⚠️ Вы уже активировали этот промокод ранее.',
   },
   en: {
     menu_welcome: '🚐 <b>Camper Monitor — 1€ campervan relocations</b>\n\nAutomated monitoring of 1€ camper and car relocations (Roadsurfer, Movacar, Indie Campers, Imoova).\n\nUse the menu below to access features or open the Mini App for an interactive map:',
@@ -113,6 +119,12 @@ export const I18N_STRINGS: Record<string, Record<string, string>> = {
     days_1: 'day',
     days_2_4: 'days',
     days_5: 'days',
+    promo_prompt: '🎁 <b>Redeem Promo Code</b>\n\nSend the command with your code:\n<code>/promo YOURCODE</code>',
+    promo_success: '🎉 <b>Promo code redeemed!</b>\n\nDays granted: <b>%days%</b>\nSubscription valid until: <b>%expiry%</b>',
+    promo_err_invalid: '❌ Promo code not found or invalid.',
+    promo_err_expired: '⏱ This promo code has expired.',
+    promo_err_exhausted: '⚠️ This promo code has reached its maximum usage limit.',
+    promo_err_used: '⚠️ You have already redeemed this promo code.',
   },
   de: {
     menu_welcome: '🚐 <b>Camper Monitor — 1€ Camper-Überführungen</b>\n\nAutomatische Überwachung von Wohnmobilen und Autos für 1 Euro (Roadsurfer, Movacar, Indie Campers, Imoova).\n\nNutzen Sie das Menü unten oder öffnen Sie die Mini App für eine interaktive Karte:',
@@ -169,6 +181,12 @@ export const I18N_STRINGS: Record<string, Record<string, string>> = {
     days_1: 'Tag',
     days_2_4: 'Tage',
     days_5: 'Tage',
+    promo_prompt: '🎁 <b>Gutscheincode einlösen</b>\n\nSenden Sie den Befehl mit Ihrem Code:\n<code>/promo DEINCODE</code>',
+    promo_success: '🎉 <b>Gutschein eingelöst!</b>\n\nTage gutgeschrieben: <b>%days%</b>\nGültig bis: <b>%expiry%</b>',
+    promo_err_invalid: '❌ Gutscheincode ungültig oder nicht gefunden.',
+    promo_err_expired: '⏱ Dieser Gutschein ist abgelaufen.',
+    promo_err_exhausted: '⚠️ Dieser Gutschein wurde bereits maximal oft eingelöst.',
+    promo_err_used: '⚠️ Sie haben diesen Gutschein bereits eingelöst.',
   },
   it: {
     menu_welcome: '🚐 <b>Camper Monitor — Spostamenti camper a 1€</b>\n\nMonitoraggio automatico di camper e auto a 1 euro (Roadsurfer, Movacar, Indie Campers, Imoova).\n\nUsa il menu qui sotto o apri la Mini App per visualizzare la mappa interattiva:',
@@ -225,6 +243,12 @@ export const I18N_STRINGS: Record<string, Record<string, string>> = {
     days_1: 'giorno',
     days_2_4: 'giorni',
     days_5: 'giorni',
+    promo_prompt: '🎁 <b>Riscatta codice promozionale</b>\n\nInvia il comando con il tuo codice:\n<code>/promo TUOCODICE</code>',
+    promo_success: '🎉 <b>Codice promo riscattato!</b>\n\nGiorni accreditati: <b>%days%</b>\nValido fino al: <b>%expiry%</b>',
+    promo_err_invalid: '❌ Codice promozionale non trovato o non valido.',
+    promo_err_expired: '⏱ Questo codice promozionale è scaduto.',
+    promo_err_exhausted: '⚠️ Questo codice promozionale ha raggiunto il limite massimo di utilizzi.',
+    promo_err_used: '⚠️ Hai già riscattato questo codice promozionale.',
   }
 };
 

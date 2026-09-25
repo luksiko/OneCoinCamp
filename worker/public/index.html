@@ -940,6 +940,15 @@
         </div>
       </div>
 
+      <!-- Promo code Card -->
+      <div class="card" id="cardPromo">
+        <div class="card-title" style="margin-bottom:8px;">🎁 Промокод на Premium</div>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="inputUserPromo" placeholder="Введите промокод..." style="flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;text-transform:uppercase;">
+          <button type="button" class="btn btn-accent" style="margin:0;padding:8px 14px;font-size:13px;" onclick="redeemUserPromo()">Применить</button>
+        </div>
+      </div>
+
       <!-- Подробный статус скрипта -->
       <div class="card" id="detailedStatusCard">
         <div class="card-title" style="margin-bottom:6px;" data-i18n="info_checks">Информация о проверках</div>
@@ -1280,16 +1289,19 @@
       <div class="seg" style="margin-bottom:10px;">
         <button type="button" class="selected" id="btnAdminTabUsers" onclick="adminSwitchSubTab('users')">👥 Пользователи</button>
         <button type="button" id="btnAdminTabPayments" onclick="adminSwitchSubTab('payments')">💳 Оплаты</button>
+        <button type="button" id="btnAdminTabPromo" onclick="adminSwitchSubTab('promo')">🎁 Промокоды</button>
+        <button type="button" id="btnAdminTabBroadcast" onclick="adminSwitchSubTab('broadcast')">📢 Рассылка</button>
         <button type="button" id="btnAdminTabSystem" onclick="adminSwitchSubTab('system')">⚙️ Система</button>
       </div>
 
       <!-- SubTab: Users -->
       <div id="adminViewUsers">
         <div class="card" style="padding:12px;">
-          <div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;">
             <input type="text" id="adminUserSearch" placeholder="🔍 Поиск по имени, @username или ID..." 
-              style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;"
+              style="flex:1;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;"
               oninput="adminFilterUsers()">
+            <button type="button" class="btn btn-secondary" style="padding:7px 10px;font-size:11px;margin:0;white-space:nowrap;" onclick="adminExportUsersCsv()">📥 Экспорт CSV</button>
           </div>
           <div class="chips" style="margin-bottom:12px;" id="adminRoleChips">
             <button type="button" class="chip selected" onclick="adminFilterRole('all', this)">Все (<span id="countAllUsers">0</span>)</button>
@@ -1304,9 +1316,12 @@
       <!-- SubTab: Payments -->
       <div id="adminViewPayments" style="display:none;">
         <div class="card" style="padding:12px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;">
             <div class="card-title" style="margin:0;">💳 История транзакций</div>
-            <button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;margin:0;" onclick="adminLoadPayments(adminSelectedPaymentUserId)">🔄 Обновить</button>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;margin:0;" onclick="adminExportPaymentsCsv()">📥 Экспорт CSV</button>
+              <button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;margin:0;" onclick="adminLoadPayments(adminSelectedPaymentUserId)">🔄 Обновить</button>
+            </div>
           </div>
           <div id="adminPaymentsFilterNotice" style="display:none;background:rgba(46,166,255,0.12);border:1px solid var(--accent);border-radius:8px;padding:6px 10px;margin-bottom:10px;font-size:12px;justify-content:space-between;align-items:center;">
             <span id="adminPaymentsFilterUser">Оплаты пользователя: ...</span>
@@ -1316,8 +1331,139 @@
         </div>
       </div>
 
+      <!-- SubTab: Promo Codes -->
+      <div id="adminViewPromo" style="display:none;">
+        <!-- Create Promo Form -->
+        <div class="card" style="padding:12px;margin-bottom:10px;">
+          <div class="card-title" style="margin-bottom:8px;">🎁 Создать новый промокод</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div>
+              <label class="field-label">Код промокода:</label>
+              <input type="text" id="adminPromoCodeInput" placeholder="Например: SUMMER30" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;text-transform:uppercase;">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div>
+                <label class="field-label">Дней подписки:</label>
+                <input type="number" id="adminPromoDaysInput" value="30" min="1" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;">
+              </div>
+              <div>
+                <label class="field-label">Макс. использований:</label>
+                <input type="number" id="adminPromoUsesInput" value="10" min="1" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;">
+              </div>
+            </div>
+            <div>
+              <label class="field-label">Срок действия (необязательно):</label>
+              <input type="date" id="adminPromoExpiryInput" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;">
+            </div>
+            <button type="button" class="btn btn-accent" style="margin-top:4px;padding:9px;font-size:13px;" onclick="adminCreatePromoCodeNow()">+ Создать промокод</button>
+          </div>
+        </div>
+
+        <!-- Promo Codes List -->
+        <div class="card" style="padding:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div class="card-title" style="margin:0;">Активные промокоды</div>
+            <button type="button" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;margin:0;" onclick="adminLoadPromoCodes()">🔄 Обновить</button>
+          </div>
+          <div id="adminPromoList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+
+      <!-- SubTab: Broadcast -->
+      <div id="adminViewBroadcast" style="display:none;">
+        <div class="card" style="padding:12px;">
+          <div class="card-title" style="margin-bottom:8px;">📢 Рассылка сообщений в Telegram</div>
+          <div style="font-size:12px;color:var(--hint);margin-bottom:10px;">
+            Сообщение будет отправлено через Telegram бота напрямую в личный чат выбранным пользователям.
+          </div>
+          
+          <div class="field">
+            <label class="field-label">Аудитория получателей:</label>
+            <select id="adminBroadcastTarget" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;">
+              <option value="all">👥 Все активные пользователи</option>
+              <option value="free">⚪ Только Free пользователи</option>
+              <option value="premium">👑 Только Premium пользователи</option>
+              <option value="admin">🛡️ Только Администраторы</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Текст сообщения (HTML поддерживается):</label>
+            <textarea id="adminBroadcastText" rows="6" placeholder="Привет! 🚐 У нас отличные новости... Поддерживаются теги &lt;b&gt;, &lt;i&gt;, &lt;a href=&quot;...&quot;&gt;" 
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;resize:vertical;"
+              oninput="document.getElementById('adminBroadcastCharCount').textContent = this.value.length"></textarea>
+            <div style="text-align:right;font-size:11px;color:var(--hint);margin-top:2px;">Символов: <span id="adminBroadcastCharCount">0</span></div>
+          </div>
+
+          <div id="adminBroadcastResult" style="display:none;padding:8px 10px;border-radius:8px;margin-bottom:10px;font-size:12px;"></div>
+
+          <button type="button" class="btn btn-accent" id="btnAdminSendBroadcast" style="margin:0;padding:10px;font-size:13px;" onclick="adminSendBroadcastNow()">
+            📢 Отправить рассылку
+          </button>
+        </div>
+      </div>
+
       <!-- SubTab: System & Monitor -->
       <div id="adminViewSystem" style="display:none;">
+        <!-- Provider Toggles Card -->
+        <div class="card" style="padding:12px;margin-bottom:10px;">
+          <div class="card-title" style="margin-bottom:8px;">🚦 Управление провайдерами (Вкл / Выкл)</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+              <div>
+                <div style="font-weight:600;font-size:13px;">🚐 Roadsurfer Rally</div>
+                <div style="font-size:11px;color:var(--hint);">Кемперы по всей Европе</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="adminToggleRs" onchange="adminToggleProvider('provider_roadsurfer_enabled', this.checked)">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+              <div>
+                <div style="font-weight:600;font-size:13px;">🚗 Movacar</div>
+                <div style="font-size:11px;color:var(--hint);">Автомобили и кемперы</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="adminToggleMovacar" onchange="adminToggleProvider('provider_movacar_enabled', this.checked)">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+              <div>
+                <div style="font-weight:600;font-size:13px;">🚐 Indie Campers</div>
+                <div style="font-size:11px;color:var(--hint);">Кемпервэны</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="adminToggleIndie" onchange="adminToggleProvider('provider_indiecampers_enabled', this.checked)">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;">
+              <div>
+                <div style="font-weight:600;font-size:13px;">🌍 Imoova</div>
+                <div style="font-size:11px;color:var(--hint);">Международные перегоны</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="adminToggleImoova" onchange="adminToggleProvider('provider_imoova_enabled', this.checked)">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Runs Audit Log -->
+        <div class="card" style="padding:12px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="card-title" style="margin:0;">📋 Лог запусков монитора</div>
+            <button type="button" class="btn btn-secondary" style="padding:3px 8px;font-size:11px;margin:0;" onclick="adminLoadRecentRuns()">🔄 Обновить</button>
+          </div>
+          <div id="adminRecentRunsList" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;">
+            <div style="color:var(--hint);font-size:12px;">Загрузка логов...</div>
+          </div>
+        </div>
+
+        <!-- Status & System Actions -->
         <div class="card" style="padding:12px;">
           <div class="card-title" style="margin-bottom:8px;">📡 Состояние монитора</div>
           <div id="adminMonitorStatusText" style="font-size:13px;line-height:1.6;color:var(--text);margin-bottom:12px;background:var(--section);padding:10px;border-radius:8px;border:1px solid var(--border);">
@@ -4566,24 +4712,38 @@
     function adminSwitchSubTab(subTab) {
       var tabUsers = document.getElementById('btnAdminTabUsers');
       var tabPayments = document.getElementById('btnAdminTabPayments');
+      var tabPromo = document.getElementById('btnAdminTabPromo');
+      var tabBroadcast = document.getElementById('btnAdminTabBroadcast');
       var tabSystem = document.getElementById('btnAdminTabSystem');
+
       var viewUsers = document.getElementById('adminViewUsers');
       var viewPayments = document.getElementById('adminViewPayments');
+      var viewPromo = document.getElementById('adminViewPromo');
+      var viewBroadcast = document.getElementById('adminViewBroadcast');
       var viewSystem = document.getElementById('adminViewSystem');
 
       if (tabUsers) tabUsers.classList.toggle('selected', subTab === 'users');
       if (tabPayments) tabPayments.classList.toggle('selected', subTab === 'payments');
+      if (tabPromo) tabPromo.classList.toggle('selected', subTab === 'promo');
+      if (tabBroadcast) tabBroadcast.classList.toggle('selected', subTab === 'broadcast');
       if (tabSystem) tabSystem.classList.toggle('selected', subTab === 'system');
 
       if (viewUsers) viewUsers.style.display = subTab === 'users' ? 'block' : 'none';
       if (viewPayments) viewPayments.style.display = subTab === 'payments' ? 'block' : 'none';
+      if (viewPromo) viewPromo.style.display = subTab === 'promo' ? 'block' : 'none';
+      if (viewBroadcast) viewBroadcast.style.display = subTab === 'broadcast' ? 'block' : 'none';
       if (viewSystem) viewSystem.style.display = subTab === 'system' ? 'block' : 'none';
 
       if (subTab === 'payments' && (!adminPaymentsData || !adminPaymentsData.length)) {
         adminLoadPayments(adminSelectedPaymentUserId);
       }
+      if (subTab === 'promo') {
+        adminLoadPromoCodes();
+      }
       if (subTab === 'system') {
         adminUpdateSystemStatus();
+        adminRenderProviderToggles();
+        adminLoadRecentRuns();
       }
     }
 
@@ -4592,6 +4752,13 @@
       adminListUsers();
       if (document.getElementById('adminViewPayments')?.style.display !== 'none') {
         adminLoadPayments(adminSelectedPaymentUserId);
+      }
+      if (document.getElementById('adminViewPromo')?.style.display !== 'none') {
+        adminLoadPromoCodes();
+      }
+      if (document.getElementById('adminViewSystem')?.style.display !== 'none') {
+        adminRenderProviderToggles();
+        adminLoadRecentRuns();
       }
       adminUpdateSystemStatus();
     }
@@ -4974,6 +5141,340 @@
           toast('Ошибка: ' + (e && e.message || e), true);
         })
         .checkProvidersHealth();
+    }
+
+    // ── CSV Export Helper ──
+    function adminDownloadCsv(filename, headers, rows) {
+      var csvContent = '\uFEFF';
+      csvContent += headers.map(function(h) { return '"' + String(h).replace(/"/g, '""') + '"'; }).join(',') + '\r\n';
+      rows.forEach(function(row) {
+        csvContent += row.map(function(cell) {
+          if (cell === null || cell === undefined) return '""';
+          return '"' + String(cell).replace(/"/g, '""') + '"';
+        }).join(',') + '\r\n';
+      });
+      var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function adminExportUsersCsv() {
+      if (!adminUsersData || !adminUsersData.length) {
+        toast('Нет данных пользователей для экспорта', true);
+        return;
+      }
+      var headers = ['Telegram ID', 'Username', 'First Name', 'Last Name', 'Role', 'Status', 'Expires At', 'Max Routes', 'Created At'];
+      var rows = adminUsersData.map(function(u) {
+        return [
+          u.telegram_id,
+          u.username || '',
+          u.first_name || '',
+          u.last_name || '',
+          u.role || 'user',
+          u.subscription_status || 'none',
+          u.subscription_expires_at || '',
+          u.max_routes || '',
+          u.created_at || ''
+        ];
+      });
+      var dateStr = new Date().toISOString().slice(0, 10);
+      adminDownloadCsv('users_export_' + dateStr + '.csv', headers, rows);
+      toast('CSV пользователей скачан');
+    }
+
+    function adminExportPaymentsCsv() {
+      var processPayments = function(data) {
+        if (!data || !data.length) {
+          toast('Нет оплат для экспорта', true);
+          return;
+        }
+        var headers = ['Payment ID', 'Telegram ID', 'Username', 'Amount', 'Currency', 'Status', 'Days Added', 'Transaction ID', 'Created At'];
+        var rows = data.map(function(p) {
+          return [
+            p.id,
+            p.telegram_id,
+            p.username || '',
+            p.amount || '',
+            p.currency || 'EUR',
+            p.status || '',
+            p.subscription_days || 30,
+            p.paddle_transaction_id || '',
+            p.created_at || ''
+          ];
+        });
+        var dateStr = new Date().toISOString().slice(0, 10);
+        adminDownloadCsv('payments_export_' + dateStr + '.csv', headers, rows);
+        toast('CSV оплат скачан');
+      };
+
+      if (adminPaymentsData && adminPaymentsData.length > 0) {
+        processPayments(adminPaymentsData);
+      } else {
+        toast('Загрузка оплат для экспорта...');
+        google.script.run
+          .withSuccessHandler(function(payments) {
+            processPayments(payments);
+          })
+          .withFailureHandler(function(e) {
+            toast('Ошибка экспорта: ' + (e && e.message || e), true);
+          })
+          .adminGetPayments('');
+      }
+    }
+
+    // ── Promo Codes ──
+    function adminLoadPromoCodes() {
+      var container = document.getElementById('adminPromoList');
+      if (container) {
+        container.innerHTML = '<div style="color:var(--hint);font-size:12px;padding:8px;">Загрузка промокодов...</div>';
+      }
+      google.script.run
+        .withSuccessHandler(adminRenderPromoCodes)
+        .withFailureHandler(function(e) {
+          if (container) {
+            container.innerHTML = '<div style="color:var(--danger);font-size:12px;padding:8px;">Ошибка: ' + (e && e.message || e) + '</div>';
+          }
+        })
+        .adminListPromoCodes();
+    }
+
+    function adminRenderPromoCodes(list) {
+      var container = document.getElementById('adminPromoList');
+      if (!container) return;
+      if (!list || !list.length) {
+        container.innerHTML = '<div style="color:var(--hint);font-size:12px;padding:8px;text-align:center;">Активных промокодов нет</div>';
+        return;
+      }
+      container.innerHTML = '';
+      list.forEach(function(item) {
+        var card = document.createElement('div');
+        card.style.cssText = 'background:var(--section);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px;display:flex;justify-content:space-between;align-items:center;';
+        var expStr = item.expires_at ? new Date(item.expires_at).toLocaleDateString() : 'Бессрочно';
+        card.innerHTML = `
+          <div>
+            <div style="font-weight:700;font-size:14px;letter-spacing:1px;font-family:monospace;color:var(--accent);">${escapeHtml(item.code)}</div>
+            <div style="color:var(--hint);font-size:11px;margin-top:2px;">
+              ⏳ <b>+${item.days} дн.</b> • Использовано: <b>${item.times_used}/${item.max_uses}</b> • До: <b>${expStr}</b>
+            </div>
+          </div>
+          <div>
+            <button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:11px;color:var(--danger);margin:0;" onclick="adminDeletePromoCodeNow('${escapeHtml(item.code)}')">🗑</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function adminCreatePromoCodeNow() {
+      var codeInput = document.getElementById('adminPromoCodeInput');
+      var daysInput = document.getElementById('adminPromoDaysInput');
+      var usesInput = document.getElementById('adminPromoUsesInput');
+      var expInput = document.getElementById('adminPromoExpiryInput');
+
+      var code = (codeInput?.value || '').trim().toUpperCase();
+      if (!code) {
+        toast('Введите код промокода', true);
+        return;
+      }
+      var days = parseInt(daysInput?.value || '30', 10);
+      var maxUses = parseInt(usesInput?.value || '1', 10);
+      var expVal = expInput?.value ? new Date(expInput.value).toISOString() : null;
+
+      toast('Создание промокода...');
+      google.script.run
+        .withSuccessHandler(function() {
+          toast('Промокод ' + code + ' успешно создан!');
+          if (codeInput) codeInput.value = '';
+          adminLoadPromoCodes();
+        })
+        .withFailureHandler(function(e) {
+          toast('Ошибка: ' + (e && e.message || e), true);
+        })
+        .adminCreatePromoCode({
+          code: code,
+          days: days,
+          maxUses: maxUses,
+          expiresAt: expVal
+        });
+    }
+
+    function adminDeletePromoCodeNow(code) {
+      if (!confirm('Удалить промокод ' + code + '?')) return;
+      toast('Удаление промокода...');
+      google.script.run
+        .withSuccessHandler(function() {
+          toast('Промокод удален');
+          adminLoadPromoCodes();
+        })
+        .withFailureHandler(function(e) {
+          toast('Ошибка: ' + (e && e.message || e), true);
+        })
+        .adminDeletePromoCode(code);
+    }
+
+    // ── Broadcast ──
+    function adminSendBroadcastNow() {
+      var targetEl = document.getElementById('adminBroadcastTarget');
+      var textEl = document.getElementById('adminBroadcastText');
+      var btn = document.getElementById('btnAdminSendBroadcast');
+      var resEl = document.getElementById('adminBroadcastResult');
+
+      var targetRole = targetEl?.value || 'all';
+      var text = (textEl?.value || '').trim();
+
+      if (!text) {
+        toast('Введите текст сообщения для рассылки', true);
+        return;
+      }
+
+      var roleLabels = { all: 'Всем пользователям', free: 'Free пользователям', premium: 'Premium пользователям', admin: 'Администраторам' };
+      if (!confirm('Отправить рассылку аудитории: "' + (roleLabels[targetRole] || targetRole) + '"?')) {
+        return;
+      }
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Отправка рассылки...';
+      }
+      if (resEl) resEl.style.display = 'none';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = '📢 Отправить рассылку';
+          }
+          toast('Рассылка отправлена!');
+          if (resEl) {
+            resEl.style.display = 'block';
+            resEl.style.background = 'rgba(74, 222, 128, 0.15)';
+            resEl.style.border = '1px solid var(--success)';
+            resEl.style.color = 'var(--success)';
+            resEl.innerHTML = `✅ Доставлено: <b>${res?.sent || 0}</b> | Ошибок: <b>${res?.failed || 0}</b>`;
+          }
+        })
+        .withFailureHandler(function(e) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = '📢 Отправить рассылку';
+          }
+          toast('Ошибка рассылки: ' + (e && e.message || e), true);
+          if (resEl) {
+            resEl.style.display = 'block';
+            resEl.style.background = 'rgba(239, 68, 68, 0.15)';
+            resEl.style.border = '1px solid var(--danger)';
+            resEl.style.color = 'var(--danger)';
+            resEl.textContent = 'Ошибка: ' + (e && e.message || e);
+          }
+        })
+        .adminSendBroadcast(targetRole, text);
+    }
+
+    // ── Provider Feature Flags ──
+    function adminRenderProviderToggles() {
+      var isTrue = function(val) {
+        return val === true || val === 'true' || val === 1 || val === '1' || val === undefined;
+      };
+      var st = (state && state.settings) || {};
+      var tRs = document.getElementById('adminToggleRs');
+      var tMov = document.getElementById('adminToggleMovacar');
+      var tIndie = document.getElementById('adminToggleIndie');
+      var tImoova = document.getElementById('adminToggleImoova');
+
+      if (tRs) tRs.checked = isTrue(st.provider_roadsurfer_enabled);
+      if (tMov) tMov.checked = isTrue(st.provider_movacar_enabled);
+      if (tIndie) tIndie.checked = isTrue(st.provider_indiecampers_enabled);
+      if (tImoova) tImoova.checked = isTrue(st.provider_imoova_enabled);
+    }
+
+    function adminToggleProvider(key, enabled) {
+      if (state && state.settings) {
+        state.settings[key] = enabled;
+      }
+      toast('Сохранение настроек...');
+      google.script.run
+        .withSuccessHandler(function() {
+          toast('Настройка провайдера сохранена');
+        })
+        .withFailureHandler(function(e) {
+          toast('Ошибка сохранения: ' + (e && e.message || e), true);
+          adminRenderProviderToggles();
+        })
+        .adminSetProviderToggle(key, enabled);
+    }
+
+    // ── Audit Log (Recent Runs) ──
+    function adminLoadRecentRuns() {
+      var container = document.getElementById('adminRecentRunsList');
+      if (container) {
+        container.innerHTML = '<div style="color:var(--hint);font-size:12px;padding:6px;">Загрузка логов...</div>';
+      }
+      google.script.run
+        .withSuccessHandler(adminRenderRecentRuns)
+        .withFailureHandler(function(e) {
+          if (container) {
+            container.innerHTML = '<div style="color:var(--danger);font-size:12px;padding:6px;">Ошибка: ' + (e && e.message || e) + '</div>';
+          }
+        })
+        .adminGetRecentRuns();
+    }
+
+    function adminRenderRecentRuns(runs) {
+      var container = document.getElementById('adminRecentRunsList');
+      if (!container) return;
+      if (!runs || !runs.length) {
+        container.innerHTML = '<div style="color:var(--hint);font-size:12px;padding:6px;text-align:center;">Запусков пока нет</div>';
+        return;
+      }
+      container.innerHTML = '';
+      runs.forEach(function(r) {
+        var card = document.createElement('div');
+        card.style.cssText = 'background:var(--section);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:11px;';
+        var isOk = r.status === 'ok';
+        var statusBadge = isOk 
+          ? '<span style="color:var(--success);font-weight:600;">🟢 OK</span>' 
+          : '<span style="color:var(--danger);font-weight:600;">🔴 ОШИБКА</span>';
+        var timeStr = r.started_at ? new Date(r.started_at).toLocaleTimeString() : '—';
+        var dur = (r.started_at && r.finished_at) 
+          ? Math.max(0, Math.round((Date.parse(r.finished_at) - Date.parse(r.started_at)) / 1000)) + 'с' 
+          : '—';
+        
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>${statusBadge} <span style="color:var(--hint);margin-left:4px;">${timeStr} (${dur})</span></div>
+            <div style="color:var(--hint);">🎫 <b>${r.offers_found || 0}</b> • 🔔 <b>${r.alerts_sent || 0}</b></div>
+          </div>
+          ${r.error ? `<div style="color:var(--danger);font-size:10px;font-family:monospace;margin-top:3px;word-break:break-all;">${escapeHtml(r.error)}</div>` : ''}
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // ── User Promo Redemption ──
+    function redeemUserPromo() {
+      var input = document.getElementById('inputUserPromo');
+      var code = (input?.value || '').trim().toUpperCase();
+      if (!code) {
+        toast('Введите промокод', true);
+        return;
+      }
+      toast('Проверка промокода...');
+      google.script.run
+        .withSuccessHandler(function(res) {
+          toast('🎉 Промокод применен! Добавлено дней: ' + (res?.daysAdded || 30));
+          if (input) input.value = '';
+          setTimeout(function() { window.location.reload(); }, 1500);
+        })
+        .withFailureHandler(function(e) {
+          toast('Ошибка: ' + (e && e.message || e), true);
+        })
+        .redeemPromoCodeWeb(code);
     }
 
     function initPaddle(data) {
