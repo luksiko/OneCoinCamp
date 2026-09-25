@@ -3896,6 +3896,7 @@
       edit.title = tWeb('edit_route');
       edit.textContent = '✏️';
       edit.onclick = function () {
+        if (!requirePremium('Редактирование маршрутов')) return;
         route._editing = true;
         renderRoutes();
       };
@@ -3929,6 +3930,10 @@
       chk.type = 'checkbox';
       chk.checked = isTruthy(route.enabled);
       chk.onchange = function () {
+        if (chk.checked && !requirePremium('Включение маршрутов')) {
+          chk.checked = false;
+          return;
+        }
         route.enabled = chk.checked;
         if (chk.checked && isProvEnabled) { card.classList.remove('off'); } else { card.classList.add('off'); }
       };
@@ -4143,7 +4148,20 @@
       return sel;
     }
 
+    function requirePremium(actionName) {
+      var isActive = state.user && (state.user.subscriptionStatus === 'active' || state.user.subscriptionStatus === 'trial');
+      if (!isActive && state.user?.role !== 'admin') {
+        toast('💎 ' + (actionName || 'Эта функция') + ' доступна только в Premium!');
+        var btn = document.getElementById('btnPaddleCheckout');
+        if (btn) setTimeout(function() { btn.click(); }, 1000);
+        return false;
+      }
+      return true;
+    }
+
     function addRoute() {
+      if (!requirePremium('Добавление маршрутов')) return;
+      
       var route = {
         enabled: true,
         source: 'roadsurfer',
