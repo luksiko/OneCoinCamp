@@ -7,6 +7,8 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>try { if (!(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) && !localStorage.getItem('camper_monitor_telegram_session')) document.documentElement.classList.add('browser-auth-required'); } catch (e) { document.documentElement.classList.add('browser-auth-required'); }</script>
   <title>Camper Monitor</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -1495,6 +1497,7 @@
         offer_camper_type: '🚐 Wohnmobil',
         offer_car_type: '🚗 PKW',
         offer_sleeping_suffix: ' • {count} Schlafplätze',
+        offer_last_checked: 'Zuletzt geprüft',
         delete_offer_title: 'Dieses Angebot löschen',
         offer_delete_confirm: 'Dieses Angebot löschen?',
         offer_deleted: 'Angebot gelöscht',
@@ -1651,6 +1654,7 @@
         offer_camper_type: '🚐 Camper',
         offer_car_type: '🚗 Auto',
         offer_sleeping_suffix: ' • {count} posti letto',
+        offer_last_checked: 'Ultima verifica',
         delete_offer_title: 'Elimina questa offerta',
         offer_delete_confirm: 'Eliminare questa offerta?',
         offer_deleted: 'Offerta eliminata',
@@ -1807,6 +1811,7 @@
         offer_camper_type: '🚐 Camper',
         offer_car_type: '🚗 Passenger car',
         offer_sleeping_suffix: ' • {count} berths',
+        offer_last_checked: 'Last checked',
         delete_offer_title: 'Delete this offer',
         offer_delete_confirm: 'Delete this offer?',
         offer_deleted: 'Offer deleted',
@@ -1963,6 +1968,7 @@
         offer_camper_type: '🚐 Будинок на колесах',
         offer_car_type: '🚗 Легковий автомобіль',
         offer_sleeping_suffix: ' • {count} спальних місць',
+        offer_last_checked: 'Остання перевірка',
         delete_offer_title: 'Видалити цей оффер',
         offer_delete_confirm: 'Видалити цей оффер?',
         offer_deleted: 'Оффер видалено',
@@ -2119,6 +2125,7 @@
         offer_camper_type: '🚐 Дом на колёсах',
         offer_car_type: '🚗 Легковой автомобиль',
         offer_sleeping_suffix: ' • {count} спальных мест',
+        offer_last_checked: 'Последняя проверка',
         delete_offer_title: 'Удалить этот оффер',
         offer_delete_confirm: 'Удалить этот оффер?',
         offer_deleted: 'Оффер удалён',
@@ -2955,6 +2962,16 @@
           added.className = 'offer-added';
           added.textContent = '🕒 ' + addedStr;
           details.appendChild(added);
+        }
+      }
+
+      if (offer.lastSeenAt) {
+        var checkedAt = parseDateFlexible(offer.lastSeenAt);
+        if (checkedAt) {
+          var checked = document.createElement('div');
+          checked.className = 'offer-added';
+          checked.textContent = '✓ ' + tWeb('offer_last_checked') + ': ' + checkedAt.toLocaleString(currentAppLang || 'ru');
+          details.appendChild(checked);
         }
       }
 
