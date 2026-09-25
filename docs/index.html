@@ -3220,8 +3220,9 @@
       var silentHoursEl = document.getElementById('silentHoursEnabled');
       if (silentHoursEl) {
         silentHoursEl.onchange = function () {
-          if (!state || !state.settings) return;
-          state.settings.silent_hours_enabled = this.checked;
+          if (!state) return;
+          if (!state.filters) state.filters = {};
+          state.filters.silent_hours_enabled = this.checked;
           var statusEl = document.getElementById('silentHoursStatusText');
           if (statusEl) {
             statusEl.textContent = this.checked ? tWeb('silent_on') : tWeb('silent_off');
@@ -3231,15 +3232,17 @@
       var silentStartEl = document.getElementById('silentHoursStart');
       if (silentStartEl) {
         silentStartEl.onchange = function () {
-          if (!state || !state.settings) return;
-          state.settings.silent_hours_start = this.value;
+          if (!state) return;
+          if (!state.filters) state.filters = {};
+          state.filters.silent_hours_start = this.value;
         };
       }
       var silentEndEl = document.getElementById('silentHoursEnd');
       if (silentEndEl) {
         silentEndEl.onchange = function () {
-          if (!state || !state.settings) return;
-          state.settings.silent_hours_end = this.value;
+          if (!state) return;
+          if (!state.filters) state.filters = {};
+          state.filters.silent_hours_end = this.value;
         };
       }
       var btnToggleWebhook = document.getElementById('btnToggleWebhook');
@@ -3460,6 +3463,20 @@
     }
 
     function renderSettings() {
+      if (!state.isAdmin) {
+        ['intervalSeg', 'checkNeighbors', 'telegramEnabled', 'webhookField', 'notifyAllByPrice'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) {
+            var field = el.closest('.field');
+            if (field) field.style.display = 'none';
+          }
+        });
+        var cardCompanies = document.getElementById('cardCompanies');
+        if (cardCompanies) cardCompanies.style.display = 'none';
+        var cardTriggers = document.getElementById('cardTriggers');
+        if (cardTriggers) cardTriggers.style.display = 'none';
+      }
+
       renderSeg('intervalSeg', INTERVALS,
         String(state.settings.poll_interval_minutes),
         function (v) { state.settings.poll_interval_minutes = v; });
@@ -3476,7 +3493,7 @@
       var silentStartEl = document.getElementById('silentHoursStart');
       var silentEndEl = document.getElementById('silentHoursEnd');
 
-      var isSilent = state.settings && isTruthy(state.settings.silent_hours_enabled);
+      var isSilent = state.filters && isTruthy(state.filters.silent_hours_enabled);
       if (silentHoursEl) {
         silentHoursEl.checked = isSilent;
       }
@@ -3484,10 +3501,10 @@
         silentStatusTextEl.textContent = isSilent ? 'Включены ✅' : 'Выключены ⬜';
       }
       if (silentStartEl) {
-        silentStartEl.value = (state.settings && state.settings.silent_hours_start) || '23:00';
+        silentStartEl.value = (state.filters && state.filters.silent_hours_start) || '23:00';
       }
       if (silentEndEl) {
-        silentEndEl.value = (state.settings && state.settings.silent_hours_end) || '07:00';
+        silentEndEl.value = (state.filters && state.filters.silent_hours_end) || '07:00';
       }
       var maxPriceEl = document.getElementById('maxPriceInput');
       if (maxPriceEl) {
@@ -3957,14 +3974,14 @@
       if (pMv) { state.settings.provider_movacar_enabled = pMv.checked; }
       if (pIc) { state.settings.provider_indiecampers_enabled = pIc.checked; }
       if (pIm) { state.settings.provider_imoova_enabled = pIm.checked; }
-      if (silentHoursEl) { state.settings.silent_hours_enabled = silentHoursEl.checked; }
-      if (silentStartEl && silentStartEl.value) { state.settings.silent_hours_start = silentStartEl.value; }
-      if (silentEndEl && silentEndEl.value) { state.settings.silent_hours_end = silentEndEl.value; }
+      if (!state.filters) { state.filters = {}; }
+      if (silentHoursEl) { state.filters.silent_hours_enabled = silentHoursEl.checked; }
+      if (silentStartEl && silentStartEl.value) { state.filters.silent_hours_start = silentStartEl.value; }
+      if (silentEndEl && silentEndEl.value) { state.filters.silent_hours_end = silentEndEl.value; }
 
       var maxPriceEl = document.getElementById('maxPriceInput');
       var minDaysEl = document.getElementById('minTripDaysInput');
       var maxDaysEl = document.getElementById('maxTripDaysInput');
-      if (!state.filters) { state.filters = {}; }
       if (maxPriceEl) { state.filters.max_price = maxPriceEl.value.trim(); }
       if (minDaysEl) { state.filters.min_trip_days = minDaysEl.value ? Number(minDaysEl.value) : ''; }
       if (maxDaysEl) { state.filters.max_trip_days = maxDaysEl.value ? Number(maxDaysEl.value) : ''; }
@@ -3980,9 +3997,6 @@
           check_neighbors: state.settings.check_neighbors,
           telegram_enabled: state.settings.telegram_enabled,
           notify_all_by_price: state.settings.notify_all_by_price !== undefined ? !!state.settings.notify_all_by_price : false,
-          silent_hours_enabled: state.settings.silent_hours_enabled !== undefined ? !!state.settings.silent_hours_enabled : false,
-          silent_hours_start: state.settings.silent_hours_start || '23:00',
-          silent_hours_end: state.settings.silent_hours_end || '07:00',
           provider_roadsurfer_enabled: state.settings.provider_roadsurfer_enabled !== undefined ? state.settings.provider_roadsurfer_enabled : true,
           provider_movacar_enabled: state.settings.provider_movacar_enabled !== undefined ? state.settings.provider_movacar_enabled : true,
           provider_indiecampers_enabled: state.settings.provider_indiecampers_enabled !== undefined ? state.settings.provider_indiecampers_enabled : true,
@@ -3996,6 +4010,9 @@
           max_price: state.filters.max_price != null ? state.filters.max_price : '',
           only_campers: state.filters.only_campers,
           vehicle_type: state.filters.vehicle_type,
+          silent_hours_enabled: state.filters.silent_hours_enabled !== undefined ? !!state.filters.silent_hours_enabled : false,
+          silent_hours_start: state.filters.silent_hours_start || '23:00',
+          silent_hours_end: state.filters.silent_hours_end || '07:00',
           allowed_operators: state.filters.allowed_operators || [],
           movacar_operators: state.filters.movacar_operators || [],
         },
@@ -4522,8 +4539,8 @@
       }
       
       banner.style.display = 'block';
-      if (isActive) {
-        title.textContent = isTrial ? 'Premium (Trial)' : 'Premium Active';
+      if (isActive && !isTrial) {
+        title.textContent = 'Premium Active';
         emoji.textContent = '👑';
         if (state.user.subscriptionExpiresAt) {
            var date = new Date(state.user.subscriptionExpiresAt).toLocaleDateString();
@@ -4532,17 +4549,24 @@
         btn.style.display = 'none';
         rl.textContent = 'Routes: ' + currentRoutes + ' / ' + (maxRoutes >= 999 ? '∞' : maxRoutes);
       } else {
-        title.textContent = 'Free Plan';
-        emoji.textContent = '⚪';
-        st.textContent = 'Subscribe for unlimited routes & analytics';
+        if (isTrial) {
+          title.textContent = 'Premium (Trial)';
+          emoji.textContent = '👑';
+          var date = state.user.subscriptionExpiresAt ? new Date(state.user.subscriptionExpiresAt).toLocaleDateString() : '?';
+          st.textContent = 'Valid until ' + date;
+        } else {
+          title.textContent = 'Free Plan';
+          emoji.textContent = '⚪';
+          st.textContent = 'Subscribe for unlimited routes & analytics';
+        }
         btn.style.display = 'block';
         rl.textContent = 'Routes: ' + currentRoutes + ' / ' + maxRoutes;
-        
-        var urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('subscribe') === '1' && window.Paddle) {
-          setTimeout(function() { btn.click(); }, 1000);
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
+      }
+      
+      var urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('subscribe') === '1' && window.Paddle) {
+        setTimeout(function() { btn.click(); }, 1000);
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
 
