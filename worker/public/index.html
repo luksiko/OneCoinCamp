@@ -469,6 +469,30 @@
       color: var(--gold);
       font-weight: 700;
     }
+    .deal-booked-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: #ff7580;
+      background: rgba(255, 91, 102, 0.15);
+      border: 1px solid rgba(255, 91, 102, 0.3);
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+    .deal-footer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+    .deal-status-tag {
+      font-size: 12px;
+      color: var(--text-hint);
+      font-weight: 600;
+    }
 
     /* Calculator */
     .calc-card {
@@ -544,6 +568,17 @@
     }
 
     /* How It Works */
+    .how-it-works-wrapper {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 36px;
+      align-items: center;
+    }
+    .steps-column {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
     .steps-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -578,6 +613,145 @@
       font-size: 14px;
       color: var(--text-muted);
       line-height: 1.6;
+    }
+
+    /* Phone Mockup Placeholder Container */
+    .mockup-column {
+      display: flex;
+      justify-content: center;
+    }
+    .phone-mockup-placeholder {
+      background: rgba(23, 33, 43, 0.75);
+      border: 2px dashed rgba(255, 255, 255, 0.25);
+      border-radius: 36px;
+      padding: 20px;
+      position: relative;
+      text-align: center;
+      transition: border-color 0.2s;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+    }
+    .phone-mockup-placeholder:hover {
+      border-color: var(--accent);
+    }
+    .mockup-placeholder-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(46, 166, 255, 0.15);
+      border: 1px solid var(--border-accent);
+      border-radius: 6px;
+      padding: 4px 10px;
+      margin-bottom: 14px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .mockup-img {
+      width: 100%;
+      height: auto;
+      border-radius: 28px;
+      display: block;
+    }
+    .phone-frame {
+      background: #000000;
+      border: 3px solid rgba(255, 255, 255, 0.15);
+      border-radius: 30px;
+      padding: 12px 10px 20px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(46, 166, 255, 0.12);
+    }
+    .phone-notch {
+      width: 90px;
+      height: 16px;
+      background: #17212b;
+      border-radius: 10px;
+      margin: 0 auto 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .phone-speaker { width: 35px; height: 3px; background: rgba(255, 255, 255, 0.2); border-radius: 2px; }
+    .phone-camera { width: 6px; height: 6px; background: rgba(46, 166, 255, 0.4); border-radius: 50%; }
+    .phone-screen {
+      background: linear-gradient(180deg, #1b2838 0%, #0e1621 100%);
+      border-radius: 18px;
+      padding: 16px 12px 18px;
+      min-height: 360px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      text-align: left;
+    }
+    .phone-time {
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.6);
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .telegram-push-mockup {
+      background: rgba(36, 47, 61, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(46, 166, 255, 0.35);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+    .push-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+    .push-app {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .push-time { color: var(--text-hint); font-size: 10px; }
+    .push-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 4px;
+    }
+    .push-body {
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .push-fuel {
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 11px;
+    }
+    .push-price {
+      display: inline-block;
+      color: var(--success);
+      font-weight: 800;
+      font-size: 12px;
+      margin-top: 2px;
+    }
+    .push-btn {
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      padding: 7px;
+      border-radius: 6px;
+    }
+    .mockup-watermark {
+      font-size: 11px;
+      color: var(--text-hint);
+      text-align: center;
+      padding-top: 14px;
     }
 
     /* Comparison Table */
@@ -651,6 +825,18 @@
       color: var(--text-muted);
       margin-bottom: 24px;
     }
+    .pricing-fuel-callout {
+      background: rgba(255, 215, 0, 0.1);
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #ffe58f;
+      margin: 0 auto 24px;
+      text-align: center;
+      box-shadow: 0 4px 16px rgba(255, 215, 0, 0.08);
+    }
     .pricing-features {
       list-style: none;
       text-align: left;
@@ -670,6 +856,15 @@
       color: var(--success);
       font-weight: 800;
       font-size: 16px;
+    }
+    .pricing-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+    .pricing-actions .btn {
+      width: 100%;
     }
     .payment-methods-icons {
       display: flex;
@@ -842,7 +1037,7 @@
     <div class="container hero-content">
       <div class="live-pill">
         <span class="pulse-dot"></span>
-        <span data-i18n="hero_live_badge">⚡️ 4 Providers Monitored • Scans every 10 min • 2,400+ Relocations Found</span>
+        <span data-i18n="hero_live_badge">⚡️ 4 Providers Monitored • Scans every 60 seconds • 2,400+ Relocations Found</span>
       </div>
 
       <h1 data-i18n="hero_title">
@@ -850,7 +1045,7 @@
       </h1>
 
       <p data-i18n="hero_desc">
-        Roadsurfer, Movacar, Indie Campers & Imoova drop 1€ camper rentals daily. They sell out in 5 minutes. OneCoinCamp monitors them 24/7 and alerts you before anyone else books.
+        Roadsurfer, Movacar, Indie Campers & Imoova drop 1€ camper rentals daily. They sell out in minutes. OneCoinCamp scans in real-time and alerts you before anyone else books.
       </p>
 
       <div class="hero-ctas">
@@ -885,7 +1080,72 @@
       </div>
 
       <div class="deals-grid" id="dealsGrid">
-        <!-- Live offers dynamically loaded via JS / API -->
+        <!-- 3 Static deal cards for instant display and crawler indexing -->
+        <div class="deal-card">
+          <div>
+            <div class="deal-card-top">
+              <span class="deal-provider movacar">MOVACAR</span>
+              <span class="deal-booked-badge">🔥 Booked in 4 mins</span>
+            </div>
+            <div class="deal-route">Munich 🇩🇪 ➔ Rome 🇮🇹</div>
+            <div class="deal-vehicle">🚐 Volkswagen Grand California</div>
+          </div>
+          <div>
+            <div class="deal-meta">
+              <span>📅 Oct 12 - Oct 16</span>
+              <span class="fuel-bonus">⛽️ €150 Fuel Allowance</span>
+            </div>
+            <div class="deal-footer-row">
+              <span class="deal-price">€1.00 / day</span>
+              <span class="deal-status-tag">⚡️ Alert Sent</span>
+            </div>
+            <a href="#" class="btn btn-secondary tg-bot-link" style="width: 100%; margin-top: 12px; font-size: 13px;">⚡️ Get Alert for Route</a>
+          </div>
+        </div>
+
+        <div class="deal-card">
+          <div>
+            <div class="deal-card-top">
+              <span class="deal-provider roadsurfer">ROADSURFER</span>
+              <span class="deal-booked-badge">🔥 Booked in 3 mins</span>
+            </div>
+            <div class="deal-route">Berlin 🇩🇪 ➔ Paris 🇫🇷</div>
+            <div class="deal-vehicle">🚐 Surfer Suite / Pop-up Camper</div>
+          </div>
+          <div>
+            <div class="deal-meta">
+              <span>📅 Oct 14 - Oct 19</span>
+              <span class="fuel-bonus">⛽️ €100 Fuel Allowance</span>
+            </div>
+            <div class="deal-footer-row">
+              <span class="deal-price">€1.00 / day</span>
+              <span class="deal-status-tag">⚡️ Alert Sent</span>
+            </div>
+            <a href="#" class="btn btn-secondary tg-bot-link" style="width: 100%; margin-top: 12px; font-size: 13px;">⚡️ Get Alert for Route</a>
+          </div>
+        </div>
+
+        <div class="deal-card">
+          <div>
+            <div class="deal-card-top">
+              <span class="deal-provider indiecampers">INDIE CAMPERS</span>
+              <span class="deal-booked-badge">🔥 Booked in 6 mins</span>
+            </div>
+            <div class="deal-route">Frankfurt 🇩🇪 ➔ Lisbon 🇵🇹</div>
+            <div class="deal-vehicle">🚐 Nomad Pop-Up Campervan</div>
+          </div>
+          <div>
+            <div class="deal-meta">
+              <span>📅 Oct 18 - Oct 25</span>
+              <span class="fuel-bonus">⛽️ €250 Fuel Allowance</span>
+            </div>
+            <div class="deal-footer-row">
+              <span class="deal-price">€1.00 / day</span>
+              <span class="deal-status-tag">⚡️ Alert Sent</span>
+            </div>
+            <a href="#" class="btn btn-secondary tg-bot-link" style="width: 100%; margin-top: 12px; font-size: 13px;">⚡️ Get Alert for Route</a>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -932,7 +1192,7 @@
     </div>
   </section>
 
-  <!-- How It Works -->
+  <!-- How It Works Section with Mockup Placeholder -->
   <section id="how-it-works">
     <div class="container">
       <div class="section-header">
@@ -941,23 +1201,69 @@
         <p data-i18n="how_desc">Why would anyone rent a €80,000 campervan for 1 euro? Here is the secret behind the logistics.</p>
       </div>
 
-      <div class="steps-grid">
-        <div class="step-card">
-          <div class="step-num">1</div>
-          <h3 data-i18n="step1_title">Fleet Rebalancing</h3>
-          <p data-i18n="step1_desc">Tourists frequently book one-way trips (e.g., Munich to Rome). Returning campers on flatbed trucks costs rental agencies over €1,200. Renting them to travelers for 1€ is faster, cheaper, and eco-friendly.</p>
+      <div class="how-it-works-wrapper">
+        <div class="steps-column">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <h3 data-i18n="step1_title">Fleet Rebalancing</h3>
+            <p data-i18n="step1_desc">Tourists frequently book one-way trips (e.g., Munich to Rome). Returning campers on flatbed trucks costs rental agencies over €1,200. Renting them to travelers for 1€ is faster, cheaper, and eco-friendly.</p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <h3 data-i18n="step2_title">24/7 Automated Real-Time Scans</h3>
+            <p data-i18n="step2_desc">1€ deals appear without warning and disappear in minutes. OneCoinCamp monitors Roadsurfer Rally, Movacar, Indie Campers, and Imoova in real-time, filtering by your desired countries and dates.</p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <h3 data-i18n="step3_title">Instant Telegram Push</h3>
+            <p data-i18n="step3_desc">As soon as a route drops, your phone receives a Telegram alert with vehicle specs, dates, and direct booking link. Tap the link and book in 60 seconds before anyone else even knows it existed.</p>
+          </div>
         </div>
 
-        <div class="step-card">
-          <div class="step-num">2</div>
-          <h3 data-i18n="step2_title">24/7 Automated Scans</h3>
-          <p data-i18n="step2_desc">1€ deals appear without warning and disappear in 5–15 minutes. OneCoinCamp monitors Roadsurfer Rally, Movacar, Indie Campers, and Imoova every 10 minutes, filtering by your desired countries and dates.</p>
-        </div>
+        <!-- Phone Mockup Container Placeholder (Ready for <img>) -->
+        <div class="mockup-column">
+          <div class="phone-mockup-placeholder" id="phoneMockupPlaceholder">
+            <!-- ================================================================= -->
+            <!-- 📸 PLACE MOCKUP HERE: Replace this placeholder block with <img>   -->
+            <!-- Example: <img src="telegram-mockup.png" alt="Telegram Notification" class="mockup-img" /> -->
+            <!-- ================================================================= -->
+            <div class="mockup-placeholder-tag">📸 Place Mockup Here (320x580)</div>
 
-        <div class="step-card">
-          <div class="step-num">3</div>
-          <h3 data-i18n="step3_title">Instant Telegram Push</h3>
-          <p data-i18n="step3_desc">As soon as a route drops, your phone receives a Telegram alert with vehicle specs, dates, and direct booking link. Tap the link and book in 60 seconds before anyone else even knows it existed.</p>
+            <div class="phone-frame">
+              <div class="phone-notch">
+                <span class="phone-speaker"></span>
+                <span class="phone-camera"></span>
+              </div>
+              <div class="phone-screen">
+                <div class="phone-time">09:41</div>
+
+                <!-- Simulated Telegram Push Notification Preview -->
+                <div class="telegram-push-mockup">
+                  <div class="push-header">
+                    <div class="push-app">
+                      <span class="push-icon">🚐</span>
+                      <span class="push-app-name">OneCoinCamp Bot</span>
+                    </div>
+                    <span class="push-time">now</span>
+                  </div>
+                  <div class="push-title">⚡️ NEW 1€ CAMPER ALERT!</div>
+                  <div class="push-body">
+                    <strong>Munich 🇩🇪 ➔ Rome 🇮🇹</strong><br>
+                    <span>Movacar • Oct 12 - Oct 16</span><br>
+                    <span class="push-fuel">⛽️ €150 Fuel Allowance included</span><br>
+                    <span class="push-price">€1.00 / day</span>
+                  </div>
+                  <div class="push-btn">⚡️ Book on Movacar (1 Click) ➔</div>
+                </div>
+
+                <div class="mockup-watermark">
+                  <span>📱 Telegram Push Alert Preview</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -967,9 +1273,9 @@
   <section style="background: var(--section-bg);">
     <div class="container">
       <div class="section-header">
-        <div class="section-tag" data-i18n="comp_tag">Why Automated Monitoring?</div>
-        <h2 data-i18n="comp_title">Manual Searching vs OneCoinCamp</h2>
-        <p data-i18n="comp_desc">Why relying on manual website checks almost always results in missed deals.</p>
+        <div class="section-tag" data-i18n="comp_tag">Plan Comparison</div>
+        <h2 data-i18n="comp_title">Free Plan vs OneCoinCamp Premium</h2>
+        <p data-i18n="comp_desc">Why upgrading to Premium gives you an unbeatable booking speed advantage.</p>
       </div>
 
       <div class="table-card">
@@ -977,39 +1283,34 @@
           <thead>
             <tr>
               <th data-i18n="th_feature">Feature</th>
-              <th data-i18n="th_manual">Manual Checking</th>
-              <th class="highlight" data-i18n="th_premium">OneCoinCamp Premium</th>
+              <th data-i18n="th_free">Free Plan</th>
+              <th class="highlight" data-i18n="th_premium">OneCoinCamp Premium (€4.99)</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td data-i18n="row_providers">Providers Monitored</td>
-              <td data-i18n="row_providers_m">Check 4 websites manually</td>
-              <td class="highlight" data-i18n="row_providers_p">Roadsurfer, Movacar, Indie & Imoova (All-in-One)</td>
+              <td data-i18n="row_providers_free">1 Provider only</td>
+              <td class="highlight" data-i18n="row_providers_p">Roadsurfer, Movacar, Indie & Imoova (All 4)</td>
             </tr>
             <tr>
               <td data-i18n="row_speed">Alert Speed</td>
-              <td data-i18n="row_speed_m">None (Deals gone before you look)</td>
-              <td class="highlight" data-i18n="row_speed_p">Instant Push Notification in 0 seconds</td>
-            </tr>
-            <tr>
-              <td data-i18n="row_time">Time Wasted Daily</td>
-              <td data-i18n="row_time_m">30–60 minutes checking tabs</td>
-              <td class="highlight" data-i18n="row_time_p">0 minutes (Runs on autopilot 24/7)</td>
+              <td data-i18n="row_speed_free">30-minute delay</td>
+              <td class="highlight" data-i18n="row_speed_p">Instant Push in 0 seconds (Real-Time)</td>
             </tr>
             <tr>
               <td data-i18n="row_filters">Country & Route Filters</td>
-              <td data-i18n="row_filters_m">Manual browsing only</td>
+              <td data-i18n="row_filters_free">Global only (No filters)</td>
               <td class="highlight" data-i18n="row_filters_p">Custom origins, destinations & dates</td>
             </tr>
             <tr>
               <td data-i18n="row_silent">Silent Hours (No Night Wakes)</td>
-              <td data-i18n="row_silent_m">❌ No control</td>
+              <td data-i18n="row_silent_free">❌ None</td>
               <td class="highlight" data-i18n="row_silent_p">✅ Custom quiet hours schedule</td>
             </tr>
             <tr>
               <td data-i18n="row_device">Desktop & Mobile Dashboard</td>
-              <td data-i18n="row_device_m">❌ Scattered tabs</td>
+              <td data-i18n="row_device_free">❌ None</td>
               <td class="highlight" data-i18n="row_device_p">✅ Full Desktop Web Control + Mobile Mini App</td>
             </tr>
           </tbody>
@@ -1024,7 +1325,7 @@
       <div class="section-header">
         <div class="section-tag" data-i18n="pricing_tag">Affordable & Fair</div>
         <h2 data-i18n="pricing_title">Unlock Unlimited 1€ Alerts</h2>
-        <p data-i18n="pricing_desc">A single road trip saves you €800+. Premium pays for itself 160 times over on your very first vacation.</p>
+        <p data-i18n="pricing_desc">A single road trip saves you €800+. Premium pays for itself on your very first vacation.</p>
       </div>
 
       <div class="pricing-card">
@@ -1032,6 +1333,11 @@
         <h3 style="font-size: 20px; font-weight: 800;">OneCoinCamp Premium</h3>
         <div class="pricing-price">€4.99</div>
         <div class="pricing-period" data-i18n="pricing_period">per month (30 days access)</div>
+
+        <!-- Fuel bonus pays for itself callout -->
+        <div class="pricing-fuel-callout" data-i18n="pricing_fuel_callout">
+          🔥 <strong>Pays for itself:</strong> Claim just one camper with a fuel bonus (up to €300) and this subscription pays off 60x over!
+        </div>
 
         <ul class="pricing-features">
           <li><span class="check">✓</span> <strong data-i18n="pf_1">Unlimited route & country tracking</strong></li>
@@ -1042,7 +1348,10 @@
           <li><span class="check">✓</span> <span data-i18n="pf_6">Complete 24h offer archive and route analytics</span></li>
         </ul>
 
-        <a href="#" class="btn btn-accent btn-lg tg-bot-link" style="width: 100%;" data-i18n="pricing_cta">Get Premium Access ➔</a>
+        <div class="pricing-actions">
+          <a href="#" class="btn btn-accent btn-lg tg-bot-link" data-i18n="pricing_cta">Get Premium Access ➔</a>
+          <a href="#" class="btn btn-secondary tg-bot-link" data-i18n="pricing_cta_free">Start Free Version (Delayed Alerts)</a>
+        </div>
 
         <div class="payment-methods-icons">
           <span>💳 Bank Card (Paddle)</span>
@@ -1189,76 +1498,43 @@
     // ── Fallback Seed Offers for Instant Rendering & Crawlers ───────
     var seedOffers = [
       {
-        source: 'roadsurfer',
-        vehicle: 'Volkswagen California Ocean (Pop-up Roof)',
+        source: 'movacar',
+        vehicle: 'Volkswagen Grand California',
         origin: 'Munich',
         origin_country: 'DE',
         destination: 'Rome',
         destination_country: 'IT',
-        pickup_date: '2026-10-12',
-        return_date: '2026-10-17',
+        pickup_date: 'Oct 12',
+        return_date: 'Oct 16',
         price: 1.0,
-        fuel_bonus: '€150 Bonus'
+        fuel_bonus: '€150 Fuel Allowance',
+        booked_badge: '🔥 Booked in 4 mins'
       },
       {
-        source: 'movacar',
-        vehicle: 'Ford Transit Custom Nugget',
+        source: 'roadsurfer',
+        vehicle: 'Surfer Suite / Pop-up Camper',
         origin: 'Berlin',
         origin_country: 'DE',
         destination: 'Paris',
         destination_country: 'FR',
-        pickup_date: '2026-10-14',
-        return_date: '2026-10-19',
+        pickup_date: 'Oct 14',
+        return_date: 'Oct 19',
         price: 1.0,
-        fuel_bonus: '€100 Bonus'
+        fuel_bonus: '€100 Fuel Allowance',
+        booked_badge: '🔥 Booked in 3 mins'
       },
       {
         source: 'indiecampers',
-        vehicle: 'Nomad Campervan (4 Berths)',
-        origin: 'Barcelona',
-        origin_country: 'ES',
-        destination: 'Nice',
-        destination_country: 'FR',
-        pickup_date: '2026-10-18',
-        return_date: '2026-10-22',
-        price: 1.0,
-        fuel_bonus: null
-      },
-      {
-        source: 'roadsurfer',
-        vehicle: 'Mercedes Marco Polo Edition',
+        vehicle: 'Nomad Pop-Up Campervan',
         origin: 'Frankfurt',
         origin_country: 'DE',
         destination: 'Lisbon',
         destination_country: 'PT',
-        pickup_date: '2026-10-20',
-        return_date: '2026-10-27',
+        pickup_date: 'Oct 18',
+        return_date: 'Oct 25',
         price: 1.0,
-        fuel_bonus: '€250 Bonus'
-      },
-      {
-        source: 'imoova',
-        vehicle: 'Motorhome Maxi 6-Berth',
-        origin: 'Amsterdam',
-        origin_country: 'NL',
-        destination: 'Milan',
-        destination_country: 'IT',
-        pickup_date: '2026-10-22',
-        return_date: '2026-10-28',
-        price: 1.0,
-        fuel_bonus: '€200 Bonus'
-      },
-      {
-        source: 'movacar',
-        vehicle: 'Volkswagen Grand California 600',
-        origin: 'Lyon',
-        origin_country: 'FR',
-        destination: 'Madrid',
-        destination_country: 'ES',
-        pickup_date: '2026-10-25',
-        return_date: '2026-10-30',
-        price: 1.0,
-        fuel_bonus: '€120 Bonus'
+        fuel_bonus: '€250 Fuel Allowance',
+        booked_badge: '🔥 Booked in 6 mins'
       }
     ];
 
@@ -1314,22 +1590,29 @@
       filtered.slice(0, 9).forEach(function(o) {
         var providerClass = (o.source || 'roadsurfer').toLowerCase().replace(/[^a-z]/g, '');
         var providerLabel = o.source ? o.source.toUpperCase() : 'PROVIDER';
-        var fuelBadge = o.fuel_bonus ? '<span class="fuel-bonus">⛽ ' + o.fuel_bonus + '</span>' : '';
+        var fuelBonusVal = o.fuel_bonus || (o.fuel_allowance ? o.fuel_allowance : null);
+        var fuelBadge = fuelBonusVal ? '<span class="fuel-bonus">⛽️ ' + fuelBonusVal.replace(/^⛽️?\s*/, '') + '</span>' : '';
+        var bookedBadge = o.booked_badge ? '<span class="deal-booked-badge">' + o.booked_badge + '</span>' : '<span class="deal-booked-badge">🔥 Fast Booking</span>';
+        var dateStr = (o.pickup_date && o.return_date) ? (o.pickup_date + ' - ' + o.return_date) : (o.pickup_date || 'Oct 2026');
         html += '<div class="deal-card">' +
           '<div>' +
             '<div class="deal-card-top">' +
               '<span class="deal-provider ' + providerClass + '">' + providerLabel + '</span>' +
-              '<span class="deal-price">€' + (o.price || 1).toFixed(2) + ' / day</span>' +
+              bookedBadge +
             '</div>' +
             '<div class="deal-route">' + (o.origin || 'City') + ' ➔ ' + (o.destination || 'City') + '</div>' +
             '<div class="deal-vehicle">🚐 ' + (o.vehicle || 'Standard Campervan') + '</div>' +
           '</div>' +
           '<div>' +
             '<div class="deal-meta">' +
-              '<span>📅 ' + (o.pickup_date || 'Oct 2026') + '</span>' +
+              '<span>📅 ' + dateStr + '</span>' +
               fuelBadge +
             '</div>' +
-            '<a href="https://t.me/' + botUsername + '?start=route_' + encodeURIComponent(o.origin || '') + '" target="_blank" class="btn btn-secondary" style="width: 100%; margin-top: 12px; font-size: 13px;">⚡️ Get Alert for Route</a>' +
+            '<div class="deal-footer-row">' +
+              '<span class="deal-price">€' + (o.price || 1).toFixed(2) + ' / day</span>' +
+              '<span class="deal-status-tag">⚡️ Alert Sent</span>' +
+            '</div>' +
+            '<a href="https://t.me/' + botUsername + '?start=route_' + encodeURIComponent(o.origin || '') + '" target="_blank" class="btn btn-secondary tg-bot-link" style="width: 100%; margin-top: 12px; font-size: 13px;">⚡️ Get Alert for Route</a>' +
           '</div>' +
         '</div>';
       });
@@ -1379,9 +1662,9 @@
         nav_faq: 'FAQ',
         nav_dashboard: '🖥️ Dashboard',
         nav_bot: '🚀 Start in Bot',
-        hero_live_badge: '⚡️ 4 Providers Monitored • Scans every 10 min • 2,400+ Relocations Found',
+        hero_live_badge: '⚡️ 4 Providers Monitored • Scans every 60 seconds • 2,400+ Relocations Found',
         hero_title: 'Rent Campervans Across Europe for <span class="gradient">1€ / Day</span>. Never Miss a Deal.',
-        hero_desc: 'Roadsurfer, Movacar, Indie Campers & Imoova drop 1€ camper rentals daily. They sell out in 5 minutes. OneCoinCamp monitors them 24/7 and alerts you before anyone else books.',
+        hero_desc: 'Roadsurfer, Movacar, Indie Campers & Imoova drop 1€ camper rentals daily. They sell out in minutes. OneCoinCamp scans in real-time and alerts you before anyone else books.',
         hero_cta_tg: '🚀 Start Free in Telegram',
         hero_cta_desktop: '🖥️ Open Desktop Dashboard',
         deals_tag: 'Live Scanner Feed',
@@ -1401,19 +1684,39 @@
         how_desc: 'Why would anyone rent a €80,000 campervan for 1 euro? Here is the secret behind the logistics.',
         step1_title: 'Fleet Rebalancing',
         step1_desc: 'Tourists frequently book one-way trips (e.g., Munich to Rome). Returning campers on flatbed trucks costs rental agencies over €1,200. Renting them to travelers for 1€ is faster, cheaper, and eco-friendly.',
-        step2_title: '24/7 Automated Scans',
-        step2_desc: '1€ deals appear without warning and disappear in 5–15 minutes. OneCoinCamp monitors Roadsurfer Rally, Movacar, Indie Campers, and Imoova every 10 minutes, filtering by your desired countries and dates.',
+        step2_title: '24/7 Automated Real-Time Scans',
+        step2_desc: '1€ deals appear without warning and disappear in minutes. OneCoinCamp monitors Roadsurfer Rally, Movacar, Indie Campers, and Imoova in real-time, filtering by your desired countries and dates.',
         step3_title: 'Instant Telegram Push',
         step3_desc: 'As soon as a route drops, your phone receives a Telegram alert with vehicle specs, dates, and direct booking link. Tap the link and book in 60 seconds before anyone else even knows it existed.',
-        comp_tag: 'Why Automated Monitoring?',
-        comp_title: 'Manual Searching vs OneCoinCamp',
-        comp_desc: 'Why relying on manual website checks almost always results in missed deals.',
+        comp_tag: 'Plan Comparison',
+        comp_title: 'Free Plan vs OneCoinCamp Premium',
+        comp_desc: 'Why upgrading to Premium gives you an unbeatable booking speed advantage.',
+        th_feature: 'Feature',
+        th_free: 'Free Plan',
+        th_premium: 'OneCoinCamp Premium (€4.99)',
+        row_providers: 'Providers Monitored',
+        row_providers_free: '1 Provider only',
+        row_providers_p: 'Roadsurfer, Movacar, Indie & Imoova (All 4)',
+        row_speed: 'Alert Speed',
+        row_speed_free: '30-minute delay',
+        row_speed_p: 'Instant Push in 0 seconds (Real-Time)',
+        row_filters: 'Country & Route Filters',
+        row_filters_free: 'Global only (No filters)',
+        row_filters_p: 'Custom origins, destinations & dates',
+        row_silent: 'Silent Hours (No Night Wakes)',
+        row_silent_free: '❌ None',
+        row_silent_p: '✅ Custom quiet hours schedule',
+        row_device: 'Desktop & Mobile Dashboard',
+        row_device_free: '❌ None',
+        row_device_p: '✅ Full Desktop Web Control + Mobile Mini App',
         pricing_tag: 'Affordable & Fair',
         pricing_title: 'Unlock Unlimited 1€ Alerts',
-        pricing_desc: 'A single road trip saves you €800+. Premium pays for itself 160 times over on your very first vacation.',
+        pricing_desc: 'A single road trip saves you €800+. Premium pays for itself on your very first vacation.',
         pricing_badge: 'All Features Included',
         pricing_period: 'per month (30 days access)',
+        pricing_fuel_callout: '🔥 <strong>Pays for itself:</strong> Claim just one camper with a fuel bonus (up to €300) and this subscription pays off 60x over!',
         pricing_cta: 'Get Premium Access ➔',
+        pricing_cta_free: 'Start Free Version (Delayed Alerts)',
         pricing_cancel: 'Cancel anytime with 1 click · No hidden commitments',
         reviews_tag: 'Verified Travelers',
         reviews_title: 'Loved by Camper Roadtrippers',
@@ -1431,9 +1734,9 @@
         nav_faq: 'FAQ',
         nav_dashboard: '🖥️ Dashboard',
         nav_bot: '🚀 Im Bot starten',
-        hero_live_badge: '⚡️ 4 Anbieter überwacht • Alle 10 Min. Scan • 2.400+ Überführungen',
+        hero_live_badge: '⚡️ 4 Anbieter überwacht • Scan alle 60 Sek. • 2.400+ Überführungen',
         hero_title: 'Wohnmobile in Europa für <span class="gradient">1€ / Tag</span> mieten. Nie wieder verpassen.',
-        hero_desc: 'Roadsurfer, Movacar, Indie Campers & Imoova bieten täglich 1€-Überführungen an. Sie sind in 5 Minuten weg. OneCoinCamp überwacht sie rund um die Uhr und benachrichtigt Sie sofort.',
+        hero_desc: 'Roadsurfer, Movacar, Indie Campers & Imoova bieten täglich 1€-Überführungen an. Sie sind in Minuten weg. OneCoinCamp scannt in Echtzeit und benachrichtigt Sie, bevor andere buchen.',
         hero_cta_tg: '🚀 Kostenlos in Telegram starten',
         hero_cta_desktop: '🖥️ Desktop-Dashboard öffnen',
         deals_tag: 'Live Scanner Feed',
@@ -1453,19 +1756,39 @@
         how_desc: 'Warum vermietet jemand ein 80.000€-Wohnmobil für 1 Euro? Die Logistik dahinter.',
         step1_title: 'Flottenausgleich',
         step1_desc: 'Touristen buchen oft Einwegfahrten (z.B. München nach Rom). Der Rücktransport per LKW kostet über 1.200€. Eine 1€-Vermietung ist die perfekte Lösung für Vermieter und Reisende.',
-        step2_title: 'Automatischer 24/7 Scan',
-        step2_desc: '1€-Angebote erscheinen unvorhersehbar und sind schnell vergriffen. OneCoinCamp prüft Roadsurfer Rally, Movacar, Indie Campers und Imoova alle 10 Minuten.',
+        step2_title: 'Automatischer Echtzeit-Scan 24/7',
+        step2_desc: '1€-Angebote erscheinen unvorhersehbar und sind in Minuten vergriffen. OneCoinCamp prüft Roadsurfer Rally, Movacar, Indie Campers und Imoova in Echtzeit.',
         step3_title: 'Sofortige Telegram-Nachricht',
         step3_desc: 'Sobald eine Route verfügbar ist, sendet der Bot Fahrzeugdaten, Reisedaten und Direktlink zur Buchung. In 60 Sekunden buchen, bevor es andere sehen.',
-        comp_tag: 'Warum Automatisierung?',
-        comp_title: 'Manuelle Suche vs OneCoinCamp',
-        comp_desc: 'Warum manuelle Webseiten-Prüfung fast immer zu spät kommt.',
+        comp_tag: 'Tarifvergleich',
+        comp_title: 'Kostenloser Plan vs OneCoinCamp Premium',
+        comp_desc: 'Warum ein Upgrade auf Premium einen unschlagbaren Buchungsvorteil bietet.',
+        th_feature: 'Funktion',
+        th_free: 'Kostenloser Plan',
+        th_premium: 'OneCoinCamp Premium (4,99€)',
+        row_providers: 'Überwachte Anbieter',
+        row_providers_free: 'Nur 1 Anbieter',
+        row_providers_p: 'Roadsurfer, Movacar, Indie & Imoova (Alle 4)',
+        row_speed: 'Alarm-Geschwindigkeit',
+        row_speed_free: '30 Minuten Verzögerung',
+        row_speed_p: 'Sofortiger Echtzeit-Push (0 Sek.)',
+        row_filters: 'Länder- & Routenfilter',
+        row_filters_free: 'Nur global (Keine Filter)',
+        row_filters_p: 'Eigene Abfahrtsorte, Ziele & Reisedaten',
+        row_silent: 'Ruhezeiten (Keine Nachtstörungen)',
+        row_silent_free: '❌ Keine',
+        row_silent_p: '✅ Einstellbare Ruhezeiten',
+        row_device: 'Desktop & Mobile Dashboard',
+        row_device_free: '❌ Keine',
+        row_device_p: '✅ Volles Desktop-Dashboard + Mobile Mini App',
         pricing_tag: 'Fair & Günstig',
         pricing_title: 'Unbegrenzte 1€-Alarme freischalten',
         pricing_desc: 'Eine einzige Reise spart über 800€. Premium rentiert sich bereits ab dem ersten Tag um das 160-fache.',
         pricing_badge: 'Alle Funktionen inklusive',
         pricing_period: 'pro Monat (30 Tage Zugang)',
+        pricing_fuel_callout: '🔥 <strong>Rentiert sich sofort:</strong> Sichern Sie sich nur ein Wohnmobil mit Tankzuschuss (bis zu 300€) und das Abo zahlt sich 60-fach aus!',
         pricing_cta: 'Premium Zugang aktivieren ➔',
+        pricing_cta_free: 'Kostenlose Version starten (Verzögerte Alarme)',
         pricing_cancel: 'Jederzeit mit 1 Klick kündbar · Keine versteckten Kosten',
         reviews_tag: 'Verifizierte Camper',
         reviews_title: 'Begeisterte Reisende',
@@ -1483,9 +1806,9 @@
         nav_faq: 'FAQ',
         nav_dashboard: '🖥️ Дашборд',
         nav_bot: '🚀 Запустить бота',
-        hero_live_badge: '⚡️ Мониторинг 4 провайдеров • Скан каждые 10 мин • 2,400+ офферов найдено',
+        hero_live_badge: '⚡️ Мониторинг 4 провайдеров • Скан каждые 60 секунд • 2,400+ офферов найдено',
         hero_title: 'Аренда кемперов по Европе за <span class="gradient">1€ / день</span>. Успейте забронировать.',
-        hero_desc: 'Roadsurfer, Movacar, Indie Campers и Imoova ежедневно выкладывают перегоны кемперов за 1€. Их разбирают за 5 минут. Наш бот мониторит провайдеров 24/7 и присылает уведомление прямо в Telegram.',
+        hero_desc: 'Roadsurfer, Movacar, Indie Campers & Imoova ежедневно выкладывают перегоны кемперов за 1€. Их разбирают за считанные минуты. OneCoinCamp сканирует в реальном времени и предупреждает вас раньше, чем успеют забронировать другие.',
         hero_cta_tg: '🚀 Запустить бесплатно в Telegram',
         hero_cta_desktop: '🖥️ Открыть панель управления',
         deals_tag: 'Живая лента офферов',
@@ -1505,19 +1828,39 @@
         how_desc: 'Почему прокатные компании отдают премиальные кемперы за 1 евро? Логистика без секретов.',
         step1_title: 'Балансировка автопарка',
         step1_desc: 'Туристы часто берут кемперы в один конец (например, из Мюнхена в Рим). Возвращать их на автовозах стоит компании более 1,200€. Отдать туристу за 1€ — идеальный способ вернуть машину на базу.',
-        step2_title: 'Автоматический скан 24/7',
-        step2_desc: 'Офферы появляются в случайное время и живут 5–15 минут. OneCoinCamp проверяет Roadsurfer Rally, Movacar, Indie Campers и Imoova каждые 10 минут под ваши фильтры.',
+        step2_title: 'Автоматический скан в реальном времени 24/7',
+        step2_desc: 'Офферы появляются в случайное время и живут считанные минуты. OneCoinCamp проверяет Roadsurfer Rally, Movacar, Indie Campers и Imoova в реальном времени под ваши фильтры.',
         step3_title: 'Мгновенный пуш в Telegram',
         step3_desc: 'Как только появляется подходящий кемпер, вам в Telegram приходит сообщение с моделью, датами и прямой ссылкой на бронь. Бронируйте за 60 секунд до того, как его увидит кто-то еще.',
-        comp_tag: 'В чем преимущество?',
-        comp_title: 'Ручной поиск против OneCoinCamp',
-        comp_desc: 'Почему ручная проверка сайтов почти всегда приводит к упущенным маршрутам.',
+        comp_tag: 'Сравнение тарифов',
+        comp_title: 'Бесплатный тариф vs OneCoinCamp Premium',
+        comp_desc: 'Почему Premium дает решающее преимущество в скорости бронирования.',
+        th_feature: 'Возможность',
+        th_free: 'Free Plan',
+        th_premium: 'OneCoinCamp Premium (4.99€)',
+        row_providers: 'Мониторинг провайдеров',
+        row_providers_free: 'Только 1 провайдер',
+        row_providers_p: 'Roadsurfer, Movacar, Indie и Imoova (Все 4)',
+        row_speed: 'Скорость уведомлений',
+        row_speed_free: 'Задержка 30 минут',
+        row_speed_p: 'Мгновенный пуш в реальном времени (0 сек)',
+        row_filters: 'Фильтры по странам и маршрутам',
+        row_filters_free: 'Только общий поток (Без фильтров)',
+        row_filters_p: 'Свои города, направления и даты',
+        row_silent: 'Тихие часы (без ночных звонков)',
+        row_silent_free: '❌ Нет',
+        row_silent_p: '✅ Настройка расписания тихих часов',
+        row_device: 'Панель на компьютере и телефоне',
+        row_device_free: '❌ Нет',
+        row_device_p: '✅ Полноэкранный Web-дашборд + Mini App',
         pricing_tag: 'Доступно и честно',
         pricing_title: 'Безлимитные уведомления за 1€',
         pricing_desc: 'Одна поездка экономит от 800€. Подписка окупается в 160 раз в первый же отпуск.',
         pricing_badge: 'Всё включено',
         pricing_period: 'в месяц (30 дней доступа)',
+        pricing_fuel_callout: '🔥 <strong>Окупается сразу:</strong> Поймайте всего один кемпер с бонусом на топливо (до 300€), и эта подписка окупится в 60 раз!',
         pricing_cta: 'Получить Premium доступ ➔',
+        pricing_cta_free: 'Запустить бесплатную версию (С задержкой)',
         pricing_cancel: 'Отмена в 1 клик в любой момент · Никаких скрытых списаний',
         reviews_tag: 'Отзывы путешественников',
         reviews_title: 'Путешествия за 1€ — это реальность',
