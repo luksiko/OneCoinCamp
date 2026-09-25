@@ -48,3 +48,42 @@ export function t(key: string, lang = DEFAULT_LANGUAGE, replacements: Record<str
   }
   return text;
 }
+
+export function pluralizeDays(days: number, lang = DEFAULT_LANGUAGE): string {
+  if (!days || days <= 0) return '';
+  const l = (lang || DEFAULT_LANGUAGE).toLowerCase().slice(0, 2);
+
+  if (l === 'de') {
+    return days === 1 ? ' (1 Tag)' : ` (${days} Tage)`;
+  }
+  if (l === 'it') {
+    return days === 1 ? ' (1 giorno)' : ` (${days} giorni)`;
+  }
+  if (l === 'en') {
+    return days === 1 ? ' (1 day)' : ` (${days} days)`;
+  }
+
+  const mod10 = days % 10;
+  const mod100 = days % 100;
+  const isTeen = mod100 >= 11 && mod100 <= 19;
+
+  if (l === 'uk') {
+    if (!isTeen && mod10 === 1) {
+      return ` (${days} день)`;
+    } else if (!isTeen && mod10 >= 2 && mod10 <= 4) {
+      return ` (${days} дні)`;
+    } else {
+      return ` (${days} днів)`;
+    }
+  }
+
+  // Default 'ru'
+  if (!isTeen && mod10 === 1) {
+    return ` (${days} день)`;
+  } else if (!isTeen && mod10 >= 2 && mod10 <= 4) {
+    return ` (${days} дня)`;
+  } else {
+    return ` (${days} дней)`;
+  }
+}
+

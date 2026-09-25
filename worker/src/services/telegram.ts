@@ -1,8 +1,8 @@
 import { DbClient } from '../db/client';
 import { NormalizedOffer, UserRoute, UserFilters } from '../types';
-import { t } from './i18n';
+import { t, pluralizeDays } from './i18n';
 import { fetchJson } from '../utils/http';
-import { routeMatchesOffer, offerMatchesUserFilters, isSilentHoursActive } from './filters';
+import { routeMatchesOffer, offerMatchesUserFilters, isSilentHoursActive, parseIsoDate } from './filters';
 
 export interface TelegramSecrets {
   botToken: string;
@@ -114,10 +114,22 @@ export class TelegramService {
 
     const priceText = offer.price === 1 ? '<b>1 €</b>' : `<b>${offer.price} €</b>`;
 
+    let durationText = '';
+    if (offer.pickup_date && offer.return_date) {
+      const p = parseIsoDate(offer.pickup_date);
+      const r = parseIsoDate(offer.return_date);
+      if (p && r) {
+        const days = Math.round((r.getTime() - p.getTime()) / (1000 * 60 * 60 * 24));
+        if (days > 0) {
+          durationText = pluralizeDays(days, 'ru');
+        }
+      }
+    }
+
     let text = `${pIcon} <b>${capitalize(offer.source)} — ${isCamper ? 'Кемпер' : 'Автомобиль'} найден!</b>\n\n`;
     text += `📍 Откуда: <b>${escapeHtml(offer.origin)}</b> ${originFlag}\n`;
     text += `🏁 Куда: <b>${escapeHtml(offer.destination)}</b> ${destFlag}\n`;
-    text += `📅 Даты: <code>${offer.pickup_date}</code> ➔ <code>${offer.return_date}</code>\n`;
+    text += `📅 Даты: <code>${offer.pickup_date}</code> ➔ <code>${offer.return_date}</code>${durationText}\n`;
     text += `💶 Цена: ${priceText}\n`;
     if (offer.vehicle) {
       text += `🚘 Модель: <b>${escapeHtml(offer.vehicle)}</b>\n`;
