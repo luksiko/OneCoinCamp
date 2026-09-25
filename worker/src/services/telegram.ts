@@ -337,12 +337,8 @@ export class TelegramService {
 
   async showActualOffers(chatId: string | number, telegramId: string, lang: string = 'en'): Promise<void> {
     const l = resolveLanguage(lang);
-    
     const user = await this.db.getUser(telegramId);
-    if (!this.db.isSubscriptionActive(user) && user?.role !== 'admin') {
-      await this.sendMessage(chatId, '💎 ' + t('premium_required', lang));
-      return;
-    }
+    const isPremium = this.db.isSubscriptionActive(user) || user?.role === 'admin';
 
     const userFilters = await this.db.getUserFilters(telegramId);
     const userRoutes = await this.db.getUserRoutes(telegramId);
@@ -354,17 +350,20 @@ export class TelegramService {
     });
 
     const webAppUrl = this.secrets.workerUrl || '';
+    const premiumMsg = isPremium ? '' : '\n\n⚠️ <b>Ваша подписка истекла.</b> Чтобы получать новые уведомления автоматически, продлите Premium.';
+    const premiumBtn = isPremium ? null : { text: '💳 Продлить Premium', web_app: { url: webAppUrl + '?subscribe=1' } };
 
     if (matched.length === 0) {
       const emptyButtons = [
         [{ text: t('btn_check', l), callback_data: 'menu_check' }],
         webAppUrl ? [{ text: t('btn_setup_miniapp', l), web_app: { url: webAppUrl } }] : [],
+        premiumBtn ? [premiumBtn] : [],
         [{ text: t('btn_main_menu', l), callback_data: 'menu_main' }],
       ].filter((r) => r.length > 0);
 
       await this.sendMessage(
         chatId,
-        t('actual_empty', l),
+        t('actual_empty', l) + premiumMsg,
         { reply_markup: { inline_keyboard: emptyButtons } }
       );
       return;
@@ -375,13 +374,14 @@ export class TelegramService {
       await this.sendOfferAlert(chatId, off, undefined, false, l);
     }
 
-    await this.sendMessage(chatId, t('actual_footer', l, { shown: Math.min(matched.length, 5), total: matched.length }), {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: t('btn_check_again', l), callback_data: 'menu_check' }],
-          [{ text: t('btn_main_menu', l), callback_data: 'menu_main' }],
-        ],
-      },
+    const footerButtons = [
+      [{ text: t('btn_check_again', l), callback_data: 'menu_check' }],
+      premiumBtn ? [premiumBtn] : [],
+      [{ text: t('btn_main_menu', l), callback_data: 'menu_main' }],
+    ].filter((r) => r.length > 0);
+
+    await this.sendMessage(chatId, t('actual_footer', l, { shown: Math.min(matched.length, 5), total: matched.length }) + premiumMsg, {
+      reply_markup: { inline_keyboard: footerButtons },
     });
   }
 
