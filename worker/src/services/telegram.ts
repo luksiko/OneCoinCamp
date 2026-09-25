@@ -245,6 +245,84 @@ export class TelegramService {
     });
   }
 
+  async sendStarsInvoice(
+    chatId: string | number,
+    telegramId: string | number,
+    lang: string = 'en',
+    starsPrice: number = 250
+  ): Promise<any> {
+    if (!this.secrets.botToken) throw new Error('Telegram Bot Token not configured');
+    const l = resolveLanguage(lang);
+    return fetchJson(this.apiUrl('sendInvoice'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: String(chatId),
+        title: t('stars_invoice_title', l),
+        description: t('stars_invoice_desc', l),
+        payload: JSON.stringify({ telegram_id: String(telegramId), plan: 'premium_30d' }),
+        currency: 'XTR',
+        prices: [
+          {
+            label: t('stars_invoice_title', l),
+            amount: starsPrice,
+          },
+        ],
+        provider_token: '',
+      }),
+      retries: 1,
+    });
+  }
+
+  async createStarsInvoiceLink(
+    telegramId: string | number,
+    lang: string = 'en',
+    starsPrice: number = 250
+  ): Promise<string> {
+    if (!this.secrets.botToken) throw new Error('Telegram Bot Token not configured');
+    const l = resolveLanguage(lang);
+    const res = await fetchJson<any>(this.apiUrl('createInvoiceLink'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: t('stars_invoice_title', l),
+        description: t('stars_invoice_desc', l),
+        payload: JSON.stringify({ telegram_id: String(telegramId), plan: 'premium_30d' }),
+        currency: 'XTR',
+        prices: [
+          {
+            label: t('stars_invoice_title', l),
+            amount: starsPrice,
+          },
+        ],
+        provider_token: '',
+      }),
+      retries: 1,
+    });
+    if (!res?.ok || !res.result) {
+      throw new Error(res?.description || 'Failed to create Telegram Stars invoice link');
+    }
+    return res.result;
+  }
+
+  async answerPreCheckoutQuery(
+    preCheckoutQueryId: string,
+    ok: boolean = true,
+    errorMessage?: string
+  ): Promise<any> {
+    if (!this.secrets.botToken) return null;
+    return fetchJson(this.apiUrl('answerPreCheckoutQuery'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pre_checkout_query_id: preCheckoutQueryId,
+        ok,
+        ...(errorMessage ? { error_message: errorMessage } : {}),
+      }),
+      retries: 2,
+    });
+  }
+
   async sendOfferAlert(
     chatId: string | number,
     offer: NormalizedOffer,
@@ -478,6 +556,7 @@ export class TelegramService {
     const text = t('sub_promo', l);
 
     const buttons: any[] = [];
+    buttons.push([{ text: t('btn_pay_stars', l), callback_data: 'pay_stars' }]);
     if (webAppUrl) {
       buttons.push([{ text: t('btn_pay_card', l), web_app: { url: webAppUrl + '?subscribe=1' } }]);
     }
@@ -602,6 +681,11 @@ export class TelegramService {
   }
 
   async processUpdate(update: any, triggerMonitorFn: () => Promise<any>): Promise<void> {
+    if (update.pre_checkout_query) {
+      await this.answerPreCheckoutQuery(update.pre_checkout_query.id, true);
+      return;
+    }
+
     if (update.callback_query) {
       const cb = update.callback_query;
       const data = String(cb.data || '');
@@ -757,6 +841,19 @@ export class TelegramService {
         return;
       }
 
+      if (data === 'pay_stars') {
+        try {
+          await this.answerCallbackQuery(cb.id);
+          const settings = await this.db.getSettings();
+          const starsPrice = Number(settings.telegram_stars_price) || 250;
+          await this.sendStarsInvoice(chatId, fromId, lang, starsPrice);
+        } catch (e: any) {
+          console.error('Send stars invoice error:', e);
+          await this.answerCallbackQuery(cb.id, 'Error creating invoice');
+        }
+        return;
+      }
+
       if (data === 'pay_crypto') {
         if (!this.secrets.cryptoBotToken) {
           await this.answerCallbackQuery(cb.id, lang === 'ru' ? 'Оплата криптой временно недоступна' : 'Crypto payments currently unavailable');
@@ -823,6 +920,50 @@ export class TelegramService {
     }
 
     const msg = update.message;
+    if (msg?.successful_payment) {
+      const sp = msg.successful_payment;
+      const chatId = msg.chat?.id || msg.from?.id;
+      let telegramId = String(msg.from?.id || chatId);
+      try {
+        const payload = typeof sp.invoice_payload === 'string' ? JSON.parse(sp.invoice_payload) : sp.invoice_payload;
+        if (payload && payload.telegram_id) {
+          telegramId = String(payload.telegram_id);
+        }
+      } catch {}
+
+      await this.db.upsertUser(telegramId, chatId, msg.from?.username, msg.from?.first_name, msg.from?.language_code);
+
+      const transactionId = `stars_${sp.telegram_payment_charge_id || Date.now()}`;
+      const isAlreadyRecorded = await this.db.isPaymentRecorded(transactionId);
+      if (!isAlreadyRecorded) {
+        const subscriptionDays = 30;
+        await this.db.activateSubscription(telegramId, subscriptionDays);
+        await this.db.recordPayment({
+          telegram_id: telegramId,
+          paddle_transaction_id: transactionId,
+          amount: sp.total_amount,
+          currency: sp.currency || 'XTR',
+          status: 'completed',
+          subscription_days: subscriptionDays,
+        });
+
+        const lang = await this.getUserLanguage(telegramId, msg.from?.language_code);
+        await this.sendMessage(
+          chatId,
+          t('stars_payment_success', lang, { days: subscriptionDays }),
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: t('btn_routes', lang), callback_data: 'menu_routes' }],
+                [{ text: t('btn_main_menu', lang), callback_data: 'menu_main' }],
+              ],
+            },
+          }
+        );
+      }
+      return;
+    }
+
     if (!msg || !msg.text) return;
 
     const chatId = msg.chat.id;
@@ -901,6 +1042,13 @@ export class TelegramService {
 
     if (text.startsWith('/subscribe')) {
       await this.showSubscriptionMenu(chatId, telegramId, lang);
+      return;
+    }
+
+    if (text.startsWith('/stars')) {
+      const settings = await this.db.getSettings();
+      const starsPrice = Number(settings.telegram_stars_price) || 250;
+      await this.sendStarsInvoice(chatId, telegramId, lang, starsPrice);
       return;
     }
 

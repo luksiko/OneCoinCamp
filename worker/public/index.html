@@ -910,7 +910,9 @@
             <div style="font-size:15px; font-weight:700;" id="subTitle"></div>
             <div id="subStatusText" style="font-size:13px; color:var(--subtext); margin-top:4px;"></div>
             <div id="subRouteLimitText" style="font-size:12px; color:var(--hint); margin-top:4px;"></div>
-            <button type="button" class="btn btn-accent" id="btnPaddleCheckout" style="margin-top:12px; max-width:280px; margin-left:auto; margin-right:auto; display:none;">💳 Subscribe — €4.99/mo</button>
+            <button type="button" class="btn btn-accent" id="btnPaddleCheckout" style="margin-top:12px; max-width:280px; margin-left:auto; margin-right:auto; display:none;">💳 Subscribe (Card) — €4.99/mo</button>
+            <button type="button" class="btn btn-secondary" id="btnStarsCheckout" style="margin-top:8px; max-width:280px; margin-left:auto; margin-right:auto; display:none; background:var(--bg); border:1px solid var(--border);">⭐️ Subscribe (Stars) — 250 ⭐️</button>
+            <button type="button" class="btn btn-secondary" id="btnCryptoCheckout" style="margin-top:8px; max-width:280px; margin-left:auto; margin-right:auto; display:none; background:var(--bg); border:1px solid var(--border);">💎 Subscribe (USDT) — $4.99</button>
           </div>
         </div>
 
@@ -940,12 +942,11 @@
         </div>
       </div>
 
-      <!-- Promo code Card -->
       <div class="card" id="cardPromo">
-        <div class="card-title" style="margin-bottom:8px;">🎁 Промокод на Premium</div>
-        <div style="display:flex;gap:6px;">
-          <input type="text" id="inputUserPromo" placeholder="Введите промокод..." style="flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;text-transform:uppercase;">
-          <button type="button" class="btn btn-accent" style="margin:0;padding:8px 14px;font-size:13px;" onclick="redeemUserPromo()">Применить</button>
+        <div class="card-title" style="margin-bottom:8px;">🎁 ПРОМОКОД НА PREMIUM</div>
+        <div style="display:flex;gap:6px;width:100%;">
+          <input type="text" id="inputUserPromo" placeholder="Введите промокод..." style="flex:1;width:100%;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;text-transform:uppercase;">
+          <button type="button" class="btn btn-accent" style="margin:0;padding:8px 14px;font-size:13px;flex-shrink:0;" onclick="redeemUserPromo()">Применить</button>
         </div>
       </div>
 
@@ -3897,6 +3898,7 @@
       edit.title = tWeb('edit_route');
       edit.textContent = '✏️';
       edit.onclick = function () {
+        if (!requirePremium('Редактирование маршрутов')) return;
         route._editing = true;
         renderRoutes();
       };
@@ -3930,6 +3932,10 @@
       chk.type = 'checkbox';
       chk.checked = isTruthy(route.enabled);
       chk.onchange = function () {
+        if (chk.checked && !requirePremium('Включение маршрутов')) {
+          chk.checked = false;
+          return;
+        }
         route.enabled = chk.checked;
         if (chk.checked && isProvEnabled) { card.classList.remove('off'); } else { card.classList.add('off'); }
       };
@@ -4144,7 +4150,20 @@
       return sel;
     }
 
+    function requirePremium(actionName) {
+      var isActive = state.user && (state.user.subscriptionStatus === 'active' || state.user.subscriptionStatus === 'trial');
+      if (!isActive && state.user?.role !== 'admin') {
+        toast('💎 ' + (actionName || 'Эта функция') + ' доступна только в Premium!');
+        var btn = document.getElementById('btnPaddleCheckout');
+        if (btn) setTimeout(function() { btn.click(); }, 1000);
+        return false;
+      }
+      return true;
+    }
+
     function addRoute() {
+      if (!requirePremium('Добавление маршрутов')) return;
+      
       var route = {
         enabled: true,
         source: 'roadsurfer',
@@ -5508,11 +5527,68 @@
           });
         };
       }
+      
+      var btnStars = document.getElementById('btnStarsCheckout');
+      if (btnStars) {
+        btnStars.onclick = function() {
+          toast('Generating Stars invoice...');
+          btnStars.disabled = true;
+          btnStars.textContent = '⏳ Loading...';
+          callRpc('generateStarsInvoice', []).then(function(invoiceLink) {
+            btnStars.disabled = false;
+            btnStars.textContent = '⭐️ Subscribe (Stars) — 250 ⭐️';
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openInvoice) {
+              window.Telegram.WebApp.openInvoice(invoiceLink, function(status) {
+                if (status === 'paid') {
+                  toast('🎉 Оплата получена! Подписка активирована.');
+                  setTimeout(function() {
+                    init();
+                  }, 1200);
+                } else if (status === 'cancelled') {
+                  toast('Оплата отменена');
+                } else if (status === 'failed') {
+                  toast('Ошибка при оплате', true);
+                }
+              });
+            } else {
+              window.open(invoiceLink, '_blank');
+            }
+          }).catch(function(e) {
+            toast('Error: ' + (e.message || e), true);
+            btnStars.disabled = false;
+            btnStars.textContent = '⭐️ Subscribe (Stars) — 250 ⭐️';
+          });
+        };
+      }
+
+      var btnCrypto = document.getElementById('btnCryptoCheckout');
+      if (btnCrypto) {
+        btnCrypto.onclick = function() {
+          toast('Generating CryptoBot invoice...');
+          btnCrypto.disabled = true;
+          btnCrypto.textContent = '⏳ Loading...';
+          callRpc('generateCryptoInvoice', []).then(function(payUrl) {
+            if (window.Telegram && window.Telegram.WebApp) {
+              window.Telegram.WebApp.openLink(payUrl);
+            } else {
+              window.open(payUrl, '_blank');
+            }
+            btnCrypto.disabled = false;
+            btnCrypto.textContent = '💎 Subscribe (USDT) — $4.99';
+          }).catch(function(e) {
+            toast('Error: ' + (e.message || e), true);
+            btnCrypto.disabled = false;
+            btnCrypto.textContent = '💎 Subscribe (USDT) — $4.99';
+          });
+        };
+      }
     }
     
     function renderSubscriptionBanner() {
       var banner = document.getElementById('subscriptionBanner');
       var btn = document.getElementById('btnPaddleCheckout');
+      var btnStars = document.getElementById('btnStarsCheckout');
+      var btnCrypto = document.getElementById('btnCryptoCheckout');
       var title = document.getElementById('subTitle');
       var st = document.getElementById('subStatusText');
       var emoji = document.getElementById('subEmoji');
@@ -5524,12 +5600,19 @@
       var maxRoutes = state.user.maxRoutes || 3;
       var currentRoutes = state.user.routeCount || 0;
       
+      var btnRun = document.getElementById('btnRun');
+      if (btnRun) {
+        btnRun.style.display = state.user.role === 'admin' ? 'block' : 'none';
+      }
+      
       if (state.user.role === 'admin') {
         banner.style.display = 'block';
         title.textContent = 'Admin Account';
         st.textContent = 'Unlimited access';
         emoji.textContent = '🛡️';
-        btn.style.display = 'none';
+        if (btn) btn.style.display = 'none';
+        if (btnStars) btnStars.style.display = 'none';
+        if (btnCrypto) btnCrypto.style.display = 'none';
         rl.textContent = 'Routes: ' + currentRoutes + ' / ∞';
         return;
       }
@@ -5542,7 +5625,9 @@
            var date = new Date(state.user.subscriptionExpiresAt).toLocaleDateString();
            st.textContent = 'Valid until ' + date;
         }
-        btn.style.display = 'none';
+        if (btn) btn.style.display = 'none';
+        if (btnStars) btnStars.style.display = 'none';
+        if (btnCrypto) btnCrypto.style.display = 'none';
         rl.textContent = 'Routes: ' + currentRoutes + ' / ' + (maxRoutes >= 999 ? '∞' : maxRoutes);
       } else {
         if (isTrial) {
@@ -5550,13 +5635,22 @@
           emoji.textContent = '👑';
           var date = state.user.subscriptionExpiresAt ? new Date(state.user.subscriptionExpiresAt).toLocaleDateString() : '?';
           st.textContent = 'Valid until ' + date;
+          rl.textContent = 'Routes: ' + currentRoutes + ' / ' + maxRoutes;
         } else {
+          maxRoutes = 0;
           title.textContent = 'Free Plan';
           emoji.textContent = '⚪';
           st.textContent = 'Subscribe for unlimited routes & analytics';
+          rl.textContent = 'Routes: ' + currentRoutes + ' / 0';
         }
-        btn.style.display = 'block';
-        rl.textContent = 'Routes: ' + currentRoutes + ' / ' + maxRoutes;
+        if (btn) btn.style.display = 'block';
+        if (btnStars) btnStars.style.display = 'block';
+        if (btnCrypto) btnCrypto.style.display = 'block';
+      }
+      
+      var addRouteBtn = document.getElementById('btnAddRoute');
+      if (addRouteBtn) {
+        addRouteBtn.style.display = (state.user.role === 'admin' || currentRoutes < maxRoutes) ? 'block' : 'none';
       }
       
       var urlParams = new URLSearchParams(window.location.search);

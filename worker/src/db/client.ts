@@ -727,7 +727,7 @@ export class DbClient {
 
   async recordPayment(payment: Partial<Payment>): Promise<void> {
     await this.db.prepare(
-      `INSERT INTO payments (telegram_id, paddle_transaction_id, amount, currency,
+      `INSERT OR IGNORE INTO payments (telegram_id, paddle_transaction_id, amount, currency,
        status, subscription_days) VALUES (?, ?, ?, ?, ?, ?)`
     ).bind(
       payment.telegram_id!,
@@ -737,6 +737,11 @@ export class DbClient {
       payment.status || 'completed',
       payment.subscription_days || 30
     ).run();
+  }
+
+  async isPaymentRecorded(transactionId: string): Promise<boolean> {
+    const row = await this.db.prepare('SELECT 1 FROM payments WHERE paddle_transaction_id = ?').bind(transactionId).first();
+    return row !== null;
   }
 
   async getUserPayments(telegramId: string): Promise<Payment[]> {

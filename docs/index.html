@@ -911,7 +911,8 @@
             <div id="subStatusText" style="font-size:13px; color:var(--subtext); margin-top:4px;"></div>
             <div id="subRouteLimitText" style="font-size:12px; color:var(--hint); margin-top:4px;"></div>
             <button type="button" class="btn btn-accent" id="btnPaddleCheckout" style="margin-top:12px; max-width:280px; margin-left:auto; margin-right:auto; display:none;">💳 Subscribe (Card) — €4.99/mo</button>
-            <button type="button" class="btn btn-secondary" id="btnCryptoCheckout" style="margin-top:8px; max-width:280px; margin-left:auto; margin-right:auto; display:none; background:var(--bg); border:1px solid var(--border);">💎 Subscribe (USDT) — $5.99</button>
+            <button type="button" class="btn btn-secondary" id="btnStarsCheckout" style="margin-top:8px; max-width:280px; margin-left:auto; margin-right:auto; display:none; background:var(--bg); border:1px solid var(--border);">⭐️ Subscribe (Stars) — 250 ⭐️</button>
+            <button type="button" class="btn btn-secondary" id="btnCryptoCheckout" style="margin-top:8px; max-width:280px; margin-left:auto; margin-right:auto; display:none; background:var(--bg); border:1px solid var(--border);">💎 Subscribe (USDT) — $4.99</button>
           </div>
         </div>
 
@@ -5527,6 +5528,39 @@
         };
       }
       
+      var btnStars = document.getElementById('btnStarsCheckout');
+      if (btnStars) {
+        btnStars.onclick = function() {
+          toast('Generating Stars invoice...');
+          btnStars.disabled = true;
+          btnStars.textContent = '⏳ Loading...';
+          callRpc('generateStarsInvoice', []).then(function(invoiceLink) {
+            btnStars.disabled = false;
+            btnStars.textContent = '⭐️ Subscribe (Stars) — 250 ⭐️';
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openInvoice) {
+              window.Telegram.WebApp.openInvoice(invoiceLink, function(status) {
+                if (status === 'paid') {
+                  toast('🎉 Оплата получена! Подписка активирована.');
+                  setTimeout(function() {
+                    init();
+                  }, 1200);
+                } else if (status === 'cancelled') {
+                  toast('Оплата отменена');
+                } else if (status === 'failed') {
+                  toast('Ошибка при оплате', true);
+                }
+              });
+            } else {
+              window.open(invoiceLink, '_blank');
+            }
+          }).catch(function(e) {
+            toast('Error: ' + (e.message || e), true);
+            btnStars.disabled = false;
+            btnStars.textContent = '⭐️ Subscribe (Stars) — 250 ⭐️';
+          });
+        };
+      }
+
       var btnCrypto = document.getElementById('btnCryptoCheckout');
       if (btnCrypto) {
         btnCrypto.onclick = function() {
@@ -5540,11 +5574,11 @@
               window.open(payUrl, '_blank');
             }
             btnCrypto.disabled = false;
-            btnCrypto.textContent = '💎 Subscribe (USDT) — $5.99';
+            btnCrypto.textContent = '💎 Subscribe (USDT) — $4.99';
           }).catch(function(e) {
             toast('Error: ' + (e.message || e), true);
             btnCrypto.disabled = false;
-            btnCrypto.textContent = '💎 Subscribe (USDT) — $5.99';
+            btnCrypto.textContent = '💎 Subscribe (USDT) — $4.99';
           });
         };
       }
@@ -5553,6 +5587,7 @@
     function renderSubscriptionBanner() {
       var banner = document.getElementById('subscriptionBanner');
       var btn = document.getElementById('btnPaddleCheckout');
+      var btnStars = document.getElementById('btnStarsCheckout');
       var btnCrypto = document.getElementById('btnCryptoCheckout');
       var title = document.getElementById('subTitle');
       var st = document.getElementById('subStatusText');
@@ -5576,6 +5611,7 @@
         st.textContent = 'Unlimited access';
         emoji.textContent = '🛡️';
         if (btn) btn.style.display = 'none';
+        if (btnStars) btnStars.style.display = 'none';
         if (btnCrypto) btnCrypto.style.display = 'none';
         rl.textContent = 'Routes: ' + currentRoutes + ' / ∞';
         return;
@@ -5590,6 +5626,7 @@
            st.textContent = 'Valid until ' + date;
         }
         if (btn) btn.style.display = 'none';
+        if (btnStars) btnStars.style.display = 'none';
         if (btnCrypto) btnCrypto.style.display = 'none';
         rl.textContent = 'Routes: ' + currentRoutes + ' / ' + (maxRoutes >= 999 ? '∞' : maxRoutes);
       } else {
@@ -5607,6 +5644,7 @@
           rl.textContent = 'Routes: ' + currentRoutes + ' / 0';
         }
         if (btn) btn.style.display = 'block';
+        if (btnStars) btnStars.style.display = 'block';
         if (btnCrypto) btnCrypto.style.display = 'block';
       }
       

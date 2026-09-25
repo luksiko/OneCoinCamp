@@ -87,6 +87,16 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
           throw new Error('Failed to generate crypto invoice');
         }
         break;
+      case 'generateStarsInvoice': {
+        const settings = await ctx.db.getSettings();
+        const starsPrice = Number(settings.telegram_stars_price) || 250;
+        result = await ctx.telegram.createStarsInvoiceLink(
+          identity.id,
+          user?.language || identity.language || 'ru',
+          starsPrice
+        );
+        break;
+      }
       case 'checkProvidersHealth':
         result = await handleCheckProvidersHealth(ctx);
         break;

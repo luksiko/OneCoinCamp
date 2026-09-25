@@ -19,6 +19,9 @@ export const DEFAULT_SETTINGS: GlobalSettings = {
   provider_imoova_enabled: true,
 };
 
+export const TELEGRAM_STARS_DEFAULT_PRICE = 250;
+export const SUBSCRIPTION_DEFAULT_DAYS = 30;
+
 export const DEFAULT_FILTERS = {
   allowed_origin_countries: 'DE,AT,NL,BE,FR,CH',
   allowed_destination_countries: 'ES,IT,FR,DE,AT,NL,BE,PT,DK,HR,SI,CH,PL,CZ',
