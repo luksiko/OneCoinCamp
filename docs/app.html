@@ -4354,8 +4354,8 @@
           provider_imoova_enabled: state.settings.provider_imoova_enabled !== undefined ? state.settings.provider_imoova_enabled : true
         },
         filters: {
-          allowed_origin_countries: (state.filters.allowed_origin_countries || []).slice(),
-          allowed_destination_countries: (state.filters.allowed_destination_countries || []).slice(),
+          allowed_origin_countries: [],
+          allowed_destination_countries: [],
           min_trip_days: state.filters.min_trip_days != null ? state.filters.min_trip_days : '',
           max_trip_days: state.filters.max_trip_days != null ? state.filters.max_trip_days : '',
           max_price: state.filters.max_price != null ? state.filters.max_price : '',
