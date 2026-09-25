@@ -910,7 +910,8 @@
             <div style="font-size:15px; font-weight:700;" id="subTitle"></div>
             <div id="subStatusText" style="font-size:13px; color:var(--subtext); margin-top:4px;"></div>
             <div id="subRouteLimitText" style="font-size:12px; color:var(--hint); margin-top:4px;"></div>
-            <button type="button" class="btn btn-accent" id="btnPaddleCheckout" style="margin-top:12px; max-width:280px; margin-left:auto; margin-right:auto; display:none;">💳 Subscribe — €4.99/mo</button>
+            <button type="button" class="btn btn-accent" id="btnPaddleCheckout" style="margin-top:12px; max-width:280px; margin-left:auto; margin-right:auto; display:none;">💳 Subscribe (Card) — €4.99/mo</button>
+            <button type="button" class="btn btn-secondary" id="btnCryptoCheckout" style="margin-top:8px; max-width:280px; margin-left:auto; margin-right:auto; display:none; background:var(--bg); border:1px solid var(--border);">💎 Subscribe (USDT) — $5.99</button>
           </div>
         </div>
 
@@ -5525,11 +5526,34 @@
           });
         };
       }
+      
+      var btnCrypto = document.getElementById('btnCryptoCheckout');
+      if (btnCrypto) {
+        btnCrypto.onclick = function() {
+          toast('Generating CryptoBot invoice...');
+          btnCrypto.disabled = true;
+          btnCrypto.textContent = '⏳ Loading...';
+          callRpc('generateCryptoInvoice', []).then(function(payUrl) {
+            if (window.Telegram && window.Telegram.WebApp) {
+              window.Telegram.WebApp.openLink(payUrl);
+            } else {
+              window.open(payUrl, '_blank');
+            }
+            btnCrypto.disabled = false;
+            btnCrypto.textContent = '💎 Subscribe (USDT) — $5.99';
+          }).catch(function(e) {
+            toast('Error: ' + (e.message || e), true);
+            btnCrypto.disabled = false;
+            btnCrypto.textContent = '💎 Subscribe (USDT) — $5.99';
+          });
+        };
+      }
     }
     
     function renderSubscriptionBanner() {
       var banner = document.getElementById('subscriptionBanner');
       var btn = document.getElementById('btnPaddleCheckout');
+      var btnCrypto = document.getElementById('btnCryptoCheckout');
       var title = document.getElementById('subTitle');
       var st = document.getElementById('subStatusText');
       var emoji = document.getElementById('subEmoji');
@@ -5546,7 +5570,8 @@
         title.textContent = 'Admin Account';
         st.textContent = 'Unlimited access';
         emoji.textContent = '🛡️';
-        btn.style.display = 'none';
+        if (btn) btn.style.display = 'none';
+        if (btnCrypto) btnCrypto.style.display = 'none';
         rl.textContent = 'Routes: ' + currentRoutes + ' / ∞';
         return;
       }
@@ -5559,7 +5584,8 @@
            var date = new Date(state.user.subscriptionExpiresAt).toLocaleDateString();
            st.textContent = 'Valid until ' + date;
         }
-        btn.style.display = 'none';
+        if (btn) btn.style.display = 'none';
+        if (btnCrypto) btnCrypto.style.display = 'none';
         rl.textContent = 'Routes: ' + currentRoutes + ' / ' + (maxRoutes >= 999 ? '∞' : maxRoutes);
       } else {
         if (isTrial) {
@@ -5575,7 +5601,8 @@
           st.textContent = 'Subscribe for unlimited routes & analytics';
           rl.textContent = 'Routes: ' + currentRoutes + ' / 0';
         }
-        btn.style.display = 'block';
+        if (btn) btn.style.display = 'block';
+        if (btnCrypto) btnCrypto.style.display = 'block';
       }
       
       var addRouteBtn = document.getElementById('btnAddRoute');

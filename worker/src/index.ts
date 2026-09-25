@@ -255,6 +255,7 @@ export default {
         triggerMonitorFn,
         paddleClientToken: env.PADDLE_CLIENT_TOKEN,
         paddlePriceId: env.PADDLE_PRICE_ID,
+        cryptoBotToken: env.CRYPTO_BOT_TOKEN,
       });
       if (origin && allowedOrigins.includes(origin)) {
         const headers = new Headers(response.headers);

@@ -18,6 +18,7 @@ export interface RpcContext {
   triggerMonitorFn: () => Promise<any>;
   paddleClientToken?: string;
   paddlePriceId?: string;
+  cryptoBotToken?: string;
 }
 
 export async function handleRpcRequest(request: Request, ctx: RpcContext): Promise<Response> {
@@ -62,6 +63,29 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
         break;
       case 'saveUiData':
         result = await handleSaveUiData(ctx, args[0], identity, isAdmin);
+        break;
+      case 'generateCryptoInvoice':
+        if (!ctx.cryptoBotToken) throw new Error('Crypto payments not configured');
+        const res = await fetch('https://pay.crypt.bot/api/createInvoice', {
+          method: 'POST',
+          headers: {
+            'Crypto-Pay-API-Token': ctx.cryptoBotToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            asset: 'USDT',
+            amount: '5.99',
+            description: 'Camper Monitor Premium (1 Month)',
+            hidden_message: 'Thank you for your purchase!',
+            payload: JSON.stringify({ telegram_id: identity.id })
+          })
+        });
+        const cryptoData = await res.json<any>();
+        if (cryptoData.ok && cryptoData.result?.pay_url) {
+          result = cryptoData.result.pay_url;
+        } else {
+          throw new Error('Failed to generate crypto invoice');
+        }
         break;
       case 'checkProvidersHealth':
         result = await handleCheckProvidersHealth(ctx);
