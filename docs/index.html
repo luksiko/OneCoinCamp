@@ -2365,21 +2365,25 @@
       var settingsBtn  = document.getElementById('tabSettings');
       var offersBtn    = document.getElementById('tabOffers');
       var analyticsBtn = document.getElementById('tabAnalytics');
+      var adminBtn     = document.getElementById('tabAdmin');
       
       var screenMain      = document.getElementById('screenMain');
       var screenSettings  = document.getElementById('screenSettings');
       var screenOffers    = document.getElementById('screenOffers');
       var screenAnalytics = document.getElementById('screenAnalytics');
+      var screenAdmin     = document.getElementById('screenAdmin');
       
       if (mainBtn)      mainBtn.classList.toggle('selected',      tab === 'main');
       if (settingsBtn)  settingsBtn.classList.toggle('selected',  tab === 'settings');
       if (offersBtn)    offersBtn.classList.toggle('selected',    tab === 'offers');
       if (analyticsBtn) analyticsBtn.classList.toggle('selected', tab === 'analytics');
+      if (adminBtn)     adminBtn.classList.toggle('selected',     tab === 'admin');
       
       if (screenMain)      screenMain.style.display      = tab === 'main'      ? '' : 'none';
       if (screenSettings)  screenSettings.style.display  = tab === 'settings'  ? '' : 'none';
       if (screenOffers)    screenOffers.style.display    = tab === 'offers'    ? '' : 'none';
       if (screenAnalytics) screenAnalytics.style.display = tab === 'analytics' ? '' : 'none';
+      if (screenAdmin)     screenAdmin.style.display     = tab === 'admin'     ? '' : 'none';
       
       if (tab === 'settings')  updateGitVersionDisplay();
       if (tab === 'offers')    loadOffers();
@@ -4464,7 +4468,7 @@
       if (!data.paddleClientToken || !window.Paddle) return;
       if (window._paddleInitialized) return;
       window._paddleInitialized = true;
-      var env = data.settings && data.settings.paddle_environment === 'production' ? 'production' : 'sandbox';
+      var env = data.paddleClientToken.startsWith('live_') ? 'production' : 'sandbox';
       
       Paddle.Environment.set(env);
       Paddle.Initialize({
