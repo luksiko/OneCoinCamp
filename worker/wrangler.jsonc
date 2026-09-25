@@ -12,6 +12,17 @@
   "triggers": {
     "crons": ["*/10 * * * *"]
   },
+  "queues": {
+    "producers": [{ "binding": "ALERT_QUEUE", "queue": "camper-monitor-alerts" }],
+    "consumers": [{
+      "queue": "camper-monitor-alerts",
+      "max_batch_size": 1,
+      "max_batch_timeout": 1,
+      "max_concurrency": 1,
+      "max_retries": 3,
+      "retry_delay": 30
+    }]
+  },
   "d1_databases": [
     {
       "binding": "DB",

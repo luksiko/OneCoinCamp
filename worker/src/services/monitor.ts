@@ -5,12 +5,13 @@ import { computeOfferFingerprint } from '../utils/crypto';
 import { routeMatchesOffer, offerMatchesUserFilters, isSilentHoursActive, formatIsoDate, addDays, parseIsoDate } from './filters';
 import { NormalizedOffer, UserRoute, UserFilters, RunLog } from '../types';
 import { setGasProxyUrl } from '../utils/http';
+import { runWithProviderBudget } from '../utils/provider-budget';
 
 export async function runMonitorCycle(
   db: DbClient,
   telegram: TelegramService,
   sendAlerts = false
-): Promise<{ offersFound: number; alertsSent: number }> {
+): Promise<{ offersFound: number; alertsSent: number; alertsQueued?: number }> {
   const lockOwner = crypto.randomUUID();
   if (!(await db.acquireMonitorLock(lockOwner))) {
     console.log('Monitor scan already active; skipping duplicate invocation.');
@@ -18,10 +19,11 @@ export async function runMonitorCycle(
   }
   const startedAt = new Date().toISOString();
   let offersFoundCount = 0;
-  let alertsSentCount = 0;
+  let alertsQueuedCount = 0;
   let requestCount = 0;
   let status = 'ok';
   let errorMsg: string | undefined = undefined;
+  let shouldLogRun = true;
 
   try {
     const settings = await db.getSettings();
@@ -33,7 +35,16 @@ export async function runMonitorCycle(
       return { offersFound: 0, alertsSent: 0 };
     }
 
-    const activeUsers = await db.listActiveUsers();
+    const previousRun = await db.getLatestRun();
+    const minimumGapMinutes = Math.max(1, Number(settings.minimum_scan_gap_minutes) || 8);
+    if (previousRun?.started_at && Date.now() - Date.parse(previousRun.started_at) < minimumGapMinutes * 60000) {
+      console.log('Recent monitor scan exists; skipping repeated trigger.');
+      shouldLogRun = false;
+      return { offersFound: 0, alertsSent: 0 };
+    }
+
+    const activeContexts = await db.listActiveMonitorContexts();
+    const activeUsers = activeContexts.map((context) => context.user);
     if (activeUsers.length === 0) {
       console.log('No active users to monitor for.');
       return { offersFound: 0, alertsSent: 0 };
@@ -43,13 +54,9 @@ export async function runMonitorCycle(
     const allRoutes: UserRoute[] = [];
     const userMap = new Map<string, { routes: UserRoute[]; filters: UserFilters }>();
 
-    for (const u of activeUsers) {
-      const routes = await db.getUserRoutes(u.telegram_id);
-      const filters = await db.getUserFilters(u.telegram_id);
-      const enabledRoutes = routes.filter((r) => r.enabled);
-
-      userMap.set(u.telegram_id, { routes: enabledRoutes, filters });
-      allRoutes.push(...enabledRoutes);
+    for (const context of activeContexts) {
+      userMap.set(context.user.telegram_id, { routes: context.routes, filters: context.filters });
+      allRoutes.push(...context.routes);
     }
 
     // Default window dates (fallback looking ahead at least 60 days for roadsurfer rally timeframes)
@@ -59,10 +66,15 @@ export async function runMonitorCycle(
     const defaultWindowEnd = formatIsoDate(addDays(today, Math.max(settings.window_days || 14, 60)));
 
     // Deduplicate routes to avoid redundant HTTP requests
-    const uniqueRouteKey = (r: UserRoute) =>
-      (!r.destination_id || r.destination_id === '*')
-        ? `${r.source}|${r.origin_id || '*'}|${r.origin_country || ''}|*|*`
-        : `${r.source}|${r.origin_id || '*'}|${r.origin_country || ''}|${r.destination_id || '*'}|${r.destination_country || ''}`;
+    const uniqueRouteKey = (r: UserRoute) => {
+      const source = r.source.toLowerCase();
+      if ((source === 'movacar' || source === 'imoova') && r.origin_id && r.origin_id !== '*') {
+        return `${source}|${r.origin_id}|*`;
+      }
+      return (!r.destination_id || r.destination_id === '*')
+        ? `${source}|${r.origin_id || '*'}|${r.origin_country || ''}|*|*`
+        : `${source}|${r.origin_id || '*'}|${r.origin_country || ''}|${r.destination_id || '*'}|${r.destination_country || ''}`;
+    };
     const routeIndexMap = new Map<string, number>();
     const routesToScan: UserRoute[] = [];
 
@@ -75,8 +87,11 @@ export async function runMonitorCycle(
       const existingIdx = routeIndexMap.get(key);
       if (existingIdx === undefined) {
         routeIndexMap.set(key, routesToScan.length);
-        routesToScan.push((!r.destination_id || r.destination_id === '*')
-          ? { ...r, destination_country: '' }
+        routesToScan.push((!r.destination_id || r.destination_id === '*' || r.source === 'movacar' || r.source === 'imoova')
+          ? { ...r, origin_country: r.origin_id && r.origin_id !== '*' && (r.source === 'movacar' || r.source === 'imoova') ? '' : r.origin_country,
+              destination_id: r.source === 'movacar' || r.source === 'imoova' ? '*' : r.destination_id,
+              destination_name: r.source === 'movacar' || r.source === 'imoova' ? '' : r.destination_name,
+              destination_country: '' }
           : { ...r });
       } else {
         const existing = routesToScan[existingIdx];
@@ -89,25 +104,37 @@ export async function runMonitorCycle(
       }
     }
 
+    routesToScan.sort((a, b) => uniqueRouteKey(a).localeCompare(uniqueRouteKey(b)));
     console.log(`Scanning ${routesToScan.length} unique routes for ${activeUsers.length} users.`);
 
     const foundOffers: NormalizedOffer[] = [];
-
-    for (const route of routesToScan) {
-      requestCount++;
-      try {
-        const rPickup = parseIsoDate(route.pickup_date);
-        const rReturn = parseIsoDate(route.return_date);
-        const routeStart = (rPickup && rPickup > today) ? formatIsoDate(rPickup) : windowStart;
-        const routeEnd = rReturn ? formatIsoDate(rReturn) : defaultWindowEnd;
-        const windowDates = { start: routeStart, end: routeEnd };
-
-        const offers = await fetchOffersForRoute(route, windowDates, undefined, db);
-        foundOffers.push(...offers);
-      } catch (err: any) {
-        console.warn(`Error scanning route ${route.source} ${route.origin_id} -> ${route.destination_id}:`, err.message || err);
+    const budget = Math.min(40, Math.max(1, Number(settings.provider_request_budget) || 35));
+    const rawCursor = Number(await db.getSetting('scan_route_cursor')) || 0;
+    const cursor = routesToScan.length ? rawCursor % routesToScan.length : 0;
+    let nextCursor = cursor;
+    await runWithProviderBudget(budget, async (scope) => {
+      for (let step = 0; step < routesToScan.length; step++) {
+        const route = routesToScan[(cursor + step) % routesToScan.length];
+        nextCursor = (cursor + step + 1) % routesToScan.length;
+        try {
+          const rPickup = parseIsoDate(route.pickup_date);
+          const rReturn = parseIsoDate(route.return_date);
+          const routeStart = (rPickup && rPickup > today) ? formatIsoDate(rPickup) : windowStart;
+          const routeEnd = rReturn ? formatIsoDate(rReturn) : defaultWindowEnd;
+          const offers = await fetchOffersForRoute(route, { start: routeStart, end: routeEnd }, undefined, db);
+          foundOffers.push(...offers);
+        } catch (err: any) {
+          console.warn(`Error scanning route ${route.source} ${route.origin_id} -> ${route.destination_id}:`, err.message || err);
+        }
+        if (scope.used >= scope.limit) {
+          status = 'partial';
+          break;
+        }
       }
-    }
+      requestCount = scope.used;
+      console.log(`Provider requests: ${scope.used}/${scope.limit}; by host: ${JSON.stringify(scope.byHost)}.`);
+    });
+    if (routesToScan.length) await db.setSetting('scan_route_cursor', nextCursor);
 
     offersFoundCount = foundOffers.length;
 
@@ -128,8 +155,6 @@ export async function runMonitorCycle(
         if (!matchesFilters) continue;
 
         if (!sendAlerts) continue;
-        const alreadySent = await db.hasAlertBeenSent(telegramId, fingerprint);
-        if (alreadySent) continue;
 
         const silent = isSilentHoursActive(userContext.filters, settings);
 
@@ -138,15 +163,11 @@ export async function runMonitorCycle(
         const chatId = user?.chat_id || telegramId;
 
         try {
-          await telegram.sendOfferAlert(chatId, offer, matchedRoute, silent);
-          alertsSentCount++;
-          await db.markAlertSent(
-            telegramId,
-            fingerprint,
-            `${offer.source}: ${offer.origin} -> ${offer.destination} (${offer.price}€)`
-          );
+          if (await db.enqueueAlert(telegramId, fingerprint, chatId, offer, matchedRoute, silent)) {
+            alertsQueuedCount++;
+          }
         } catch (sendErr: any) {
-          console.error(`Failed to send alert to ${chatId}:`, sendErr.message || sendErr);
+          console.error(`Failed to enqueue alert to ${chatId}:`, sendErr.message || sendErr);
         }
       }
     }
@@ -157,14 +178,14 @@ export async function runMonitorCycle(
   } finally {
     const finishedAt = new Date().toISOString();
     try {
-      await db.logRun({
+      if (shouldLogRun) await db.logRun({
         started_at: startedAt,
         finished_at: finishedAt,
         source: 'all',
         request_count: requestCount,
         offers_found: offersFoundCount,
         archived: offersFoundCount,
-        alerts_sent: alertsSentCount,
+        alerts_sent: 0,
         status,
         error: errorMsg,
       });
@@ -173,5 +194,5 @@ export async function runMonitorCycle(
     }
   }
 
-  return { offersFound: offersFoundCount, alertsSent: alertsSentCount };
+  return { offersFound: offersFoundCount, alertsSent: 0, alertsQueued: alertsQueuedCount };
 }

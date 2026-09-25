@@ -212,6 +212,7 @@ export async function fetchRoadsurferTimeframes(
       }
     }
 
+    if (db) await db.setCache(cacheKey, normalized, normalized.length ? 1800 : 300);
     return normalized;
   } catch (err) {
     return [];

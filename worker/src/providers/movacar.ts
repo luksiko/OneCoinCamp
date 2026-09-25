@@ -1,6 +1,7 @@
 import { NormalizedOffer, UserRoute } from '../types';
 import { fetchJson } from '../utils/http';
 import countryMap from './movacar-countries.json';
+import { DbClient } from '../db/client';
 
 export const MOVACAR_COUNTRIES: Record<string, string> = countryMap;
 
@@ -17,11 +18,19 @@ export function lookupMovacarCountry(cityName?: string): string {
   return '';
 }
 
-export async function getMovacarAllStations(): Promise<{ id: string; name: string; country: string }[]> {
+export async function getMovacarLocationsPayload(db?: DbClient): Promise<any> {
+  const cached = await db?.getCache<any>('movacar:locations:all');
+  if (cached) return cached;
   const payload = await fetchJson<any>('https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de', {
     headers: { Accept: 'application/vnd.api+json', Origin: 'https://movacar.com', Referer: 'https://movacar.com/' },
     retries: 1,
   });
+  if (db) await db.setCache('movacar:locations:all', payload, 21600);
+  return payload;
+}
+
+export async function getMovacarAllStations(db?: DbClient): Promise<{ id: string; name: string; country: string }[]> {
+  const payload = await getMovacarLocationsPayload(db);
   const stations = (payload?.included || [])
     .filter((item: any) => item.type === 'locationsummary' && item.attributes?.location_type === 'origin' && item.attributes?.reference)
     .map((item: any) => ({ id: String(item.attributes.reference), name: String(item.attributes.name || ''), country: MOVACAR_COUNTRIES[item.attributes.name] || '' }));
@@ -30,14 +39,15 @@ export async function getMovacarAllStations(): Promise<{ id: string; name: strin
 
 export async function fetchMovacarOffers(
   route: UserRoute,
-  windowDates: { start: string; end: string }
+  windowDates: { start: string; end: string },
+  db?: DbClient
 ): Promise<NormalizedOffer[]> {
   const isWildOrigin = !route.origin_id || route.origin_id === '*';
   const isWildDest = !route.destination_id || route.destination_id === '*';
   const offers: NormalizedOffer[] = [];
   let origins: { id: string; name: string; country: string }[];
   if (isWildOrigin) {
-    origins = (await getMovacarAllStations()).filter((station) => !route.origin_country || station.country === route.origin_country.toUpperCase());
+    origins = (await getMovacarAllStations(db)).filter((station) => !route.origin_country || station.country === route.origin_country.toUpperCase());
   } else {
     origins = [{ id: String(route.origin_id), name: route.origin_name || '', country: route.origin_country || '' }];
   }

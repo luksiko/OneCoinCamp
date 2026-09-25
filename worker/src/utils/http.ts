@@ -5,6 +5,8 @@ export interface FetchOptions extends RequestInit {
   proxyUrl?: string;
 }
 
+import { consumeProviderRequest, currentProviderScope, ProviderBudgetExceeded } from './provider-budget';
+
 let globalGasProxyUrl: string | undefined = undefined;
 const KNOWN_PROXY_DOMAINS = new Set<string>(['booking.roadsurfer.com']);
 
@@ -23,6 +25,25 @@ export function addKnownProxyDomain(domain: string): void {
 }
 
 export async function fetchJson<T = any>(url: string, options: FetchOptions = {}): Promise<T> {
+  const scope = currentProviderScope();
+  const headersStr = options.headers ? '|' + JSON.stringify(options.headers) : '';
+  const memoKey = (!options.method || options.method.toUpperCase() === 'GET') && !options.body ? url + headersStr : '';
+  if (scope && memoKey) {
+    const cached = scope.memo.get(memoKey);
+    if (cached) return cached as Promise<T>;
+    const promise = fetchJsonUncached<T>(url, options);
+    scope.memo.set(memoKey, promise);
+    try {
+      return await promise;
+    } catch (error) {
+      scope.memo.delete(memoKey);
+      throw error;
+    }
+  }
+  return fetchJsonUncached<T>(url, options);
+}
+
+async function fetchJsonUncached<T = any>(url: string, options: FetchOptions = {}): Promise<T> {
   const retries = options.retries == null ? 2 : options.retries;
   const timeoutSeconds = Math.min(Math.max(Number(options.timeoutSeconds) || 20, 5), 60);
 
@@ -58,6 +79,7 @@ export async function fetchJson<T = any>(url: string, options: FetchOptions = {}
     const timeoutId = setTimeout(() => controller.abort(), timeoutSeconds * 1000);
 
     try {
+      consumeProviderRequest(url);
       const response = await fetch(url, {
         ...options,
         signal: controller.signal,
@@ -87,6 +109,7 @@ export async function fetchJson<T = any>(url: string, options: FetchOptions = {}
       }
     } catch (err: any) {
       clearTimeout(timeoutId);
+      if (err instanceof ProviderBudgetExceeded) throw err;
       lastError = err;
       if (attempt === retries) {
         break;
@@ -107,6 +130,7 @@ export async function fetchJson<T = any>(url: string, options: FetchOptions = {}
       }
       return proxiedResult;
     } catch (proxyError: any) {
+      if (proxyError instanceof ProviderBudgetExceeded) throw proxyError;
       console.error(`GAS proxy fallback failed for ${maskUrl(url)}:`, proxyError.message || proxyError);
       throw new Error(`Direct failed: [${lastError.message}] & Proxy fallback failed: [${proxyError.message}]`);
     }
@@ -143,6 +167,7 @@ export async function fetchViaGasProxy<T = any>(
   const payload = options.body ? String(options.body) : null;
 
   try {
+    consumeProviderRequest(targetUrl);
     const response = await fetch(`${proxyUrl}?proxy=1`, {
       method: 'POST',
       headers: {

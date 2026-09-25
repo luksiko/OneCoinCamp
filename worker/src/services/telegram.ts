@@ -60,6 +60,7 @@ export class TelegramService {
       reply_markup?: any;
       disable_notification?: boolean;
       parse_mode?: string;
+      retries?: number;
     } = {}
   ): Promise<any> {
     if (!this.secrets.botToken) {
@@ -78,7 +79,7 @@ export class TelegramService {
         disable_notification: Boolean(options.disable_notification),
         reply_markup: options.reply_markup,
       }),
-      retries: 2,
+      retries: options.retries ?? 2,
     });
   }
 
@@ -100,6 +101,7 @@ export class TelegramService {
     route?: UserRoute,
     disableNotification = false
   ): Promise<void> {
+    if (!this.secrets.botToken) throw new Error('Telegram Bot Token not configured');
     const isCamper = offer.vehicle_type === 'camper';
     const icon = isCamper ? '🚐' : '🚗';
     const providerIcons: Record<string, string> = {
@@ -151,10 +153,14 @@ export class TelegramService {
       ]);
     }
 
-    await this.sendMessage(chatId, text, {
+    const result = await this.sendMessage(chatId, text, {
       reply_markup: inlineKeyboard.length > 0 ? { inline_keyboard: inlineKeyboard } : undefined,
       disable_notification: disableNotification,
+      retries: 0,
     });
+    if (!result?.ok) {
+      throw new Error(`Telegram rejected alert: ${result?.description || 'unknown error'}${result?.parameters?.retry_after ? ` retry_after=${result.parameters.retry_after}` : ''}`);
+    }
   }
 
   async handleWebhook(request: Request, triggerMonitorFn: () => Promise<any>): Promise<Response> {

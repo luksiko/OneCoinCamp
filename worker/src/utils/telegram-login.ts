@@ -43,7 +43,10 @@ export async function verifyBrowserSession(token: string, botToken: string): Pro
   const [payload, signature, extra] = token.split('.');
   if (!payload || !signature || extra || !botToken) return null;
   try {
-    const valid = await crypto.subtle.verify('HMAC', await getSigningKey(botToken), fromBase64Url(signature), encoder.encode(payload));
+    if (!/^[A-Za-z0-9_-]+$/.test(signature) || !/^[A-Za-z0-9_-]+$/.test(payload)) return null;
+    const signatureBytes = fromBase64Url(signature);
+    if (toBase64Url(signatureBytes) !== signature) return null;
+    const valid = await crypto.subtle.verify('HMAC', await getSigningKey(botToken), signatureBytes, encoder.encode(payload));
     if (!valid) return null;
     const session = JSON.parse(new TextDecoder().decode(fromBase64Url(payload)));
     if (!session || typeof session.id !== 'string' || !/^\d+$/.test(session.id) || !Number.isSafeInteger(session.exp) || session.exp < Math.floor(Date.now() / 1000)) return null;

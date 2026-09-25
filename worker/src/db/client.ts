@@ -3,6 +3,17 @@ import { DEFAULT_SETTINGS, DEFAULT_FILTERS } from '../config';
 import { sha256 } from '../utils/crypto';
 import type { BrowserTelegramIdentity } from '../utils/telegram-login';
 
+export interface AlertOutboxItem {
+  telegram_id: string;
+  fingerprint: string;
+  chat_id: string;
+  offer_json: string;
+  route_json: string | null;
+  silent: number;
+  offer_summary: string;
+  attempts: number;
+}
+
 export class DbClient {
   constructor(private db: D1Database) {}
 
@@ -125,8 +136,40 @@ export class DbClient {
     return (results || []) as User[];
   }
 
+  async listActiveMonitorContexts(): Promise<Array<{ user: User; routes: UserRoute[]; filters: UserFilters }>> {
+    const [usersResult, routesResult, filtersResult] = await Promise.all([
+      this.db.prepare("SELECT * FROM users WHERE status = 'active'").all<User>(),
+      this.db.prepare("SELECT r.* FROM user_routes r JOIN users u ON u.telegram_id = r.telegram_id WHERE u.status = 'active' AND r.enabled = 1").all<UserRoute>(),
+      this.db.prepare("SELECT f.* FROM user_filters f JOIN users u ON u.telegram_id = f.telegram_id WHERE u.status = 'active'").all<UserFilters>(),
+    ]);
+    const routesByUser = new Map<string, UserRoute[]>();
+    for (const route of routesResult.results || []) {
+      const routes = routesByUser.get(route.telegram_id) || [];
+      routes.push({ ...route, enabled: true });
+      routesByUser.set(route.telegram_id, routes);
+    }
+    const filtersByUser = new Map((filtersResult.results || []).map((filters) => [filters.telegram_id, filters]));
+    return (usersResult.results || []).map((user) => {
+      const stored = filtersByUser.get(user.telegram_id);
+      return {
+        user,
+        routes: routesByUser.get(user.telegram_id) || [],
+        filters: stored
+          ? { ...stored, only_campers: Boolean(stored.only_campers), silent_hours_enabled: Boolean(stored.silent_hours_enabled) }
+          : { ...DEFAULT_FILTERS, telegram_id: user.telegram_id },
+      };
+    });
+  }
+
   async setUserLanguage(telegramId: string, language: string): Promise<void> {
     await this.db.prepare('UPDATE users SET language = ? WHERE telegram_id = ?').bind(language, telegramId).run();
+  }
+
+  async markUserUnreachable(telegramId: string): Promise<void> {
+    await this.db.batch([
+      this.db.prepare("UPDATE users SET status = 'unreachable' WHERE telegram_id = ? AND status = 'active'").bind(telegramId),
+      this.db.prepare("UPDATE alert_outbox SET status = 'failed', last_error = 'Telegram chat unreachable', updated_at = unixepoch() WHERE telegram_id = ? AND status IN ('pending', 'leased')").bind(telegramId),
+    ]);
   }
 
   async getUserRoutes(telegramId: string | number): Promise<UserRoute[]> {
@@ -275,7 +318,7 @@ export class DbClient {
   async hasAlertBeenSent(telegramId: string | number, fingerprint: string): Promise<boolean> {
     const id = String(telegramId);
     const row = await this.db
-      .prepare("SELECT 1 FROM sent_alerts WHERE telegram_id = ? AND fingerprint = ? AND (sent_at IS NULL OR datetime(sent_at) IS NULL OR datetime(sent_at) >= datetime('now', '-48 hours'))")
+      .prepare('SELECT 1 FROM sent_alerts WHERE telegram_id = ? AND fingerprint = ?')
       .bind(id, fingerprint)
       .first();
     return row !== null;
@@ -296,16 +339,113 @@ export class DbClient {
       .run();
   }
 
+  async enqueueAlert(
+    telegramId: string | number,
+    fingerprint: string,
+    chatId: string | number,
+    offer: NormalizedOffer,
+    route: UserRoute | undefined,
+    silent: boolean
+  ): Promise<boolean> {
+    const result = await this.db.prepare(
+      `INSERT OR IGNORE INTO alert_outbox
+       (telegram_id, fingerprint, chat_id, offer_json, route_json, silent, offer_summary)
+       SELECT ?, ?, ?, ?, ?, ?, ?
+       WHERE NOT EXISTS (
+         SELECT 1 FROM sent_alerts WHERE telegram_id = ? AND fingerprint = ?
+       )`
+    ).bind(
+      String(telegramId), fingerprint, String(chatId), JSON.stringify(offer),
+      route ? JSON.stringify(route) : null, silent ? 1 : 0,
+      `${offer.source}: ${offer.origin} -> ${offer.destination} (${offer.price}€)`,
+      String(telegramId), fingerprint
+    ).run();
+    return (result.meta.changes || 0) > 0;
+  }
+
+  async acquireAlertDispatchLock(owner: string): Promise<boolean> {
+    const now = Math.floor(Date.now() / 1000);
+    const result = await this.db.prepare(
+      `INSERT INTO monitor_locks (name, owner, expires_at) VALUES ('alert-dispatch', ?, ?)
+       ON CONFLICT(name) DO UPDATE SET owner = excluded.owner, expires_at = excluded.expires_at
+       WHERE monitor_locks.expires_at <= ?`
+    ).bind(owner, now + 120, now).run();
+    return (result.meta.changes || 0) > 0;
+  }
+
+  async releaseAlertDispatchLock(owner: string): Promise<void> {
+    await this.db.prepare("DELETE FROM monitor_locks WHERE name = 'alert-dispatch' AND owner = ?")
+      .bind(owner).run();
+  }
+
+  async claimNextAlert(owner: string): Promise<AlertOutboxItem | null> {
+    const now = Math.floor(Date.now() / 1000);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const row = await this.db.prepare(
+        `SELECT telegram_id, fingerprint, chat_id, offer_json, route_json, silent,
+                offer_summary, attempts
+         FROM alert_outbox
+         WHERE ((status = 'pending' AND next_attempt_at <= ?)
+             OR (status = 'leased' AND lease_until <= ?))
+           AND NOT EXISTS (
+             SELECT 1 FROM sent_alerts
+             WHERE sent_alerts.telegram_id = alert_outbox.telegram_id
+               AND sent_alerts.fingerprint = alert_outbox.fingerprint
+           )
+         ORDER BY next_attempt_at ASC, created_at ASC LIMIT 1`
+      ).bind(now, now).first<AlertOutboxItem>();
+      if (!row) return null;
+      const result = await this.db.prepare(
+        `UPDATE alert_outbox SET status = 'leased', lease_owner = ?, lease_until = ?,
+           attempts = attempts + 1, updated_at = ?
+         WHERE telegram_id = ? AND fingerprint = ?
+           AND ((status = 'pending' AND next_attempt_at <= ?)
+             OR (status = 'leased' AND lease_until <= ?))`
+      ).bind(owner, now + 90, now, row.telegram_id, row.fingerprint, now, now).run();
+      if ((result.meta.changes || 0) === 1) return { ...row, attempts: row.attempts + 1 };
+    }
+    return null;
+  }
+
+  async completeAlert(item: AlertOutboxItem, owner: string): Promise<void> {
+    const now = Math.floor(Date.now() / 1000);
+    await this.db.batch([
+      this.db.prepare(
+        `UPDATE alert_outbox SET status = 'sent', sent_at = ?, updated_at = ?,
+           lease_until = NULL, last_error = NULL
+         WHERE telegram_id = ? AND fingerprint = ? AND status = 'leased' AND lease_owner = ?`
+      ).bind(now, now, item.telegram_id, item.fingerprint, owner),
+      this.db.prepare(
+        `INSERT OR IGNORE INTO sent_alerts (telegram_id, fingerprint, offer_summary, sent_at)
+         SELECT telegram_id, fingerprint, offer_summary, CURRENT_TIMESTAMP
+         FROM alert_outbox WHERE telegram_id = ? AND fingerprint = ?
+           AND status = 'sent' AND lease_owner = ?`
+      ).bind(item.telegram_id, item.fingerprint, owner),
+    ]);
+  }
+
+  async retryAlert(item: AlertOutboxItem, owner: string, error: string, retryAfterSeconds: number, permanent = false): Promise<void> {
+    const now = Math.floor(Date.now() / 1000);
+    const next = now + Math.max(1, Math.min(3600, Math.ceil(retryAfterSeconds)));
+    await this.db.prepare(
+      `UPDATE alert_outbox SET status = ?, next_attempt_at = ?, lease_owner = NULL,
+         lease_until = NULL, last_error = ?, updated_at = ?
+       WHERE telegram_id = ? AND fingerprint = ? AND status = 'leased' AND lease_owner = ?`
+    ).bind(permanent || item.attempts >= 8 ? 'failed' : 'pending', next,
+      error.slice(0, 500), now, item.telegram_id, item.fingerprint, owner).run();
+  }
+
   async saveOffer(offer: NormalizedOffer, fingerprint: string): Promise<void> {
     await this.db
       .prepare(
         `INSERT INTO offers (
           fingerprint, source, offer_id, vehicle_id, vehicle, origin, origin_country,
           destination, destination_country, pickup_date, return_date, price, currency,
-          booking_url, raw_json, is_active, found_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+          booking_url, raw_json, is_active, found_at, last_seen_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(fingerprint) DO UPDATE SET
           is_active = CASE WHEN offers.is_dismissed = 1 THEN 0 ELSE 1 END,
+          last_seen_at = CURRENT_TIMESTAMP,
           price = COALESCE(excluded.price, offers.price),
           booking_url = COALESCE(excluded.booking_url, offers.booking_url),
           vehicle = COALESCE(excluded.vehicle, offers.vehicle),
@@ -418,6 +558,13 @@ export class DbClient {
       .prepare('SELECT * FROM runs ORDER BY datetime(started_at) DESC, id DESC LIMIT 1')
       .first<any>();
     return row ? (row as RunLog) : null;
+  }
+
+  async addSentAlertsToLatestRun(count: number): Promise<void> {
+    if (count <= 0) return;
+    await this.db.prepare(
+      'UPDATE runs SET alerts_sent = alerts_sent + ? WHERE id = (SELECT MAX(id) FROM runs)'
+    ).bind(count).run();
   }
 
   async getSettings(): Promise<GlobalSettings> {

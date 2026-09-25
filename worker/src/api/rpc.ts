@@ -2,7 +2,7 @@ import { DbClient } from '../db/client';
 import { TelegramService } from '../services/telegram';
 import { SUPPORTED_PROVIDERS, WEBAPP_COUNTRIES } from '../config';
 import { getRoadsurferAllStations, fetchRoadsurferDestinations } from '../providers/roadsurfer';
-import { MOVACAR_COUNTRIES } from '../providers/movacar';
+import { MOVACAR_COUNTRIES, getMovacarLocationsPayload } from '../providers/movacar';
 import { INDIECAMPERS_CITIES } from '../providers/indiecampers';
 import { routeMatchesOffer, offerMatchesUserFilters } from '../services/filters';
 import { fetchJson, setGasProxyUrl } from '../utils/http';
@@ -249,10 +249,7 @@ async function getProviderStations(provider: string, countries: string[] = [], d
   let stations: { id: string; name: string; country: string }[] = [];
   if (provider === 'roadsurfer') stations = await getRoadsurferAllStations(db);
   else if (provider === 'movacar') {
-    const payload = await fetchJson<any>('https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de', {
-      headers: { Accept: 'application/vnd.api+json', Origin: 'https://movacar.com', Referer: 'https://movacar.com/' },
-      retries: 1,
-    });
+    const payload = await getMovacarLocationsPayload(db);
     stations = (payload?.included || [])
       .filter((item: any) => item.type === 'locationsummary' && item.attributes?.reference)
       .map((item: any) => ({ id: String(item.attributes.reference), name: String(item.attributes.name || ''), country: MOVACAR_COUNTRIES[item.attributes.name] || '' }));
@@ -269,10 +266,15 @@ async function getProviderDestinations(provider: string, originId: string, count
   }
   if (provider === 'movacar' && originId && originId !== '*') {
     const url = `https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de&origin_reference=${encodeURIComponent(originId)}`;
-    const payload = await fetchJson<any>(url, {
-      headers: { Accept: 'application/vnd.api+json', Origin: 'https://movacar.com', Referer: 'https://movacar.com/' },
-      retries: 1,
-    });
+    const cacheKey = `movacar:ui:destinations:${originId}`;
+    let payload = await db?.getCache<any>(cacheKey);
+    if (!payload) {
+      payload = await fetchJson<any>(url, {
+        headers: { Accept: 'application/vnd.api+json', Origin: 'https://movacar.com', Referer: 'https://movacar.com/' },
+        retries: 1,
+      });
+      if (db) await db.setCache(cacheKey, payload, 21600);
+    }
     const countrySet = new Set((countries || []).map((country) => String(country).toUpperCase()));
     const stations = (payload?.included || [])
       .filter((item: any) => item.type === 'locationsummary' && item.attributes?.location_type === 'destination' && item.attributes?.reference)
@@ -292,6 +294,7 @@ async function getOffersForUi(ctx: RpcContext, userId: string, filter: any = {})
     const matches = Boolean(route && offerMatchesUserFilters(row, filters, route));
     return {
       timestamp: row.found_at,
+      lastSeenAt: String(row.last_seen_at || row.found_at || '').replace(/^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d)$/, '$1T$2Z'),
       source: row.source,
       operator: row.source,
       vehicleType: row.vehicle_type || 'unknown',

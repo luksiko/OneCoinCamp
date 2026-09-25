@@ -1,6 +1,7 @@
 import { DbClient } from './db/client';
 import { TelegramService } from './services/telegram';
 import { runMonitorCycle } from './services/monitor';
+import { dispatchAlertOutbox } from './services/telegram-outbox';
 import { handleRpcRequest } from './api/rpc';
 import { setGasProxyUrl, fetchJson } from './utils/http';
 import { browserLoginCode, createBrowserLoginToken, createBrowserSession } from './utils/telegram-login';
@@ -15,6 +16,7 @@ export interface Env {
   WEBHOOK_CUTOVER?: string;
   WORKER_PUBLIC_URL?: string;
   GAS_PROXY_URL?: string;
+  ALERT_QUEUE: Queue<{ kind: 'dispatch-alerts' }>;
 }
 
 export default {
@@ -52,7 +54,25 @@ export default {
         }
       }
       await runMonitorCycle(db, telegram, env.ALERTS_ENABLED === 'true');
+      if (env.ALERTS_ENABLED === 'true') await env.ALERT_QUEUE.send({ kind: 'dispatch-alerts' });
     })());
+  },
+
+  async queue(batch: MessageBatch<{ kind: 'dispatch-alerts' }>, env: Env): Promise<void> {
+    const db = new DbClient(env.DB);
+    const telegram = new TelegramService({
+      botToken: env.TELEGRAM_BOT_TOKEN_SECRET,
+      chatId: env.TELEGRAM_CHAT_ID,
+      webhookSecret: env.TELEGRAM_WEBHOOK_SECRET,
+      workerUrl: env.WORKER_PUBLIC_URL,
+    }, db);
+    const result = await dispatchAlertOutbox(db, telegram, { maxMessages: 35 });
+    await db.addSentAlertsToLatestRun(result.sent);
+    if (result.rateLimited) {
+      await env.ALERT_QUEUE.send({ kind: 'dispatch-alerts' }, { delaySeconds: Math.max(30, Math.min(300, result.retryAfterSeconds || 60)) });
+    } else if (result.sent + result.failed + result.retried >= 35) {
+      await env.ALERT_QUEUE.send({ kind: 'dispatch-alerts' });
+    }
   },
 
   // 2. HTTP Request Handler (Telegram Webhook & Mini App RPC)
@@ -120,7 +140,11 @@ export default {
       db
     );
 
-    const triggerMonitorFn = () => runMonitorCycle(db, telegram, env.ALERTS_ENABLED === 'true');
+    const triggerMonitorFn = async () => {
+      const result = await runMonitorCycle(db, telegram, env.ALERTS_ENABLED === 'true');
+      if (env.ALERTS_ENABLED === 'true') await env.ALERT_QUEUE.send({ kind: 'dispatch-alerts' });
+      return result;
+    };
 
     // Telegram Bot Webhook
     if (url.pathname === '/webhook/telegram' || url.pathname === '/webhook') {

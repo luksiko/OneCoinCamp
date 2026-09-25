@@ -16,7 +16,7 @@ export async function fetchOffersForRoute(
     case 'roadsurfer':
       return fetchRoadsurferOffers(route, windowDates, filters, db);
     case 'movacar':
-      return fetchMovacarOffers(route, windowDates);
+      return fetchMovacarOffers(route, windowDates, db);
     case 'indiecampers':
       return fetchIndieCampersOffers(route, windowDates);
     case 'imoova':
