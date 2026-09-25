@@ -126,6 +126,7 @@ export class DbClient {
            username = COALESCE(excluded.username, users.username),
            first_name = COALESCE(excluded.first_name, users.first_name),
            language = COALESCE(users.language, excluded.language),
+           status = 'active',
            last_active_at = CURRENT_TIMESTAMP`
       )
       .bind(id, chat, username || null, firstName || null, lang)
@@ -808,9 +809,9 @@ export class DbClient {
   async getRecipientsForBroadcast(targetRole: 'all' | 'free' | 'premium' | 'admin' = 'all'): Promise<{ chat_id: string; telegram_id: string }[]> {
     let query = "SELECT chat_id, telegram_id FROM users WHERE status = 'active' AND chat_id IS NOT NULL";
     if (targetRole === 'premium') {
-      query += " AND (role = 'premium' OR subscription_status = 'active')";
+      query += " AND (role = 'premium' OR subscription_status IN ('active', 'trial'))";
     } else if (targetRole === 'free') {
-      query += " AND role = 'free' AND subscription_status != 'active'";
+      query += " AND role = 'free' AND subscription_status NOT IN ('active', 'trial')";
     } else if (targetRole === 'admin') {
       query += " AND role = 'admin'";
     }
