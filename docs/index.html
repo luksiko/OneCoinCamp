@@ -5,6 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
   <script>try { if (!(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) && !localStorage.getItem('camper_monitor_telegram_session')) document.documentElement.classList.add('browser-auth-required'); } catch (e) { document.documentElement.classList.add('browser-auth-required'); }</script>
   <title>Camper Monitor</title>
   <link rel="icon" type="image/png" href="favicon.png">
@@ -902,6 +903,17 @@
           </div>
         </div>
 
+        <!-- Subscription Status -->
+        <div class="card" id="subscriptionBanner" style="display:none;">
+          <div style="text-align:center; padding:12px 0;">
+            <div style="font-size:24px; margin-bottom:6px;" id="subEmoji">👑</div>
+            <div style="font-size:15px; font-weight:700;" id="subTitle"></div>
+            <div id="subStatusText" style="font-size:13px; color:var(--subtext); margin-top:4px;"></div>
+            <div id="subRouteLimitText" style="font-size:12px; color:var(--hint); margin-top:4px;"></div>
+            <button type="button" class="btn btn-accent" id="btnPaddleCheckout" style="margin-top:12px; max-width:280px; margin-left:auto; margin-right:auto; display:none;">💳 Subscribe — €4.99/mo</button>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-title" data-i18n="routes_title">Маршруты</div>
           <div id="routesList"></div>
@@ -1235,6 +1247,16 @@
         📭 Данных пока нет.<br>Запустите мониторинг, чтобы накопить статистику.
       </div>
     </div>
+
+    <div id="screenAdmin" style="display:none;">
+      <div class="card">
+        <div class="card-title">Admin Panel</div>
+        <div style="margin-bottom:10px;">
+          <button type="button" class="btn btn-secondary" style="margin:0;" onclick="adminListUsers()">Load Users</button>
+        </div>
+        <div id="adminUserList" style="font-size:12px;"></div>
+      </div>
+    </div>
   </div>
 
   <div class="tab-nav" id="tabNav">
@@ -1253,6 +1275,10 @@
     <button type="button" class="tab-btn" id="tabSettings" onclick="switchTab('settings')">
       <span class="icon">⚙️</span>
       <span data-i18n="tab_settings">Настройки</span>
+    </button>
+    <button type="button" class="tab-btn" id="tabAdmin" onclick="switchTab('admin')" style="display:none;">
+      <span class="icon">🛡️</span>
+      <span data-i18n="tab_admin">Admin</span>
     </button>
   </div>
 
@@ -3354,6 +3380,13 @@
         webhookBtn.textContent = tWeb('btn_reconnect_webhook');
         webhookBtn.style.color = '';
       }
+      
+      var tabAdmin = document.getElementById('tabAdmin');
+      if (tabAdmin) tabAdmin.style.display = data.isAdmin ? 'flex' : 'none';
+      
+      renderSubscriptionBanner();
+      initPaddle(data);
+
       renderStatus();
       renderSettings();
       renderRoutes();
@@ -3382,7 +3415,7 @@
         parts.push(tWeb('status_tg_not_configured'));
       }
       if (lastRun) {
-        if (!isStale && lastRun.status && String(lastRun.status).toLowerCase() !== 'ok') {
+        if (!isStale && lastRun.status && !['ok', 'partial'].includes(String(lastRun.status).toLowerCase())) {
           emoji = '⚠️';
           title = tWeb('status_last_check_error');
           if (lastRun.error) {
@@ -4394,6 +4427,119 @@
       el.className = 'show' + (isError ? ' err' : '');
       clearTimeout(toastTimer);
       toastTimer = setTimeout(function () { el.className = ''; }, 2500);
+    }
+
+    function adminListUsers() {
+      var container = document.getElementById('adminUserList');
+      container.textContent = 'Loading...';
+      google.script.run
+        .withSuccessHandler(function(users) {
+          container.innerHTML = '';
+          users.forEach(function(u) {
+            var div = document.createElement('div');
+            div.style.padding = '8px';
+            div.style.borderBottom = '1px solid var(--border)';
+            var subText = u.subscription_status === 'active' ? ('Active until ' + new Date(u.subscription_expires_at).toLocaleDateString()) : String(u.subscription_status);
+            div.innerHTML = `<strong>${u.username || u.telegram_id}</strong> (${u.role})<br>Sub: ${subText}<br>
+            <button class="btn btn-secondary" style="display:inline-block;padding:4px 8px;font-size:11px;margin:2px;" onclick="adminGrantSub('${u.telegram_id}', 30)">+30d Premium</button>
+            <button class="btn btn-secondary" style="display:inline-block;padding:4px 8px;font-size:11px;margin:2px;" onclick="adminRevokeSub('${u.telegram_id}')">Revoke</button>`;
+            container.appendChild(div);
+          });
+        })
+        .withFailureHandler(function(e) { container.textContent = 'Error: ' + e; })
+        .adminListUsers(getInitData());
+    }
+    
+    function adminGrantSub(userId, days) {
+      if(!confirm('Grant ' + days + ' days to ' + userId + '?')) return;
+      google.script.run.withSuccessHandler(function(){ adminListUsers(); }).adminGrantSubscription(getInitData(), userId, days);
+    }
+    
+    function adminRevokeSub(userId) {
+      if(!confirm('Revoke sub for ' + userId + '?')) return;
+      google.script.run.withSuccessHandler(function(){ adminListUsers(); }).adminRevokeSubscription(getInitData(), userId);
+    }
+
+    function initPaddle(data) {
+      if (!data.paddleClientToken || !window.Paddle) return;
+      if (window._paddleInitialized) return;
+      window._paddleInitialized = true;
+      var env = data.settings && data.settings.paddle_environment === 'production' ? 'production' : 'sandbox';
+      
+      Paddle.Environment.set(env);
+      Paddle.Initialize({
+        token: data.paddleClientToken,
+        eventCallback: function(event) {
+          if (event.name === 'checkout.completed') {
+            toast('Payment successful! Reloading...');
+            setTimeout(function() { window.location.reload(); }, 2000);
+          }
+        }
+      });
+      
+      var btn = document.getElementById('btnPaddleCheckout');
+      if (btn) {
+        btn.onclick = function() {
+          if (!data.paddlePriceId) {
+            toast('Price ID not configured', true);
+            return;
+          }
+          var userId = data.user ? data.user.id : '';
+          Paddle.Checkout.open({
+            items: [{ priceId: data.paddlePriceId, quantity: 1 }],
+            customData: { telegram_id: userId }
+          });
+        };
+      }
+    }
+    
+    function renderSubscriptionBanner() {
+      var banner = document.getElementById('subscriptionBanner');
+      var btn = document.getElementById('btnPaddleCheckout');
+      var title = document.getElementById('subTitle');
+      var st = document.getElementById('subStatusText');
+      var emoji = document.getElementById('subEmoji');
+      var rl = document.getElementById('subRouteLimitText');
+      if (!banner || !state.user) return;
+      
+      var isActive = state.user.subscriptionStatus === 'active' || state.user.subscriptionStatus === 'trial';
+      var isTrial = state.user.subscriptionStatus === 'trial';
+      var maxRoutes = state.user.maxRoutes || 3;
+      var currentRoutes = state.user.routeCount || 0;
+      
+      if (state.user.role === 'admin') {
+        banner.style.display = 'block';
+        title.textContent = 'Admin Account';
+        st.textContent = 'Unlimited access';
+        emoji.textContent = '🛡️';
+        btn.style.display = 'none';
+        rl.textContent = 'Routes: ' + currentRoutes + ' / ∞';
+        return;
+      }
+      
+      banner.style.display = 'block';
+      if (isActive) {
+        title.textContent = isTrial ? 'Premium (Trial)' : 'Premium Active';
+        emoji.textContent = '👑';
+        if (state.user.subscriptionExpiresAt) {
+           var date = new Date(state.user.subscriptionExpiresAt).toLocaleDateString();
+           st.textContent = 'Valid until ' + date;
+        }
+        btn.style.display = 'none';
+        rl.textContent = 'Routes: ' + currentRoutes + ' / ' + (maxRoutes >= 999 ? '∞' : maxRoutes);
+      } else {
+        title.textContent = 'Free Plan';
+        emoji.textContent = '⚪';
+        st.textContent = 'Subscribe for unlimited routes & analytics';
+        btn.style.display = 'block';
+        rl.textContent = 'Routes: ' + currentRoutes + ' / ' + maxRoutes;
+        
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('subscribe') === '1' && window.Paddle) {
+          setTimeout(function() { btn.click(); }, 1000);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }
     }
 
     window.onload = init;

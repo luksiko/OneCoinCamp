@@ -4,9 +4,27 @@ export interface User {
   username?: string;
   first_name?: string;
   status: string;
+  role: 'free' | 'premium' | 'admin';
+  subscription_status: 'active' | 'inactive' | 'trial' | 'expired';
+  subscription_started_at?: string;
+  subscription_expires_at?: string;
+  max_routes?: number | null;
+  paddle_customer_id?: string;
+  paddle_subscription_id?: string;
   language: string;
   created_at?: string;
   last_active_at?: string;
+}
+
+export interface Payment {
+  id?: number;
+  telegram_id: string;
+  paddle_transaction_id?: string;
+  amount: number;
+  currency: string;
+  status: string;
+  subscription_days: number;
+  created_at?: string;
 }
 
 export interface UserRoute {

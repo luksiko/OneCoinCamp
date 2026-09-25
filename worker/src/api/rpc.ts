@@ -16,6 +16,8 @@ export interface RpcContext {
   chatId?: string;
   workerUrl: string;
   triggerMonitorFn: () => Promise<any>;
+  paddleClientToken?: string;
+  paddlePriceId?: string;
 }
 
 export async function handleRpcRequest(request: Request, ctx: RpcContext): Promise<Response> {
@@ -30,6 +32,7 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
       registerTelegramWebhookWeb: 0, deleteTelegramWebhookWeb: 0,
       getProviderStations: 2, getProviderDestinations: 3,
       getAnalytics: 0, checkOffersAvailabilityWeb: 0, ensureTriggersFromUi: 0,
+      adminListUsers: 0, adminSetRole: 0, adminGrantSubscription: 0, adminRevokeSubscription: 0, adminGetPayments: 0,
     };
     const authArg = args[authArgIndex[String(method)]];
     const initData = request.headers.get('X-Telegram-Init-Data') ||
@@ -38,8 +41,9 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
     const identity = (initData ? await verifyTelegramInitData(initData, ctx.botToken) : null) ||
       (bearer ? await verifyBrowserSession(bearer, ctx.botToken) : null);
     if (!identity) return jsonError('Unauthorized', 401);
-    const isAdmin = identity.id === ctx.chatId;
-    if (['deleteOffer', 'runMonitorFromUi', 'registerTelegramWebhookWeb', 'deleteTelegramWebhookWeb', 'checkOffersAvailabilityWeb'].includes(method) && !isAdmin) {
+    const user = await ctx.db.getUser(identity.id);
+    const isAdmin = user?.role === 'admin';
+    if (['deleteOffer', 'runMonitorFromUi', 'registerTelegramWebhookWeb', 'deleteTelegramWebhookWeb', 'checkOffersAvailabilityWeb', 'adminListUsers', 'adminSetRole', 'adminGrantSubscription', 'adminRevokeSubscription', 'adminGetPayments'].includes(method) && !isAdmin) {
       return jsonError('Forbidden', 403);
     }
 
@@ -85,6 +89,34 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
         break;
       case 'registerTelegramWebhookWeb':
         result = await registerTelegramWebhook(ctx);
+        break;
+      case 'adminListUsers':
+        if (!isAdmin) return jsonError('Forbidden', 403);
+        result = await ctx.db.listAllUsers();
+        break;
+      case 'adminSetRole':
+        if (!isAdmin) return jsonError('Forbidden', 403);
+        await ctx.db.setUserRole(args[0], args[1]);
+        result = { ok: true };
+        break;
+      case 'adminGrantSubscription':
+        if (!isAdmin) return jsonError('Forbidden', 403);
+        await ctx.db.activateSubscription(args[0], Number(args[1]) || 30);
+        result = { ok: true };
+        break;
+      case 'adminRevokeSubscription':
+        if (!isAdmin) return jsonError('Forbidden', 403);
+        const targetUser = await ctx.db.getUser(args[0]);
+        if (targetUser) {
+          await ctx.db.setSubscription(args[0], 'expired',
+            targetUser.subscription_started_at || '', new Date().toISOString());
+          await ctx.db.setUserRole(args[0], 'free');
+        }
+        result = { ok: true };
+        break;
+      case 'adminGetPayments':
+        if (!isAdmin) return jsonError('Forbidden', 403);
+        result = await ctx.db.getUserPayments(args[0] || '');
         break;
       case 'deleteTelegramWebhookWeb':
         result = await deleteTelegramWebhook(ctx);
@@ -132,9 +164,20 @@ async function handleGetUiData(ctx: RpcContext, identity: TelegramIdentity): Pro
   const windowStart = now.toISOString().slice(0, 10);
   const windowEnd = new Date(now.getTime() + windowDays * 86400000).toISOString().slice(0, 10);
 
+  const isAdmin = user?.role === 'admin';
   return {
     language: user?.language || identity.language || 'ru',
-    user: { id: userId },
+    user: {
+      id: userId,
+      role: user?.role || 'free',
+      subscriptionStatus: user?.subscription_status || 'inactive',
+      subscriptionExpiresAt: user?.subscription_expires_at,
+      maxRoutes: ctx.db.getUserMaxRoutes(user),
+      routeCount: routes.length,
+    },
+    isAdmin,
+    paddleClientToken: ctx.paddleClientToken || null,
+    paddlePriceId: ctx.paddlePriceId || null,
     routes: routes.map((r) => ({
       ...r,
       originName: r.origin_name,
@@ -194,6 +237,15 @@ async function handleSaveUiData(ctx: RpcContext, payload: any, identity: Telegra
   }
 
   if (payload.routes && Array.isArray(payload.routes)) {
+    const user = await ctx.db.getUser(userId);
+    const maxRoutes = ctx.db.getUserMaxRoutes(user);
+    const isActive = ctx.db.isSubscriptionActive(user);
+    if (!isActive && !isAdmin) {
+      return { ok: false, error: 'Subscription required to edit routes' };
+    }
+    if (payload.routes.length > maxRoutes && !isAdmin) {
+      return { ok: false, error: `Route limit: ${maxRoutes}. Upgrade to Premium.` };
+    }
     const formattedRoutes = payload.routes.map((r: any) => ({
       id: r.id || r._id,
       enabled: r.enabled !== false,
@@ -393,11 +445,11 @@ async function handleCheckProvidersHealth(ctx: RpcContext): Promise<Record<strin
   } catch (e) {}
 
   const result: Record<string, any> = {
-    roadsurfer: { ok: false, message: 'Проверка…' },
-    movacar: { ok: false, message: 'Проверка…' },
-    indiecampers: { ok: false, message: 'Проверка…' },
-    imoova: { ok: false, message: 'Проверка…' },
-    telegram: { ok: false, message: 'Не настроен' },
+    roadsurfer: { ok: false, message: 'Checking...' },
+    movacar: { ok: false, message: 'Checking...' },
+    indiecampers: { ok: false, message: 'Checking...' },
+    imoova: { ok: false, message: 'Checking...' },
+    telegram: { ok: false, message: 'Not configured' },
   };
 
   // 1. Roadsurfer
@@ -413,9 +465,9 @@ async function handleCheckProvidersHealth(ctx: RpcContext): Promise<Record<strin
     });
     const ms = Date.now() - t0;
     const routesCount = rs && Array.isArray(rs.returns) ? rs.returns.length : (Array.isArray(rs) ? rs.length : 0);
-    result.roadsurfer = { ok: true, message: `Онлайн (${routesCount} направлений, ${ms}мс)` };
+    result.roadsurfer = { ok: true, message: `Online (${routesCount} routes, ${ms}ms)` };
   } catch (e: any) {
-    result.roadsurfer = { ok: false, message: `Ошибка: ${(e.message || String(e)).slice(0, 80)}` };
+    result.roadsurfer = { ok: false, message: `Error: ${(e.message || String(e)).slice(0, 80)}` };
   }
 
   // 2. Movacar
@@ -433,9 +485,9 @@ async function handleCheckProvidersHealth(ctx: RpcContext): Promise<Record<strin
     );
     const ms = Date.now() - t0;
     const count = mv && Array.isArray(mv.data) ? mv.data.length : 0;
-    result.movacar = { ok: true, message: `Онлайн (${count} слотов, ${ms}мс)` };
+    result.movacar = { ok: true, message: `Online (${count} slots, ${ms}ms)` };
   } catch (e: any) {
-    result.movacar = { ok: false, message: `Ошибка: ${(e.message || String(e)).slice(0, 50)}` };
+    result.movacar = { ok: false, message: `Error: ${(e.message || String(e)).slice(0, 50)}` };
   }
 
   // 3. Indie Campers
@@ -467,9 +519,9 @@ async function handleCheckProvidersHealth(ctx: RpcContext): Promise<Record<strin
     });
     const ms = Date.now() - t0;
     const count = ic?.data?.availability?.length || 0;
-    result.indiecampers = { ok: true, message: `Онлайн (${count} слотов, ${ms}мс)` };
+    result.indiecampers = { ok: true, message: `Online (${count} slots, ${ms}ms)` };
   } catch (e: any) {
-    result.indiecampers = { ok: false, message: `Ошибка: ${(e.message || String(e)).slice(0, 50)}` };
+    result.indiecampers = { ok: false, message: `Error: ${(e.message || String(e)).slice(0, 50)}` };
   }
 
   // 4. Imoova
@@ -489,9 +541,9 @@ async function handleCheckProvidersHealth(ctx: RpcContext): Promise<Record<strin
     });
     const ms = Date.now() - t0;
     const count = im?.data?.relocations?.data?.length || 0;
-    result.imoova = { ok: true, message: `Онлайн (${count} слотов, ${ms}мс)` };
+    result.imoova = { ok: true, message: `Online (${count} slots, ${ms}ms)` };
   } catch (e: any) {
-    result.imoova = { ok: false, message: `Ошибка: ${(e.message || String(e)).slice(0, 50)}` };
+    result.imoova = { ok: false, message: `Error: ${(e.message || String(e)).slice(0, 50)}` };
   }
 
   // 5. Telegram
@@ -501,12 +553,12 @@ async function handleCheckProvidersHealth(ctx: RpcContext): Promise<Record<strin
       const tg = await fetchJson<any>(`https://api.telegram.org/bot${ctx.botToken}/getMe`, { retries: 0 });
       const ms = Date.now() - t0;
       if (tg?.ok && tg.result) {
-        result.telegram = { ok: true, message: `Онлайн (@${tg.result.username || 'bot'}, ${ms}мс)` };
+        result.telegram = { ok: true, message: `Online (@${tg.result.username || 'bot'}, ${ms}ms)` };
       } else {
-        result.telegram = { ok: false, message: `Ошибка: ${tg?.description || 'не ок'}` };
+        result.telegram = { ok: false, message: `Error: ${tg?.description || 'not ok'}` };
       }
     } catch (e: any) {
-      result.telegram = { ok: false, message: `Ошибка: ${(e.message || String(e)).slice(0, 50)}` };
+      result.telegram = { ok: false, message: `Error: ${(e.message || String(e)).slice(0, 50)}` };
     }
   }
 

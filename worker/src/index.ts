@@ -5,6 +5,8 @@ import { dispatchAlertOutbox } from './services/telegram-outbox';
 import { handleRpcRequest } from './api/rpc';
 import { setGasProxyUrl, fetchJson } from './utils/http';
 import { browserLoginCode, createBrowserLoginToken, createBrowserSession } from './utils/telegram-login';
+import { expireSubscriptions } from './services/subscription';
+import { handlePaddleWebhook } from './services/paddle-webhook';
 
 export interface Env {
   DB: D1Database;
@@ -17,6 +19,11 @@ export interface Env {
   WORKER_PUBLIC_URL?: string;
   GAS_PROXY_URL?: string;
   ALERT_QUEUE: Queue<{ kind: 'dispatch-alerts' }>;
+  PADDLE_API_KEY?: string;
+  PADDLE_WEBHOOK_SECRET?: string;
+  PADDLE_CLIENT_TOKEN?: string;
+  PADDLE_PRICE_ID?: string;
+  PADDLE_ENVIRONMENT?: string;
 }
 
 export default {
@@ -54,6 +61,7 @@ export default {
         }
       }
       await runMonitorCycle(db, telegram, env.ALERTS_ENABLED === 'true');
+      await expireSubscriptions(db, telegram);
       if (env.ALERTS_ENABLED === 'true') await env.ALERT_QUEUE.send({ kind: 'dispatch-alerts' });
     })());
   },
@@ -146,6 +154,14 @@ export default {
       return result;
     };
 
+    // Paddle Payment Webhook
+    if (url.pathname === '/webhook/paddle' && request.method === 'POST') {
+      if (!env.PADDLE_WEBHOOK_SECRET) {
+        return new Response('Paddle not configured', { status: 503 });
+      }
+      return handlePaddleWebhook(request, db, telegram, env.PADDLE_WEBHOOK_SECRET);
+    }
+
     // Telegram Bot Webhook
     if (url.pathname === '/webhook/telegram' || url.pathname === '/webhook') {
       if (request.method === 'POST') {
@@ -182,6 +198,8 @@ export default {
         chatId: env.TELEGRAM_CHAT_ID,
         workerUrl: `${url.protocol}//${url.host}`,
         triggerMonitorFn,
+        paddleClientToken: env.PADDLE_CLIENT_TOKEN,
+        paddlePriceId: env.PADDLE_PRICE_ID,
       });
       if (origin && allowedOrigins.includes(origin)) {
         const headers = new Headers(response.headers);

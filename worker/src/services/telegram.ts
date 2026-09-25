@@ -4,6 +4,7 @@ import { t, pluralizeDays } from './i18n';
 import { fetchJson } from '../utils/http';
 import { routeMatchesOffer, offerMatchesUserFilters, isSilentHoursActive, parseIsoDate } from './filters';
 import { browserLoginCode } from '../utils/telegram-login';
+import { formatSubscriptionStatus } from './subscription';
 
 export interface TelegramSecrets {
   botToken: string;
@@ -231,6 +232,55 @@ export class TelegramService {
 
     // Register / update user in DB
     await this.db.upsertUser(telegramId, chatId, msg.from?.username, msg.from?.first_name);
+
+    if (text.startsWith('/subscribe')) {
+      const user = await this.db.getUser(telegramId);
+      const isActive = this.db.isSubscriptionActive(user);
+      if (isActive && user?.subscription_status !== 'trial') {
+        const expiry = user?.subscription_expires_at
+          ? new Date(user.subscription_expires_at).toLocaleDateString('en-GB')
+          : '?';
+        await this.sendMessage(chatId,
+          `✅ You already have an active Premium subscription until <b>${expiry}</b>.`
+        );
+        return;
+      }
+      // Send link to Mini App with subscribe intent
+      const webAppUrl = this.secrets.workerUrl || '';
+      await this.sendMessage(chatId,
+        '💳 <b>Subscribe to Camper Monitor Premium</b>\n\n' +
+        '• Unlimited routes and monitoring alerts\n' +
+        '• Full offer archive and analytics\n' +
+        `• <b>€4.99/month</b>\n\n` +
+        'Open the app below to complete payment:',
+        {
+          reply_markup: {
+            inline_keyboard: [[
+              { text: '💳 Subscribe — €4.99/mo', web_app: { url: webAppUrl + '?subscribe=1' } }
+            ]]
+          }
+        }
+      );
+      return;
+    }
+
+    if (text.startsWith('/account')) {
+      const user = await this.db.getUser(telegramId);
+      const isActive = this.db.isSubscriptionActive(user);
+      const statusText = formatSubscriptionStatus(user!, isActive);
+      const routeCount = (await this.db.getUserRoutes(telegramId)).length;
+      const maxRoutes = this.db.getUserMaxRoutes(user);
+      const routeInfo = maxRoutes >= 999
+        ? `📍 Routes: ${routeCount} (unlimited)`
+        : `📍 Routes: ${routeCount} / ${maxRoutes}`;
+
+      let msgStr = `👤 <b>Your Account</b>\n\n${statusText}\n${routeInfo}`;
+      if (!isActive) {
+        msgStr += '\n\n💡 Use /subscribe to get Premium access.';
+      }
+      await this.sendMessage(chatId, msgStr);
+      return;
+    }
 
     const browserLogin = text.match(/^\/start(?:@\w+)?\s+login_([A-Za-z0-9_-]{32})$/);
     if (browserLogin) {

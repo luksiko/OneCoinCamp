@@ -148,6 +148,10 @@ export async function runMonitorCycle(
 
       // Check which users want this offer
       for (const [telegramId, userContext] of userMap.entries()) {
+        // Check subscription: only enqueue alerts for active subscribers
+        const user = activeUsers.find(u => u.telegram_id === telegramId);
+        if (!db.isSubscriptionActive(user || null)) continue;
+
         const matchedRoute = userContext.routes.find((r) => routeMatchesOffer(r, offer));
         if (!matchedRoute) continue;
 
@@ -159,7 +163,6 @@ export async function runMonitorCycle(
         const silent = isSilentHoursActive(userContext.filters, settings);
 
         // Send alert
-        const user = activeUsers.find((u) => u.telegram_id === telegramId);
         const chatId = user?.chat_id || telegramId;
 
         try {

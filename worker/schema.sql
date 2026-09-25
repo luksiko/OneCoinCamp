@@ -6,6 +6,13 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT,
     first_name TEXT,
     status TEXT DEFAULT 'active',
+    role TEXT DEFAULT 'free',
+    subscription_status TEXT DEFAULT 'inactive',
+    subscription_started_at TEXT,
+    subscription_expires_at TEXT,
+    max_routes INTEGER DEFAULT 2,
+    paddle_customer_id TEXT,
+    paddle_subscription_id TEXT,
     language TEXT DEFAULT 'en',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_active_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -151,3 +158,17 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
     ('provider_movacar_enabled', 'true'),
     ('provider_indiecampers_enabled', 'false'),
     ('provider_imoova_enabled', 'false');
+
+CREATE TABLE IF NOT EXISTS payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id TEXT NOT NULL,
+    paddle_transaction_id TEXT UNIQUE,
+    amount INTEGER NOT NULL,
+    currency TEXT DEFAULT 'EUR',
+    status TEXT DEFAULT 'completed',
+    subscription_days INTEGER DEFAULT 30,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(telegram_id) REFERENCES users(telegram_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_payments_created ON payments(created_at);
