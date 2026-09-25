@@ -1,3 +1,5 @@
+import { CryptoBotService } from "./services/cryptobot";
+
 import { DbClient } from './db/client';
 import { TelegramService } from './services/telegram';
 import { runMonitorCycle } from './services/monitor';
@@ -24,6 +26,7 @@ export interface Env {
   PADDLE_CLIENT_TOKEN?: string;
   PADDLE_PRICE_ID?: string;
   PADDLE_ENVIRONMENT?: string;
+  CRYPTO_BOT_TOKEN?: string;
 }
 
 export default {
@@ -144,6 +147,7 @@ export default {
         chatId: env.TELEGRAM_CHAT_ID,
         webhookSecret: env.TELEGRAM_WEBHOOK_SECRET,
         workerUrl: env.WORKER_PUBLIC_URL || `${url.protocol}//${url.host}`,
+        cryptoBotToken: env.CRYPTO_BOT_TOKEN,
       },
       db
     );
@@ -160,6 +164,37 @@ export default {
         return new Response('Paddle not configured', { status: 503 });
       }
       return handlePaddleWebhook(request, db, telegram, env.PADDLE_WEBHOOK_SECRET);
+    }
+    
+    if (url.pathname === '/webhook/cryptobot' && request.method === 'POST') {
+      const cryptoService = new CryptoBotService(env, db);
+      const isValid = await cryptoService.verifyWebhookSignature(request);
+      if (!isValid) return new Response('Invalid signature', { status: 401 });
+
+      try {
+        const body = await request.json<any>();
+        if (body.update_type === 'invoice_paid') {
+          const payload = typeof body.payload.payload === 'string' 
+            ? JSON.parse(body.payload.payload) 
+            : body.payload.payload;
+          const telegramId = payload.telegram_id;
+          if (telegramId) {
+            await db.activateSubscription(telegramId, 30);
+            await db.recordPayment({
+              telegram_id: telegramId,
+              paddle_transaction_id: `crypto_${body.payload.invoice_id}`,
+              amount: parseFloat(body.payload.amount),
+              currency: body.payload.asset,
+              status: 'completed',
+              subscription_days: 30
+            });
+            await telegram.sendMessage(telegramId, '🎉 <b>Payment received!</b> Your Premium subscription is now active for 30 days.\n\nEnjoy unlimited routes and analytics!');
+          }
+        }
+        return new Response('OK');
+      } catch (e) {
+        return new Response('Error processing webhook', { status: 500 });
+      }
     }
 
     // Telegram Bot Webhook

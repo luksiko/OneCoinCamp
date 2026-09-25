@@ -41,6 +41,7 @@
   },
   "secrets": {
     "required": ["TELEGRAM_BOT_TOKEN_SECRET", "TELEGRAM_WEBHOOK_SECRET",
-                 "PADDLE_API_KEY", "PADDLE_WEBHOOK_SECRET", "PADDLE_CLIENT_TOKEN"]
+                 "PADDLE_API_KEY", "PADDLE_WEBHOOK_SECRET", "PADDLE_CLIENT_TOKEN",
+                 "CRYPTO_BOT_TOKEN"]
   }
 }

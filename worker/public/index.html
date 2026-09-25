@@ -1,0 +1,4569 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+  <script>try { if (!(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) && !localStorage.getItem('camper_monitor_telegram_session')) document.documentElement.classList.add('browser-auth-required'); } catch (e) { document.documentElement.classList.add('browser-auth-required'); }</script>
+  <title>Camper Monitor</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: var(--tg-theme-bg-color, #17212b);
+      --card: var(--tg-theme-section-bg-color, #1f2a38);
+      --section: var(--tg-theme-secondary-bg-color, #232e3c);
+      --text: var(--tg-theme-text-color, #ffffff);
+      --subtext: var(--tg-theme-subtitle-text-color, #9aa7b5);
+      --hint: var(--tg-theme-hint-color, #75838f);
+      --accent: var(--tg-theme-button-color, #2ea6ff);
+      --accent-text: var(--tg-theme-button-text-color, #ffffff);
+      --danger: var(--tg-theme-destructive-text-color, #ff5b66);
+      --success: #4cd964;
+      --border: rgba(255, 255, 255, 0.08);
+    }
+    html, body { background: var(--bg); color: var(--text); }
+    body {
+      font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 10px 12px 110px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .container { max-width: 520px; margin: 0 auto; }
+    .browser-auth-required #mainForm, .browser-auth-required #tabNav { display: none !important; }
+    #browserLogin { display: none; max-width: 420px; margin: 12vh auto 0; text-align: center; }
+    .browser-auth-required #browserLogin { display: block; }
+    #telegramLoginLink { display: block; margin-top: 22px; text-decoration: none; text-align: center; }
+    #telegramLoginLink[aria-disabled="true"] { opacity: 0.55; pointer-events: none; }
+    #browserLoginCode { margin-top: 12px; color: var(--subtext); font-size: 14px; }
+    #browserLoginCode[hidden] { display: none; }
+    #browserLoginCode strong { color: var(--text); font-size: 19px; letter-spacing: 2px; }
+    #browserLoginError { color: var(--subtext); margin-top: 12px; font-size: 13px; }
+    #browserLoginError.error { color: var(--danger); }
+    #browserSessionActions { display: none; text-align: right; margin: 6px 0; }
+    .browser-authenticated #browserSessionActions { display: block; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--hint);
+      margin-bottom: 10px;
+    }
+    .field { margin-bottom: 12px; }
+    .field:last-child { margin-bottom: 0; }
+    .field-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--subtext);
+      margin-bottom: 6px;
+    }
+
+    /* Status banner */
+    .banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: linear-gradient(135deg, var(--section), var(--card));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .banner .emoji { font-size: 22px; line-height: 1.1; }
+    .banner-title { font-weight: 700; font-size: 16px; }
+    .banner-sub { color: var(--subtext); font-size: 13px; margin-top: 3px; }
+    .banner-sub .ok { color: var(--success); font-weight: 600; }
+    .banner.stale { border-color: var(--danger); background: rgba(255, 91, 102, 0.12); }
+    .banner.stale .banner-title { color: var(--danger); }
+
+    @media (max-width: 380px) {
+      #banner {
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      #headerLangSelector {
+        padding: 3px 6px !important;
+        font-size: 12px !important;
+      }
+    }
+
+    /* Chips */
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      border: 1px solid var(--border);
+      background: var(--section);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 13px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .chip.selected {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--accent-text);
+    }
+
+    /* Segmented interval */
+    .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+    .seg button {
+      flex: 1;
+      min-width: 52px;
+      border: 1px solid var(--border);
+      background: var(--section);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 0;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .seg button.selected {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--accent-text);
+    }
+
+    select, input[type="text"], input[type="number"], input[type="time"] {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--section);
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+      color-scheme: dark;
+    }
+    select:focus, input:focus { border-color: var(--accent); }
+    code {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    /* Route cards */
+    .route {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .route-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .route-head .src {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--accent);
+      background: var(--section);
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+    .route-foot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      color: var(--subtext);
+      font-size: 13px;
+    }
+    .route-foot .spacer { flex: 1; }
+
+    /* Toggle switch */
+    .switch { position: relative; display: inline-block; width: 44px; height: 26px; flex: 0 0 auto; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch .slider {
+      position: absolute; inset: 0;
+      background: var(--section);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      transition: background 0.15s;
+    }
+    .switch .slider:before {
+      content: "";
+      position: absolute;
+      width: 18px; height: 18px;
+      left: 3px; top: 3px;
+      background: var(--hint);
+      border-radius: 50%;
+      transition: transform 0.15s, background 0.15s;
+    }
+    .switch input:checked + .slider { background: var(--accent); border-color: var(--accent); }
+    .switch input:checked + .slider:before { transform: translateX(18px); background: #fff; }
+
+    .delete-link {
+      border: none;
+      background: none;
+      color: var(--hint);
+      font-size: 15px;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 8px;
+    }
+    .delete-link:active { color: var(--danger); }
+
+    /* Buttons */
+    .btn {
+      display: block;
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-accent { background: var(--accent); color: var(--accent-text); }
+    .btn-secondary {
+      background: var(--section);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      margin-top: 8px;
+    }
+    .actions-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      margin-bottom: 8px;
+    }
+    .actions-row .btn {
+      flex: 1;
+      width: auto;
+      margin: 0;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: transform 0.1s, filter 0.15s, opacity 0.15s;
+    }
+    .actions-row .btn:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+    .btn:disabled { opacity: 0.6; }
+    .link-reset {
+      display: block;
+      text-align: center;
+      margin-top: 14px;
+      color: var(--hint);
+      font-size: 13px;
+      text-decoration: underline;
+      cursor: pointer;
+      background: none;
+      border: none;
+    }
+    .add-route {
+      width: 100%;
+      border: 1px dashed var(--hint);
+      background: none;
+      color: var(--subtext);
+      border-radius: 14px;
+      padding: 13px;
+      font-size: 15px;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    .empty-hint { color: var(--hint); font-size: 13px; text-align: center; padding: 10px 0; }
+
+    .route-edit input, .route-edit select { margin-bottom: 8px; font-size: 14px; padding: 10px 11px; }
+    .route-edit .pair { display: flex; gap: 8px; }
+    .route-edit .pair > div { flex: 1; }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: 78px;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--section);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 10;
+      max-width: 90vw;
+      text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.err { color: var(--danger); }
+
+    /* Save button progress states */
+    @keyframes btn-spin {
+      0%   { transform: rotate(0deg); }
+      14%  { transform: rotate(180deg); }
+      50%  { transform: rotate(180deg); }
+      64%  { transform: rotate(360deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .btn-saving { opacity: 0.75; pointer-events: none; }
+    .btn-saving .save-spinner {
+      display: inline-block;
+      animation: btn-spin 5.6s linear infinite;
+    }
+    .save-spinner { display: none; }
+    .btn-saving .save-spinner { display: inline-block; }
+    .btn-done { filter: brightness(1.1); }
+
+    /* Bottom Tab nav */
+    .tab-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      display: flex;
+      gap: 4px;
+      background: var(--card);
+      padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+      border-top: 1px solid var(--border);
+      z-index: 100;
+      margin: 0;
+      border-radius: 0;
+    }
+    .tab-btn {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--subtext);
+      padding: 8px 0;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.15s;
+    }
+    .tab-btn .icon {
+      font-size: 20px;
+      margin-bottom: 2px;
+    }
+    .tab-btn.selected {
+      background: transparent;
+      color: var(--accent);
+    }
+
+    /* Offers screen */
+    .filters-bar {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .filters-bar::-webkit-scrollbar { display: none; }
+    .filter-chip {
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+      background: var(--section);
+      color: var(--text);
+      border-radius: 20px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .filter-chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--accent-text);
+    }
+    .chips-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+      max-height: 180px;
+      overflow-y: auto;
+      padding: 2px;
+    }
+    .btn-chip-action {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .btn-chip-action:hover {
+      background: var(--section);
+    }
+
+    .offers-filter-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .offers-sort-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .offers-sort-bar::-webkit-scrollbar { display: none; }
+    .offers-date-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+    .date-inputs {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex: 1;
+      min-width: 200px;
+    }
+    .date-label {
+      font-size: 11px;
+      color: var(--subtext);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .offer-date-input {
+      background: var(--section);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 4px 6px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      flex: 1;
+      min-width: 80px;
+      min-height: 32px;
+    }
+    .offer-date-input:focus {
+      border-color: var(--accent);
+    }
+    .btn-clear-date {
+      background: rgba(255, 91, 102, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(255, 91, 102, 0.3);
+      border-radius: 8px;
+      width: 30px;
+      height: 30px;
+      font-size: 13px;
+      font-weight: bold;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .date-presets {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .date-preset-btn {
+      background: var(--section);
+      border: 1px solid var(--border);
+      color: var(--subtext);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      min-height: 28px;
+      transition: all 0.15s ease;
+    }
+    .date-preset-btn:active {
+      transform: scale(0.96);
+      background: var(--accent);
+      color: var(--accent-text);
+    }
+
+    .offers-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      gap: 8px;
+      min-height: 34px;
+    }
+    .offers-count-badge {
+      font-size: 13px;
+      color: var(--subtext);
+      font-weight: 600;
+    }
+
+    .offers-date-divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 16px 0 10px;
+      position: relative;
+    }
+    .offers-date-divider:first-child {
+      margin-top: 4px;
+    }
+    .offers-date-divider::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 1px;
+      background: var(--border);
+      z-index: 1;
+    }
+    .offers-date-divider span {
+      position: relative;
+      z-index: 2;
+      background: var(--section);
+      border: 1px solid var(--border);
+      color: var(--subtext);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      padding: 3px 12px;
+      border-radius: 999px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    }
+
+    .offer-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .offer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .offer-route {
+      font-weight: 700;
+      font-size: 15px;
+      line-height: 1.3;
+    }
+    .offer-route .flag { margin-right: 4px; }
+    .offer-source {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--accent);
+      background: var(--section);
+      padding: 3px 8px;
+      border-radius: 999px;
+      flex-shrink: 0;
+    }
+    .offer-details {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: var(--subtext);
+    }
+    .offer-dates {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      color: var(--text);
+      font-size: 13px;
+    }
+    .offer-vehicle {
+      color: var(--subtext);
+      font-size: 12px;
+      line-height: 1.35;
+      display: flex;
+      align-items: flex-start;
+      gap: 5px;
+      word-break: break-word;
+    }
+    .offer-added {
+      color: var(--hint);
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .offer-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .offer-price {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--success);
+    }
+    .offer-status {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+    .offer-status.new { background: rgba(46, 166, 255, 0.2); color: var(--accent); }
+    .offer-status.sent { background: rgba(76, 217, 100, 0.15); color: var(--success); }
+
+    .btn-book {
+      background: var(--accent);
+      color: var(--accent-text);
+      border: none;
+      border-radius: 9px;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-book:active:not(:disabled) {
+      transform: scale(0.97);
+      opacity: 0.9;
+    }
+    .btn-book:disabled { opacity: 0.5; }
+
+    .btn-delete-offer {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 6px 12px;
+      font-size: 15px;
+      cursor: pointer;
+      color: var(--hint);
+      min-height: 38px;
+      min-width: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-delete-offer:active:not(:disabled) {
+      transform: scale(0.95);
+    }
+    .btn-delete-offer:hover {
+      background: rgba(255, 59, 48, 0.15);
+      border-color: #ff3b30;
+    }
+    .btn-delete-offer:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-check-avail {
+      background: var(--section);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 7px 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+      min-height: 34px;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-check-avail:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+    .btn-check-avail:hover {
+      background: rgba(46, 166, 255, 0.15);
+      border-color: var(--accent);
+    }
+    .btn-check-avail:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .offer-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .offers-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--hint);
+    }
+    .offers-empty .icon { font-size: 48px; margin-bottom: 12px; }
+    .offers-loading-icon {
+      font-size: 24px;
+      margin-bottom: 10px;
+      display: inline-block;
+      animation: btn-spin 5.6s linear infinite;
+    }
+
+    .offers-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 14px;
+      padding: 8px 0 16px;
+    }
+    .offers-pagination .page-btn {
+      border: 1px solid var(--border);
+      background: var(--section);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .offers-pagination .page-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .offers-pagination .page-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .offers-pagination .page-info {
+      font-size: 13px;
+      color: var(--subtext);
+      font-weight: 500;
+      text-align: center;
+    }
+    .offers-pagination .page-total {
+      color: var(--hint);
+      font-size: 12px;
+      margin-left: 2px;
+    }
+
+    .filter-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .filter-panel h4 {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--hint);
+      margin-bottom: 8px;
+    }
+    .filter-panel select, .filter-panel input {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--section);
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    .filter-row {
+      display: flex;
+      gap: 8px;
+    }
+    .filter-row > * { flex: 1; }
+  
+.routes-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.routes-table th { text-align: left; padding: 6px 4px; color: var(--subtext); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+.routes-table td { padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: middle; letter-spacing: 0.2px; }
+.routes-table input { width: 100%; min-width: 50px; padding: 4px; font-size: 11px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
+.routes-table td:first-child { white-space: nowrap; }
+
+/* Analytics tab */
+.analytics-empty { text-align: center; color: var(--hint); padding: 40px 0; font-size: 14px; }
+.analytics-reload { background: none; border: none; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; }
+
+/* Bar chart */
+.bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 80px; }
+.bar-chart-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 0; }
+.bar-col { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; position: relative; }
+.bar-col.total { background: rgba(var(--accent-rgb, 46,166,255), 0.25); }
+.bar-col.matched { background: var(--accent); border-radius: 3px 3px 0 0; }
+.bar-chart-label { font-size: 8px; color: var(--hint); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: clip; max-width: 100%; text-align: center; }
+.bar-chart-legend { display: flex; gap: 12px; margin-top: 8px; font-size: 11px; color: var(--subtext); }
+.bar-chart-legend span { display: flex; align-items: center; gap: 4px; }
+.bar-chart-legend .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.bar-chart-legend .dot.total   { background: rgba(46,166,255, 0.25); border: 1px solid rgba(46,166,255,0.5); }
+.bar-chart-legend .dot.matched { background: var(--accent); }
+
+/* Heatmap */
+.heatmap { display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; }
+.heatmap-cell { aspect-ratio: 1; border-radius: 3px; background: rgba(46,166,255, 0.08); position: relative; cursor: default; }
+.heatmap-cell[title] { cursor: help; }
+.heatmap-row-labels { display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; margin-top: 4px; }
+.heatmap-hour-label { font-size: 8px; color: var(--hint); text-align: center; }
+
+/* Top routes */
+.route-bar-row { margin-bottom: 8px; }
+.route-bar-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text); margin-bottom: 3px; }
+.route-bar-label .route-count { color: var(--accent); font-weight: 700; }
+.route-bar-track { height: 6px; background: var(--section); border-radius: 3px; overflow: hidden; }
+.route-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+
+/* Source cards */
+.source-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.source-card { background: var(--section); border-radius: 10px; padding: 10px 12px; }
+.source-card-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--hint); margin-bottom: 6px; }
+.source-card-total { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1; }
+.source-card-matched { font-size: 12px; color: var(--success); margin-top: 2px; }
+.source-card-pct { font-size: 11px; color: var(--hint); }
+</style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="card" id="browserLogin">
+      <div style="font-size:40px;margin-bottom:10px;">🚐</div>
+      <div style="font-size:20px;font-weight:700;">Camper Monitor</div>
+      <div style="color:var(--subtext);margin-top:8px;">Откройте бота, нажмите «Старт», сверьте код и подтвердите вход. Затем вернитесь на эту вкладку.</div>
+      <a class="btn btn-accent" id="telegramLoginLink" href="#" target="_blank" rel="noopener noreferrer" aria-disabled="true">Открыть бота в Telegram</a>
+      <div id="browserLoginCode" hidden>Код для сверки: <strong id="browserLoginCodeValue"></strong></div>
+      <div id="browserLoginError" role="status"></div>
+    </div>
+    <div id="browserSessionActions"><button type="button" class="btn btn-secondary" id="browserLogout" style="width:auto;padding:6px 10px;font-size:12px;">Выйти</button></div>
+
+    <div id="mainForm">
+      <div id="screenMain">
+        <!-- Компактный статус -->
+        <div class="banner" id="banner" style="align-items: center; justify-content: space-between; padding: 10px 14px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="emoji">🟢</div>
+            <div class="banner-title" id="bannerTitle" style="font-size: 15px;" data-i18n="loading">Загрузка…</div>
+          </div>
+          <div>
+            <select id="headerLangSelector" onchange="onLanguageChange(this.value)" style="width: auto; padding: 4px 8px; font-size: 13px; border-radius: 8px; background: var(--section); border: 1px solid var(--border); color: var(--text); cursor: pointer;">
+              <option value="de">🇩🇪 DE</option>
+              <option value="it">🇮🇹 IT</option>
+              <option value="en">🇬🇧 EN</option>
+              <option value="uk">🇺🇦 UK</option>
+              <option value="ru">🇷🇺 RU</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Subscription Status -->
+        <div class="card" id="subscriptionBanner" style="display:none;">
+          <div style="text-align:center; padding:12px 0;">
+            <div style="font-size:24px; margin-bottom:6px;" id="subEmoji">👑</div>
+            <div style="font-size:15px; font-weight:700;" id="subTitle"></div>
+            <div id="subStatusText" style="font-size:13px; color:var(--subtext); margin-top:4px;"></div>
+            <div id="subRouteLimitText" style="font-size:12px; color:var(--hint); margin-top:4px;"></div>
+            <button type="button" class="btn btn-accent" id="btnPaddleCheckout" style="margin-top:12px; max-width:280px; margin-left:auto; margin-right:auto; display:none;">💳 Subscribe — €4.99/mo</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i18n="routes_title">Маршруты</div>
+          <div id="routesList"></div>
+          <button type="button" class="add-route" id="btnAddRoute" data-i18n="add_route">+ Добавить маршрут</button>
+        </div>
+        <div class="actions-row">
+          <button type="button" class="btn btn-accent" id="btnSaveMain"><span class="save-spinner">⏳</span><span class="save-label" data-i18n="save_main">💾 Сохранить</span></button>
+          <button type="button" class="btn btn-secondary" id="btnRun" data-i18n="check_btn">▶ Проверить</button>
+        </div>
+      </div>
+
+    <div id="screenSettings" style="display:none;">
+      <!-- Language Card -->
+      <div class="card" id="cardLanguage">
+        <div class="card-title" data-i18n="lang_title" style="margin-bottom:8px;">🌐 Язык интерфейса / Language</div>
+        <div class="field" style="margin-bottom:0;">
+          <select id="langSelector" onchange="onLanguageChange(this.value)">
+            <option value="de">🇩🇪 Deutsch</option>
+            <option value="it">🇮🇹 Italiano</option>
+            <option value="en">🇬🇧 English</option>
+            <option value="uk">🇺🇦 Українська</option>
+            <option value="ru">🇷🇺 Русский</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Подробный статус скрипта -->
+      <div class="card" id="detailedStatusCard">
+        <div class="card-title" style="margin-bottom:6px;" data-i18n="info_checks">Информация о проверках</div>
+        <div id="bannerSub" class="banner-sub" style="margin-top:0;"></div>
+      </div>
+
+    <div class="card" id="healthCard">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div class="card-title" style="margin-bottom:0;" data-i18n="site_status">🌐 Статус связи с сайтами</div>
+          <button type="button" style="background:none; border:none; color:var(--accent); font-size:12px; font-weight:600; cursor:pointer;" onclick="checkHealth(true)" data-i18n="refresh">🔄 Обновить</button>
+        </div>
+        <div style="font-size:13px; line-height:1.6;">
+          <div id="healthRowRs" style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+            <span>🚐 Roadsurfer Rally</span>
+            <span id="healthRs" style="color:var(--hint);">Проверка…</span>
+          </div>
+          <div id="healthRowMv" style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+            <span>🚗 Movacar API</span>
+            <span id="healthMv" style="color:var(--hint);">Проверка…</span>
+          </div>
+          <div id="healthRowIc" style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+            <span>⛺ Indie Campers</span>
+            <span id="healthIc" style="color:var(--hint);">Проверка…</span>
+          </div>
+          <div id="healthRowIm" style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+            <span>🌐 Imoova</span>
+            <span id="healthIm" style="color:var(--hint);">Проверка…</span>
+          </div>
+          <div id="healthRowTg" style="display:flex; justify-content:space-between; padding:4px 0;">
+            <span>🤖 Telegram Bot</span>
+            <span id="healthTg" style="color:var(--hint);">Проверка…</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="card">
+        <div class="card-title" data-i18n="settings_title">Настройки</div>
+        <div class="field">
+          <span class="field-label" data-i18n="poll_interval">Интервал опроса, мин</span>
+          <div class="seg" id="intervalSeg"></div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span data-i18n="check_neighbors">Проверять соседние даты (±2 дня)</span>
+            <span class="switch">
+              <input type="checkbox" id="checkNeighbors">
+              <span class="slider"></span>
+            </span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span data-i18n="telegram_notifications">Telegram-уведомления</span>
+            <span class="switch">
+              <input type="checkbox" id="telegramEnabled">
+              <span class="slider"></span>
+            </span>
+          </label>
+        </div>
+        <div class="field" id="webhookField">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <div>
+              <span style="font-weight:500;font-size:14px;" data-i18n="bot_mode">Webhook Telegram-бота</span>
+              <div style="font-size:11px;color:var(--hint);" id="webhookStatusDesc">Загрузка…</div>
+            </div>
+            <button type="button" id="btnToggleWebhook" class="btn btn-secondary" style="width:auto;padding:5px 10px;font-size:12px;margin:0;white-space:nowrap;" data-i18n="btn_reconnect_webhook">🔄 Перепривязать Webhook</button>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span data-i18n="max_price">Макс. цена оффера, €</span>
+            <input type="number" id="maxPriceInput" min="0" step="1"
+              style="width:72px;text-align:right;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:var(--card);color:var(--text);font-size:15px;"
+              placeholder="1">
+          </label>
+        </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span data-i18n="notify_all_by_price">Уведомлять обо всех слотах до макс. цены</span>
+            <span class="switch">
+              <input type="checkbox" id="notifyAllByPrice">
+              <span class="slider"></span>
+            </span>
+          </label>
+          <div style="font-size:11px;color:var(--hint);margin-top:4px;" data-i18n="notify_all_desc">
+            Игнорировать фильтры дат и стран для Telegram, если цена слота ≤ макс. цены
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="cardFilters">
+        <div class="card-title" data-i18n="country_filters">🌍 Фильтры стран</div>
+        <div style="font-size:12px;color:var(--hint);margin-bottom:12px;" data-i18n="country_filters_desc">
+          Эти фильтры применяются синхронно и для приложения, и для Telegram-бота
+        </div>
+
+        <div class="field" style="margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span class="field-label" style="margin-bottom:0;" data-i18n="origin_countries">🛫 Откуда (страны отправления)</span>
+            <div>
+              <button type="button" class="btn-chip-action" id="btnAllOriginCountries" data-i18n="btn_all">Все</button>
+              <button type="button" class="btn-chip-action" id="btnClearOriginCountries" data-i18n="btn_clear">Очистить</button>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--hint);margin-bottom:6px;" id="originCountriesCount">Все страны разрешены</div>
+          <div class="chips-wrap" id="originCountriesChips"></div>
+        </div>
+
+        <div class="field" style="margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span class="field-label" style="margin-bottom:0;" data-i18n="dest_countries">🛬 Куда (страны прибытия)</span>
+            <div>
+              <button type="button" class="btn-chip-action" id="btnAllDestCountries" data-i18n="btn_all">Все</button>
+              <button type="button" class="btn-chip-action" id="btnClearDestCountries" data-i18n="btn_clear">Очистить</button>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--hint);margin-bottom:6px;" id="destCountriesCount">Все страны разрешены</div>
+          <div class="chips-wrap" id="destCountriesChips"></div>
+        </div>
+
+        <div class="field" style="margin-bottom:0;">
+          <span class="field-label" data-i18n="trip_duration">⏱ Длительность поездки (дней)</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="number" id="minTripDaysInput" min="0" max="60" placeholder="Мин. (любая)" style="flex:1; text-align:center; padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--text); font-size:14px;">
+            <span style="color:var(--hint); font-weight:600;">–</span>
+            <input type="number" id="maxTripDaysInput" min="0" max="60" placeholder="Макс. (любая)" style="flex:1; text-align:center; padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--text); font-size:14px;">
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="cardSilentHours">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div class="card-title" style="margin-bottom:0;" data-i18n="silent_hours">🌙 Режим тихих часов</div>
+          <span class="switch">
+            <input type="checkbox" id="silentHoursEnabled">
+            <span class="slider"></span>
+          </span>
+        </div>
+        <div style="font-size:12px; color:var(--hint); margin-bottom:12px;" data-i18n="silent_hours_desc">
+          В тихие часы уведомления приходят в Telegram без звука.
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; margin-bottom:12px;">
+          <span style="color:var(--subtext);" data-i18n="silent_status_label">Статус:</span>
+          <span id="silentHoursStatusText" style="font-weight:600;">Выключены ⬜</span>
+        </div>
+        <div class="field" style="margin-bottom:12px;">
+          <span class="field-label" data-i18n="silent_interval">Интервал тихих часов</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="time" id="silentHoursStart" value="23:00" style="flex:1; text-align:center;">
+            <span style="color:var(--hint); font-weight:600;">–</span>
+            <input type="time" id="silentHoursEnd" value="07:00" style="flex:1; text-align:center;">
+          </div>
+        </div>
+        <div style="padding:10px 12px; background:var(--section); border-radius:10px; font-size:12px; color:var(--subtext); line-height:1.6;">
+          <div style="font-weight:600; color:var(--text); margin-bottom:4px;" data-i18n="commands_in_chat">Команды управления в чате:</div>
+          <div>• <code>/silent on</code> — включить</div>
+          <div>• <code>/silent off</code> — выключить</div>
+          <div>• <code>/silent 22:00-08:00</code> — изменить интервал</div>
+        </div>
+      </div>
+
+      <div class="card" id="cardCompanies">
+        <div class="card-title" data-i18n="companies_title">🏢 Компании в мониторинге</div>
+        <div style="font-size:12px;color:var(--hint);margin-bottom:10px;" data-i18n="companies_desc">
+          Отключенные компании не опрашиваются при мониторинге
+        </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span>🚐 Roadsurfer Rally</span>
+            <span class="switch">
+              <input type="checkbox" id="providerRoadsurfer">
+              <span class="slider"></span>
+            </span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span>🚗 Movacar</span>
+            <span class="switch">
+              <input type="checkbox" id="providerMovacar">
+              <span class="slider"></span>
+            </span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span>⛺ Indie Campers</span>
+            <span class="switch">
+              <input type="checkbox" id="providerIndiecampers">
+              <span class="slider"></span>
+            </span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="field-label" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;">
+            <span>🌐 Imoova</span>
+            <span class="switch">
+              <input type="checkbox" id="providerImoova">
+              <span class="slider"></span>
+            </span>
+          </label>
+        </div>
+      </div>
+      <div class="card" id="cardTriggers">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div class="card-title" style="margin-bottom:0;" data-i18n="triggers_title">🔧 Триггеры автоматизации</div>
+          <button type="button" class="btn btn-secondary" id="btnTriggers" style="width:auto; padding:6px 12px; font-size:12px; margin-top:0;" data-i18n="triggers_restore">Восстановить</button>
+        </div>
+        <div style="font-size:12px; color:var(--hint); margin-bottom:10px;" data-i18n="triggers_desc">
+          Автоматические фоновые службы в Google Apps Script:
+        </div>
+        <div style="padding:10px 12px; background:var(--section); border-radius:10px; font-size:12px; color:var(--subtext); line-height:1.6;">
+          <div>• <code>runMonitorOnce</code> — фоновый мониторинг предложений</div>
+          <div>• <code>processTelegramUpdates</code> — опрос Telegram бота</div>
+          <div>• <code>checkMonitorFreshness</code> — самовосстановление и проверка</div>
+          <div>• <code>checkOffersAvailability</code> — проверка актуальности офферов</div>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-accent" id="btnSave" style="margin-top:8px;"><span class="save-spinner">⏳</span><span class="save-label" data-i18n="save_settings_btn">Сохранить настройки</span></button>
+      <div id="versionFooter" style="text-align:center; margin-top:28px; margin-bottom:12px; font-size:12px; color:var(--hint);">
+        <span data-i18n="version_label">Версия: </span>
+        <a id="gitVersionLink" href="https://github.com/luksiko/OneCoinCamp/commit/0a8b0c0" target="_blank" rel="noopener noreferrer" style="color:var(--hint); text-decoration:none; border-bottom:1px dashed var(--hint); font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px;">git: <span id="gitCommitHash">0a8b0c0</span></a>
+      </div>
+    </div>
+
+    <div id="screenOffers" style="display:none;">
+      <div class="filters-bar" id="sourceFilters"></div>
+
+      <div class="offers-filter-section">
+        <div class="offers-sort-bar">
+          <span class="date-label" style="margin-right:2px;" data-i18n="offers_sort_label">Сортировка:</span>
+          <button type="button" class="filter-chip active" id="sortAddedBtn" onclick="setOfferSort('added_desc')" data-i18n="offers_sort_added">🕒 По дате добавления</button>
+          <button type="button" class="filter-chip" id="sortTripBtn" onclick="setOfferSort('trip_date')" data-i18n="offers_sort_trip">📅 По диапазону дат</button>
+        </div>
+        <div class="offers-date-row">
+          <div class="date-inputs">
+            <span class="date-label" data-i18n="offers_date_from">С:</span>
+            <input type="date" id="offerDateFrom" class="offer-date-input" onchange="onOfferDateInputChange()">
+            <span class="date-label" data-i18n="offers_date_to">По:</span>
+            <input type="date" id="offerDateTo" class="offer-date-input" onchange="onOfferDateInputChange()">
+            <button type="button" class="btn-clear-date" id="btnClearDates" onclick="clearOfferDateFilter()" title="Сбросить даты" style="display:none;">✕</button>
+          </div>
+          <div class="date-presets">
+            <button type="button" class="date-preset-btn" onclick="setDatePreset('7d')" data-i18n="date_preset_7d">7 дн</button>
+            <button type="button" class="date-preset-btn" onclick="setDatePreset('14d')" data-i18n="date_preset_14d">14 дн</button>
+            <button type="button" class="date-preset-btn" onclick="setDatePreset('month')" data-i18n="date_preset_month">Месяц</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="offers-toolbar">
+        <span class="offers-count-badge" id="offersCountBadge"></span>
+        <button type="button" class="btn-check-avail" id="btnCheckAvail" title="Проверить доступность офферов у провайдеров и удалить недоступные" data-i18n="btn_check_avail">
+          🔄 Проверить актуальность
+        </button>
+      </div>
+
+      <div id="offersList"></div>
+
+      <div class="offers-pagination" id="offersPagination"></div>
+    </div>
+
+    <div id="screenAnalytics" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div style="font-size:13px; color:var(--subtext);" id="analyticsSubtitle"></div>
+        <button type="button" class="analytics-reload" id="btnReloadAnalytics" onclick="loadAnalytics()" data-i18n="analytics_reload">🔄 Обновить</button>
+      </div>
+
+      <!-- Daily bar chart -->
+      <div class="card" id="cardDailyChart">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div class="card-title" style="margin-bottom:0;" data-i18n="analytics_daily_title">📅 Офферы по дням</div>
+        </div>
+        <div class="bar-chart" id="dailyBarChart"></div>
+        <div class="heatmap-row-labels" id="dailyBarLabels"></div>
+        <div class="bar-chart-legend">
+          <span><span class="dot total"></span><span data-i18n="analytics_legend_total">Всего найдено</span></span>
+          <span><span class="dot matched"></span><span data-i18n="analytics_legend_matched">Подходящие</span></span>
+        </div>
+      </div>
+
+      <!-- Hourly heatmap -->
+      <div class="card" id="cardHourlyHeatmap">
+        <div class="card-title" style="margin-bottom:12px;" data-i18n="analytics_hourly_title">🕐 Когда появляются офферы (UTC)</div>
+        <div class="heatmap" id="hourlyHeatmap"></div>
+        <div class="heatmap-row-labels" id="hourlyHeatmapLabels"></div>
+      </div>
+
+      <!-- Top routes -->
+      <div class="card" id="cardTopRoutes">
+        <div class="card-title" style="margin-bottom:12px;" data-i18n="analytics_top_routes_title">🗺 Топ направлений</div>
+        <div id="topRoutesList"></div>
+      </div>
+
+      <!-- By source -->
+      <div class="card" id="cardBySources">
+        <div class="card-title" style="margin-bottom:12px;" data-i18n="analytics_by_sources_title">📡 По источникам</div>
+        <div class="source-grid" id="sourceGrid"></div>
+      </div>
+
+      <div class="analytics-empty" id="analyticsEmpty" style="display:none;" data-i18n="analytics_empty">
+        📭 Данных пока нет.<br>Запустите мониторинг, чтобы накопить статистику.
+      </div>
+    </div>
+
+    <div id="screenAdmin" style="display:none;">
+      <div class="card">
+        <div class="card-title">Admin Panel</div>
+        <div style="margin-bottom:10px;">
+          <button type="button" class="btn btn-secondary" style="margin:0;" onclick="adminListUsers()">Load Users</button>
+        </div>
+        <div id="adminUserList" style="font-size:12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-nav" id="tabNav">
+    <button type="button" class="tab-btn selected" id="tabMain" onclick="switchTab('main')">
+      <span class="icon">🏠</span>
+      <span data-i18n="tab_main">Главная</span>
+    </button>
+    <button type="button" class="tab-btn" id="tabOffers" onclick="switchTab('offers')">
+      <span class="icon">🎫</span>
+      <span data-i18n="tab_offers">Офферы</span>
+    </button>
+    <button type="button" class="tab-btn" id="tabAnalytics" onclick="switchTab('analytics')">
+      <span class="icon">📊</span>
+      <span data-i18n="tab_analytics">Аналитика</span>
+    </button>
+    <button type="button" class="tab-btn" id="tabSettings" onclick="switchTab('settings')">
+      <span class="icon">⚙️</span>
+      <span data-i18n="tab_settings">Настройки</span>
+    </button>
+    <button type="button" class="tab-btn" id="tabAdmin" onclick="switchTab('admin')" style="display:none;">
+      <span class="icon">🛡️</span>
+      <span data-i18n="tab_admin">Admin</span>
+    </button>
+  </div>
+
+  <div id="toast"></div>
+  <script>
+    // Cloudflare Worker API for the existing GitHub Pages deployment.
+    var APPS_SCRIPT_URL = window.location.origin;
+
+    var google = {
+      script: {
+        run: buildApiCaller(null, null)
+      }
+    };
+
+    function buildApiCaller(onSuccess, onFailure) {
+      return new Proxy({}, {
+        get: function(target, method) {
+          if (method === 'withSuccessHandler') {
+            return function(newOnSuccess) {
+              return buildApiCaller(newOnSuccess, onFailure || console.error);
+            };
+          }
+          if (method === 'withFailureHandler') {
+            return function(newOnFailure) {
+              return buildApiCaller(onSuccess, newOnFailure);
+            };
+          }
+          
+          return function() {
+            var args = Array.prototype.slice.call(arguments);
+            fetch(APPS_SCRIPT_URL + '/api/rpc', {
+              method: 'POST',
+              body: JSON.stringify({ method: method, args: args }),
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Telegram-Init-Data': getInitData(),
+                ...(getBrowserSession() ? { 'Authorization': 'Bearer ' + getBrowserSession() } : {})
+              }
+            })
+            .then(function(res) {
+              if (res.status === 401 && getBrowserSession()) {
+                localStorage.removeItem('camper_monitor_telegram_session');
+                location.reload();
+                throw new Error('Сессия истекла. Войдите через Telegram ещё раз.');
+              }
+              return res.json();
+            })
+            .then(function(data) {
+              if (data.error) {
+                if (onFailure) onFailure(new Error(data.error));
+                else console.error(data.error);
+              } else {
+                if (onSuccess) onSuccess(data.result);
+              }
+            })
+            .catch(function(err) {
+              if (onFailure) onFailure(err);
+              else console.error(err);
+            });
+          };
+        }
+      });
+    }
+    // --------------------------------------
+
+    var state = null;
+    var currentTab = 'main';
+    var currentAppLang = 'ru';
+    var offersData = null;
+    var offerFilters = { source: '', operator: '', vehicleType: '', sentStatus: '', page: 1, sortBy: 'added_desc', dateFrom: '', dateTo: '', isMatched: false };
+    var INTERVALS = [1, 5, 10, 15, 30];
+    var WINDOWS = [7, 10, 14, 21, 30];
+    var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    var toastTimer = null;
+
+    var WEBAPP_COUNTRY_NAMES = {
+      de: {
+        DE: 'Deutschland', AT: 'Österreich', NL: 'Niederlande', BE: 'Belgien', FR: 'Frankreich',
+        CH: 'Schweiz', ES: 'Spanien', IT: 'Italien', PT: 'Portugal', DK: 'Dänemark',
+        LU: 'Luxemburg', PL: 'Polen', CZ: 'Tschechien', HR: 'Kroatien', SI: 'Slowenien',
+        HU: 'Ungarn', GB: 'Vereinigtes Königreich', UK: 'Vereinigtes Königreich',
+        IE: 'Irland', SE: 'Schweden', NO: 'Norwegen', IS: 'Island', US: 'Vereinigte Staaten',
+        CA: 'Kanada', AU: 'Australien', NZ: 'Neuseeland', JP: 'Japan'
+      },
+      it: {
+        DE: 'Germania', AT: 'Austria', NL: 'Paesi Bassi', BE: 'Belgio', FR: 'Francia',
+        CH: 'Svizzera', ES: 'Spagna', IT: 'Italia', PT: 'Portogallo', DK: 'Danimarca',
+        LU: 'Lussemburgo', PL: 'Polonia', CZ: 'Repubblica Ceca', HR: 'Croazia', SI: 'Slovenia',
+        HU: 'Ungheria', GB: 'Regno Unito', UK: 'Regno Unito',
+        IE: 'Irlanda', SE: 'Svezia', NO: 'Norvegia', IS: 'Islanda', US: 'Stati Uniti',
+        CA: 'Canada', AU: 'Australia', NZ: 'Nuova Zelanda', JP: 'Giappone'
+      },
+      en: {
+        DE: 'Germany', AT: 'Austria', NL: 'Netherlands', BE: 'Belgium', FR: 'France',
+        CH: 'Switzerland', ES: 'Spain', IT: 'Italy', PT: 'Portugal', DK: 'Denmark',
+        LU: 'Luxembourg', PL: 'Poland', CZ: 'Czech Republic', HR: 'Croatia', SI: 'Slovenia',
+        HU: 'Hungary', GB: 'United Kingdom', UK: 'United Kingdom',
+        IE: 'Ireland', SE: 'Sweden', NO: 'Norway', IS: 'Iceland', US: 'United States',
+        CA: 'Canada', AU: 'Australia', NZ: 'New Zealand', JP: 'Japan'
+      },
+      uk: {
+        DE: 'Німеччина', AT: 'Австрія', NL: 'Нідерланди', BE: 'Бельгія', FR: 'Франція',
+        CH: 'Швейцарія', ES: 'Іспанія', IT: 'Італія', PT: 'Португалія', DK: 'Данія',
+        LU: 'Люксембург', PL: 'Польща', CZ: 'Чехія', HR: 'Хорватія', SI: 'Словенія',
+        HU: 'Угорщина', GB: 'Велика Британія', UK: 'Велика Британія',
+        IE: 'Ірландія', SE: 'Швеція', NO: 'Норвегія', IS: 'Ісландія', US: 'США',
+        CA: 'Канада', AU: 'Австралія', NZ: 'Нова Зеландія', JP: 'Японія'
+      },
+      ru: {
+        DE: 'Германия', AT: 'Австрия', NL: 'Нидерланды', BE: 'Бельгия', FR: 'Франция',
+        CH: 'Швейцария', ES: 'Испания', IT: 'Италия', PT: 'Португалия', DK: 'Дания',
+        LU: 'Люксембург', PL: 'Польша', CZ: 'Чехия', HR: 'Хорватия', SI: 'Словения',
+        HU: 'Венгрия', GB: 'Великобритания', UK: 'Великобритания',
+        IE: 'Ирландия', SE: 'Швеция', NO: 'Норвегия', IS: 'Исландия', US: 'США',
+        CA: 'Канада', AU: 'Австралия', NZ: 'Новая Зеландия', JP: 'Япония'
+      }
+    };
+
+    var I18N_WEB = {
+      de: {
+        loading: 'Wird geladen…',
+        routes_title: '📍 Routen',
+        add_route: '+ Route hinzufügen',
+        save_main: '💾 Speichern',
+        check_btn: '▶ Jetzt prüfen',
+        lang_title: '🌐 Sprache / Language',
+        info_checks: 'Prüfungsinformationen',
+        site_status: '🌐 Verbindungsstatus der Anbieter',
+        refresh: '🔄 Aktualisieren',
+        settings_title: 'Einstellungen',
+        poll_interval: 'Abfrageintervall, Min.',
+        check_neighbors: 'Flexible Daten prüfen (±2 Tage)',
+        telegram_notifications: 'Telegram-Benachrichtigungen',
+        bot_mode: 'Telegram-Bot-Webhook',
+        btn_enable_webhook: '⚡ Webhook aktivieren',
+        btn_disable_webhook: 'Webhook deaktivieren',
+        btn_reconnect_webhook: '🔄 Webhook neu verbinden',
+        webhook_active_desc: '🟢 Webhook aktiv',
+        webhook_inactive_desc: '🔴 Webhook inaktiv',
+        webhook_polling_desc: '🔴 Webhook inaktiv',
+        max_price: 'Max. Angebotspreis, €',
+        notify_all_by_price: 'Über alle Slots bis zum Höchstpreis benachrichtigen',
+        notify_all_desc: 'Datums- und Länderfilter für Telegram ignorieren, wenn Angebotspreis ≤ Höchstpreis',
+        country_filters: '🌍 Länderfilter',
+        country_filters_desc: 'Diese Filter gelten synchron für die Web-App und den Telegram-Bot',
+        origin_countries: '🛫 Abfahrtsländer (Start)',
+        dest_countries: '🛬 Zielländer',
+        btn_all: 'Alle',
+        btn_clear: 'Leeren',
+        trip_duration: '⏱ Reisedauer (Tage)',
+        silent_hours: '🌙 Ruhezeiten',
+        silent_hours_desc: 'Während der Ruhezeiten werden Telegram-Benachrichtigungen stumm gesendet.',
+        silent_status_label: 'Status:',
+        silent_interval: 'Ruhezeiten-Intervall',
+        commands_in_chat: 'Chat-Befehle:',
+        companies_title: '🏢 Anbieter in Überwachung',
+        companies_desc: 'Deaktivierte Anbieter werden beim Monitoring nicht abgefragt',
+        triggers_title: '🔧 Automatisierungs-Trigger',
+        triggers_restore: 'Wiederherstellen',
+        triggers_desc: 'Automatische Hintergrunddienste in Google Apps Script:',
+        save_settings_btn: 'Einstellungen speichern',
+        version_label: 'Version: ',
+        offers_sort_label: 'Sortierung:',
+        offers_sort_added: '🕒 Nach Hinzufügedatum',
+        offers_sort_trip: '📅 Nach Reisedaten',
+        offers_date_from: 'Von:',
+        offers_date_to: 'Bis:',
+        date_preset_7d: '7 Tage',
+        date_preset_14d: '14 Tage',
+        date_preset_month: 'Monat',
+        btn_check_avail: '🔄 Verfügbarkeit prüfen',
+        analytics_reload: '🔄 Aktualisieren',
+        analytics_daily_title: '📅 Angebote nach Tagen',
+        analytics_legend_total: 'Gesamt gefunden',
+        analytics_legend_matched: 'Passend',
+        analytics_hourly_title: '🕐 Wann Angebote erscheinen (UTC)',
+        analytics_top_routes_title: '🗺 Top-Routen',
+        analytics_by_sources_title: '📡 Nach Quellen',
+        analytics_empty: '📭 Noch keine Daten.<br>Starten Sie das Monitoring, um Statistiken zu sammeln.',
+        tab_main: 'Start',
+        tab_offers: 'Angebote',
+        tab_analytics: 'Statistik',
+        tab_settings: 'Optionen',
+        all_cities: 'Alle Städte',
+        station_prefix: 'Station ',
+        any_country: '🌍 Beliebiges Land',
+        campers_badge: '🚐 Wohnmobile',
+        cars_badge: '🚗 PKW',
+        all_badge: '🚗🚐 alle',
+        company_disabled: 'Anbieter deaktiviert',
+        edit_route: 'Route bearbeiten',
+        delete_btn: 'Löschen',
+        all_countries_allowed: 'Alle Länder erlaubt (Filter aus)',
+        selected_count: 'Ausgewählt: {selected} von {total}',
+        silent_on: 'Aktiviert 🔔',
+        silent_off: 'Deaktiviert ⬜',
+        empty_routes: 'Keine Routen — hinzufügen',
+        saving: 'Wird gespeichert…',
+        saved: '✓ Gespeichert',
+        save_error: 'Fehler beim Speichern',
+        status_active: 'Überwachung aktiv',
+        status_trigger_every: 'Trigger alle {min} Min.',
+        status_not_run_no_data: 'Trigger nicht ausgeführt: keine Daten',
+        status_not_run_age: 'Trigger nicht ausgeführt seit {min} Min.',
+        status_threshold: 'Schwellenwert: {min} Min.',
+        status_tg_not_configured: '⚠️ Telegram nicht konfiguriert',
+        status_last_check_error: 'Letzte Prüfung mit Fehler',
+        status_last_check: 'Letzte Prüfung: {time}',
+        status_offers_found: 'Angebote: {count}',
+        status_not_run_yet: 'Noch nicht ausgeführt',
+        status_error: 'Fehler',
+        field_source: 'Quelle',
+        field_vehicle_type: 'Fahrzeugtyp',
+        vtype_all_opt: '🚗🚐 Alle (Wohnmobile & PKW)',
+        vtype_camper_opt: '🚐 Nur Wohnmobile',
+        vtype_car_opt: '🚗 Nur PKW',
+        field_origin_country: 'Abfahrtsland',
+        field_dest_country: 'Zielland',
+        field_origin_city: 'Abfahrtsort',
+        field_dest_city: 'Zielort',
+        field_date_from: 'Suchen ab',
+        field_date_to: 'Suchen bis',
+        dates_empty_hint: 'Wenn Daten leer sind — nächster Sonntag + 14 Tage',
+        loading_cities: 'Städte werden geladen…',
+        select_country_first: 'Wählen Sie zuerst ein Land',
+        select_origin_country_first: 'Wählen Sie zuerst das Abfahrtsland',
+        loading_destinations: 'Ziele werden geladen…',
+        failed_load_cities: 'Städte konnten nicht geladen werden',
+        failed_load_destinations: 'Ziele konnten nicht geladen werden',
+        all_cities_wildcard: '✨ Alle Städte / Beliebig',
+        btn_done: 'Fertig',
+        offers_count_zero: '0 Angebote',
+        offers_none_found: 'Keine Angebote gefunden',
+        offers_count_filter: '{count} Angebote (Datumsfilter)',
+        offers_count_total: '{count} Angebote',
+        offers_none_in_range: 'Keine Angebote im ausgewählten Datumsbereich',
+        status_all_chip: 'Alle',
+        status_new_chip: 'Neu',
+        status_sent_chip: 'Gesendet',
+        status_sent_badge: '✓ Gesendet',
+        status_new_badge: 'Neu',
+        offer_camper_type: '🚐 Wohnmobil',
+        offer_car_type: '🚗 PKW',
+        offer_sleeping_suffix: ' • {count} Schlafplätze',
+        offer_last_checked: 'Zuletzt geprüft',
+        delete_offer_title: 'Dieses Angebot löschen',
+        offer_delete_confirm: 'Dieses Angebot löschen?',
+        offer_deleted: 'Angebot gelöscht',
+        btn_book: 'Buchen',
+        page_prev: '← Zurück',
+        page_next: 'Weiter →',
+        page_info: 'Seite {page} / {total}',
+        page_total_count: '(gesamt: {total})',
+        offers_found_total: 'Angebote gefunden: {count}',
+        date_today: 'Heute, ',
+        date_yesterday: 'Gestern, ',
+        dates_not_specified: 'Keine Daten angegeben',
+        departure_today: 'Abreise heute, ',
+        departure_tomorrow: 'Abreise morgen, ',
+        departure_prefix: 'Abreise ',
+        added_just_now: 'gerade eben hinzugefügt',
+        added_mins_ago: 'hinzugefügt um {time} (vor {mins} Min.)',
+        added_hours_ago: 'hinzugefügt um {time} (vor {hours} Std.)',
+        added_at: 'hinzugefügt um {time}',
+        checking: 'Prüfung…',
+        check_avail_removed: 'Nicht verfügbare Angebote entfernt: {removed} (von {total})',
+        check_avail_all_ok: 'Alle geprüften Angebote ({total}) sind aktuell',
+        check_avail_error: 'Fehler bei der Verfügbarkeitsprüfung',
+        access_denied_title: 'Zugriff verweigert',
+        access_denied_sub: 'Öffnen Sie die App über den Telegram-Bot.',
+        triggers_restored: 'Trigger wiederhergestellt ✓ ',
+        triggers_already_ok: 'Trigger bereits vorhanden ✓',
+        triggers_install_error: 'Fehler beim Einrichten der Trigger',
+        check_started: 'Prüfung gestartet…',
+        check_start_error: 'Fehler beim Starten der Prüfung'
+      },
+      it: {
+        loading: 'Caricamento…',
+        routes_title: '📍 Itinerari',
+        add_route: '+ Aggiungi itinerario',
+        save_main: '💾 Salva',
+        check_btn: '▶ Controlla ora',
+        lang_title: '🌐 Lingua / Language',
+        info_checks: 'Informazioni sulle verifiche',
+        site_status: '🌐 Stato connessione provider',
+        refresh: '🔄 Aggiorna',
+        settings_title: 'Impostazioni',
+        poll_interval: 'Intervallo di scansione, min',
+        check_neighbors: 'Controlla date flessibili (±2 giorni)',
+        telegram_notifications: 'Notifiche Telegram',
+        bot_mode: 'Webhook bot Telegram',
+        btn_enable_webhook: '⚡ Abilita Webhook',
+        btn_disable_webhook: 'Disabilita Webhook',
+        btn_reconnect_webhook: '🔄 Ricollega Webhook',
+        webhook_active_desc: '🟢 Webhook attivo',
+        webhook_inactive_desc: '🔴 Webhook non attivo',
+        webhook_polling_desc: '🔴 Webhook non attivo',
+        max_price: 'Prezzo max offerta, €',
+        notify_all_by_price: 'Notifica per tutti gli slot fino al prezzo max',
+        notify_all_desc: 'Ignora filtri date e paesi per Telegram se prezzo offerta ≤ prezzo max',
+        country_filters: '🌍 Filtri per paese',
+        country_filters_desc: 'Questi filtri si applicano sia alla web app che al bot Telegram',
+        origin_countries: '🛫 Paesi di partenza (origine)',
+        dest_countries: '🛬 Paesi di destinazione',
+        btn_all: 'Tutti',
+        btn_clear: 'Cancella',
+        trip_duration: '⏱ Durata del viaggio (giorni)',
+        silent_hours: '🌙 Ore di silenzio',
+        silent_hours_desc: 'Durante le ore di silenzio, le notifiche Telegram arrivano senza suono.',
+        silent_status_label: 'Stato:',
+        silent_interval: 'Intervallo ore di silenzio',
+        commands_in_chat: 'Comandi di chat:',
+        companies_title: '🏢 Provider nel monitoraggio',
+        companies_desc: 'I provider disabilitati non verranno scansionati',
+        triggers_title: '🔧 Trigger di automazione',
+        triggers_restore: 'Ripristina',
+        triggers_desc: 'Servizi automatici in background in Google Apps Script:',
+        save_settings_btn: 'Salva impostazioni',
+        version_label: 'Versione: ',
+        offers_sort_label: 'Ordina per:',
+        offers_sort_added: '🕒 Per data di aggiunta',
+        offers_sort_trip: '📅 Per date di viaggio',
+        offers_date_from: 'Da:',
+        offers_date_to: 'A:',
+        date_preset_7d: '7 giorni',
+        date_preset_14d: '14 giorni',
+        date_preset_month: 'Mese',
+        btn_check_avail: '🔄 Verifica disponibilità',
+        analytics_reload: '🔄 Aggiorna',
+        analytics_daily_title: '📅 Offerte per giorno',
+        analytics_legend_total: 'Totale trovato',
+        analytics_legend_matched: 'Idonee',
+        analytics_hourly_title: '🕐 Quando appaiono le offerte (UTC)',
+        analytics_top_routes_title: '🗺 Itinerari più popolari',
+        analytics_by_sources_title: '📡 Per sorgente',
+        analytics_empty: '📭 Nessun dato disponibile.<br>Avvia il monitoraggio per raccogliere statistiche.',
+        tab_main: 'Home',
+        tab_offers: 'Offerte',
+        tab_analytics: 'Statistiche',
+        tab_settings: 'Opzioni',
+        all_cities: 'Tutte le città',
+        station_prefix: 'Stazione ',
+        any_country: '🌍 Qualsiasi paese',
+        campers_badge: '🚐 camper',
+        cars_badge: '🚗 auto',
+        all_badge: '🚗🚐 tutti',
+        company_disabled: 'provider disabilitato',
+        edit_route: 'Modifica itinerario',
+        delete_btn: 'Elimina',
+        all_countries_allowed: 'Tutti i paesi consentiti (filtro off)',
+        selected_count: 'Selezionati: {selected} su {total}',
+        silent_on: 'Abilitato 🔔',
+        silent_off: 'Disabilitato ⬜',
+        empty_routes: 'Nessun itinerario — aggiungine uno',
+        saving: 'Salvataggio…',
+        saved: '✓ Salvato',
+        save_error: 'Errore durante il salvataggio',
+        status_active: 'Monitoraggio attivo',
+        status_trigger_every: 'Trigger ogni {min} min',
+        status_not_run_no_data: 'Trigger non eseguito: nessun dato',
+        status_not_run_age: 'Trigger non eseguito da {min} min',
+        status_threshold: 'Soglia: {min} min',
+        status_tg_not_configured: '⚠️ Telegram non configurato',
+        status_last_check_error: 'Ultima verifica con errore',
+        status_last_check: 'Ultima verifica: {time}',
+        status_offers_found: 'Offerte: {count}',
+        status_not_run_yet: 'Non ancora eseguito',
+        status_error: 'Errore',
+        field_source: 'Sorgente',
+        field_vehicle_type: 'Tipo di veicolo',
+        vtype_all_opt: '🚗🚐 Tutti (camper e auto)',
+        vtype_camper_opt: '🚐 Solo camper',
+        vtype_car_opt: '🚗 Solo auto',
+        field_origin_country: 'Paese di partenza',
+        field_dest_country: 'Paese di destinazione',
+        field_origin_city: 'Città di partenza',
+        field_dest_city: 'Città di destinazione',
+        field_date_from: 'Cerca dal',
+        field_date_to: 'Cerca al',
+        dates_empty_hint: 'Se le date sono vuote — prossima domenica + 14 giorni',
+        loading_cities: 'Caricamento città…',
+        select_country_first: 'Seleziona prima un paese',
+        select_origin_country_first: 'Seleziona prima il paese di partenza',
+        loading_destinations: 'Caricamento destinazioni…',
+        failed_load_cities: 'Impossibile caricare le città',
+        failed_load_destinations: 'Impossibile caricare le destinazioni',
+        all_cities_wildcard: '✨ Tutte le città / Qualsiasi',
+        btn_done: 'Fatto',
+        offers_count_zero: '0 offerte',
+        offers_none_found: 'Nessuna offerta trovata',
+        offers_count_filter: '{count} offerte (filtro date)',
+        offers_count_total: '{count} offerte',
+        offers_none_in_range: 'Nessuna offerta nell\'intervallo di date selezionato',
+        status_all_chip: 'Tutti',
+        status_new_chip: 'Nuove',
+        status_sent_chip: 'Inviate',
+        status_sent_badge: '✓ Inviato',
+        status_new_badge: 'Nuovo',
+        offer_camper_type: '🚐 Camper',
+        offer_car_type: '🚗 Auto',
+        offer_sleeping_suffix: ' • {count} posti letto',
+        offer_last_checked: 'Ultima verifica',
+        delete_offer_title: 'Elimina questa offerta',
+        offer_delete_confirm: 'Eliminare questa offerta?',
+        offer_deleted: 'Offerta eliminata',
+        btn_book: 'Prenota',
+        page_prev: '← Indietro',
+        page_next: 'Avanti →',
+        page_info: 'Pag. {page} / {total}',
+        page_total_count: '(totale: {total})',
+        offers_found_total: 'Offerte trovate: {count}',
+        date_today: 'Oggi, ',
+        date_yesterday: 'Ieri, ',
+        dates_not_specified: 'Date non specificate',
+        departure_today: 'Partenza oggi, ',
+        departure_tomorrow: 'Partenza domani, ',
+        departure_prefix: 'Partenza ',
+        added_just_now: 'aggiunto proprio ora',
+        added_mins_ago: 'aggiunto alle {time} ({mins} min fa)',
+        added_hours_ago: 'aggiunto alle {time} ({hours} ore fa)',
+        added_at: 'aggiunto alle {time}',
+        checking: 'Verifica…',
+        check_avail_removed: 'Offerte non disponibili rimosse: {removed} (su {total})',
+        check_avail_all_ok: 'Tutte le offerte verificate ({total}) sono aggiornate',
+        check_avail_error: 'Errore durante la verifica della disponibilità',
+        access_denied_title: 'Accesso negato',
+        access_denied_sub: 'Apri l\'app tramite il bot Telegram.',
+        triggers_restored: 'Trigger ripristinati ✓ ',
+        triggers_already_ok: 'I trigger sono già a posto ✓',
+        triggers_install_error: 'Errore durante l\'installazione dei trigger',
+        check_started: 'Verifica avviata…',
+        check_start_error: 'Errore di avvio'
+      },
+      en: {
+        loading: 'Loading…',
+        routes_title: '📍 Routes',
+        add_route: '+ Add route',
+        save_main: '💾 Save',
+        check_btn: '▶ Check now',
+        lang_title: '🌐 Interface Language',
+        info_checks: 'Check information',
+        site_status: '🌐 Provider Connection Status',
+        refresh: '🔄 Refresh',
+        settings_title: 'Settings',
+        poll_interval: 'Polling interval, min',
+        check_neighbors: 'Check flexible dates (±2 days)',
+        telegram_notifications: 'Telegram notifications',
+        bot_mode: 'Telegram bot webhook',
+        btn_enable_webhook: '⚡ Enable Webhook',
+        btn_disable_webhook: 'Disable Webhook',
+        btn_reconnect_webhook: '🔄 Reconnect Webhook',
+        webhook_active_desc: '🟢 Webhook active',
+        webhook_inactive_desc: '🔴 Webhook inactive',
+        webhook_polling_desc: '🔴 Webhook inactive',
+        max_price: 'Max offer price, €',
+        notify_all_by_price: 'Notify for all slots up to max price',
+        notify_all_desc: 'Bypass date & country filters for Telegram when offer price ≤ max price',
+        country_filters: '🌍 Country Filters',
+        country_filters_desc: 'These filters apply synchronously to both web app and Telegram bot',
+        origin_countries: '🛫 Departure countries (origin)',
+        dest_countries: '🛬 Destination countries',
+        btn_all: 'All',
+        btn_clear: 'Clear',
+        trip_duration: '⏱ Trip duration (days)',
+        silent_hours: '🌙 Quiet hours',
+        silent_hours_desc: 'During quiet hours Telegram notifications arrive silently.',
+        silent_status_label: 'Status:',
+        silent_interval: 'Quiet hours interval',
+        commands_in_chat: 'Chat commands:',
+        companies_title: '🏢 Monitored providers',
+        companies_desc: 'Disabled providers are not queried during monitoring',
+        triggers_title: '🔧 Automation Triggers',
+        triggers_restore: 'Restore',
+        triggers_desc: 'Automatic background services in Google Apps Script:',
+        save_settings_btn: 'Save settings',
+        version_label: 'Version: ',
+        offers_sort_label: 'Sort by:',
+        offers_sort_added: '🕒 By added date',
+        offers_sort_trip: '📅 By trip dates',
+        offers_date_from: 'From:',
+        offers_date_to: 'To:',
+        date_preset_7d: '7 days',
+        date_preset_14d: '14 days',
+        date_preset_month: 'Month',
+        btn_check_avail: '🔄 Check availability',
+        analytics_reload: '🔄 Refresh',
+        analytics_daily_title: '📅 Offers by day',
+        analytics_legend_total: 'Total found',
+        analytics_legend_matched: 'Matching',
+        analytics_hourly_title: '🕐 When offers appear (UTC)',
+        analytics_top_routes_title: '🗺 Top destinations',
+        analytics_by_sources_title: '📡 By source',
+        analytics_empty: '📭 No data yet.<br>Start monitoring to accumulate statistics.',
+        tab_main: 'Main',
+        tab_offers: 'Offers',
+        tab_analytics: 'Analytics',
+        tab_settings: 'Settings',
+        all_cities: 'All cities',
+        station_prefix: 'Station ',
+        any_country: '🌍 Any country',
+        campers_badge: '🚐 campers',
+        cars_badge: '🚗 cars',
+        all_badge: '🚗🚐 all',
+        company_disabled: 'company disabled',
+        edit_route: 'Edit route',
+        delete_btn: 'Delete',
+        all_countries_allowed: 'All countries allowed (filter off)',
+        selected_count: 'Selected: {selected} of {total}',
+        silent_on: 'Enabled 🔔',
+        silent_off: 'Disabled ⬜',
+        empty_routes: 'No routes — add one',
+        saving: 'Saving…',
+        saved: '✓ Saved',
+        save_error: 'Failed to save',
+        status_active: 'Monitoring active',
+        status_trigger_every: 'Trigger every {min} min',
+        status_not_run_no_data: 'Trigger not run: no data',
+        status_not_run_age: 'Trigger not run for {min} min',
+        status_threshold: 'Threshold: {min} min',
+        status_tg_not_configured: '⚠️ Telegram not configured',
+        status_last_check_error: 'Last check with error',
+        status_last_check: 'Last check: {time}',
+        status_offers_found: 'Offers: {count}',
+        status_not_run_yet: 'Not run yet',
+        status_error: 'Error',
+        field_source: 'Source',
+        field_vehicle_type: 'Vehicle type',
+        vtype_all_opt: '🚗🚐 All (campers & cars)',
+        vtype_camper_opt: '🚐 Campers only',
+        vtype_car_opt: '🚗 Cars only',
+        field_origin_country: 'Origin country',
+        field_dest_country: 'Destination country',
+        field_origin_city: 'Origin city',
+        field_dest_city: 'Destination city',
+        field_date_from: 'Search from',
+        field_date_to: 'Search to',
+        dates_empty_hint: 'If dates are empty — next Sunday + 14 days',
+        loading_cities: 'Loading cities…',
+        select_country_first: 'Select country first',
+        select_origin_country_first: 'Select origin country first',
+        loading_destinations: 'Loading destinations…',
+        failed_load_cities: 'Failed to load cities',
+        failed_load_destinations: 'Failed to load destinations',
+        all_cities_wildcard: '✨ All cities / Any',
+        btn_done: 'Done',
+        offers_count_zero: '0 offers',
+        offers_none_found: 'No offers found',
+        offers_count_filter: '{count} offers (date filter)',
+        offers_count_total: '{count} offers',
+        offers_none_in_range: 'No offers in the selected date range',
+        status_all_chip: 'All',
+        status_new_chip: 'New',
+        status_sent_chip: 'Sent',
+        status_sent_badge: '✓ Sent',
+        status_new_badge: 'New',
+        offer_camper_type: '🚐 Camper',
+        offer_car_type: '🚗 Passenger car',
+        offer_sleeping_suffix: ' • {count} berths',
+        offer_last_checked: 'Last checked',
+        delete_offer_title: 'Delete this offer',
+        offer_delete_confirm: 'Delete this offer?',
+        offer_deleted: 'Offer deleted',
+        btn_book: 'Book',
+        page_prev: '← Previous',
+        page_next: 'Next →',
+        page_info: 'Page {page} / {total}',
+        page_total_count: '(total: {total})',
+        offers_found_total: 'Offers found: {count}',
+        date_today: 'Today, ',
+        date_yesterday: 'Yesterday, ',
+        dates_not_specified: 'Dates not specified',
+        departure_today: 'Departure today, ',
+        departure_tomorrow: 'Departure tomorrow, ',
+        departure_prefix: 'Departure ',
+        added_just_now: 'added just now',
+        added_mins_ago: 'added at {time} ({mins}m ago)',
+        added_hours_ago: 'added at {time} ({hours}h ago)',
+        added_at: 'added at {time}',
+        checking: 'Checking…',
+        check_avail_removed: 'Removed unavailable offers: {removed} (out of {total})',
+        check_avail_all_ok: 'All checked offers ({total}) are up to date',
+        check_avail_error: 'Error checking availability',
+        access_denied_title: 'Access denied',
+        access_denied_sub: 'Open the app via Telegram bot.',
+        triggers_restored: 'Triggers restored ✓ ',
+        triggers_already_ok: 'Triggers are already in place ✓',
+        triggers_install_error: 'Error installing triggers',
+        check_started: 'Check started…',
+        check_start_error: 'Error starting check'
+      },
+      uk: {
+        loading: 'Завантаження…',
+        routes_title: '📍 Маршрути',
+        add_route: '+ Додати маршрут',
+        save_main: '💾 Зберегти',
+        check_btn: '▶ Перевірити',
+        lang_title: '🌐 Мова інтерфейсу',
+        info_checks: 'Інформація про перевірки',
+        site_status: '🌐 Стан зв\'язку із сайтами',
+        refresh: '🔄 Оновити',
+        settings_title: 'Налаштування',
+        poll_interval: 'Інтервал опитування, хв',
+        check_neighbors: 'Перевіряти сусідні дати (±2 дні)',
+        telegram_notifications: 'Telegram-сповіщення',
+        bot_mode: 'Webhook Telegram-бота',
+        btn_enable_webhook: '⚡ Увімкнути Webhook',
+        btn_disable_webhook: 'Вимкнути Webhook',
+        btn_reconnect_webhook: '🔄 Перепідключити Webhook',
+        webhook_active_desc: '🟢 Webhook активний',
+        webhook_inactive_desc: '🔴 Webhook неактивний',
+        webhook_polling_desc: '🔴 Webhook неактивний',
+        max_price: 'Макс. ціна оферу, €',
+        notify_all_by_price: 'Сповіщати про всі слоти до макс. ціни',
+        notify_all_desc: 'Ігнорувати фільтри дат і країн для Telegram, якщо ціна слота ≤ макс. ціни',
+        country_filters: '🌍 Фільтри країн',
+        country_filters_desc: 'Ці фільтри застосовуються синхронно і для додатку, і для Telegram-бота',
+        origin_countries: '🛫 Звідки (країни відправлення)',
+        dest_countries: '🛬 Куди (країни прибуття)',
+        btn_all: 'Всі',
+        btn_clear: 'Очистити',
+        trip_duration: '⏱ Тривалість поїздки (днів)',
+        silent_hours: '🌙 Режим тихих годин',
+        silent_hours_desc: 'У тихі години сповіщення надходять у Telegram без звуку.',
+        silent_status_label: 'Статус:',
+        silent_interval: 'Інтервал тихих годин',
+        commands_in_chat: 'Команди керування в чаті:',
+        companies_title: '🏢 Компанії в моніторингу',
+        companies_desc: 'Вимкнені компанії не опитуються під час моніторингу',
+        triggers_title: '🔧 Тригери автоматизації',
+        triggers_restore: 'Відновити',
+        triggers_desc: 'Автоматичні фонові служби в Google Apps Script:',
+        save_settings_btn: 'Зберегти налаштування',
+        version_label: 'Версія: ',
+        offers_sort_label: 'Сортування:',
+        offers_sort_added: '🕒 За датою додавання',
+        offers_sort_trip: '📅 За діапазоном дат',
+        offers_date_from: 'З:',
+        offers_date_to: 'По:',
+        date_preset_7d: '7 дн',
+        date_preset_14d: '14 дн',
+        date_preset_month: 'Місяць',
+        btn_check_avail: '🔄 Перевірити актуальність',
+        analytics_reload: '🔄 Оновити',
+        analytics_daily_title: '📅 Офери за днями',
+        analytics_legend_total: 'Всього знайдено',
+        analytics_legend_matched: 'Відповідні',
+        analytics_hourly_title: '🕐 Коли з\'являються офери (UTC)',
+        analytics_top_routes_title: '🗺 Топ напрямків',
+        analytics_by_sources_title: '📡 За джерелами',
+        analytics_empty: '📭 Даних поки немає.<br>Запустіть моніторинг, щоб накопичити статистику.',
+        tab_main: 'Головна',
+        tab_offers: 'Офери',
+        tab_analytics: 'Аналітика',
+        tab_settings: 'Налаштування',
+        all_cities: 'Всі міста',
+        station_prefix: 'Станція ',
+        any_country: '🌍 Будь-яка країна',
+        campers_badge: '🚐 кемпери',
+        cars_badge: '🚗 легкові',
+        all_badge: '🚗🚐 всі',
+        company_disabled: 'компанія вимкнена',
+        edit_route: 'Редагувати маршрут',
+        delete_btn: 'Видалити',
+        all_countries_allowed: 'Всі країни дозволені (фільтр вимкнено)',
+        selected_count: 'Вибрано: {selected} з {total}',
+        silent_on: 'Увімкнено 🔔',
+        silent_off: 'Вимкнено ⬜',
+        empty_routes: 'Немає маршрутів — додайте',
+        saving: 'Збереження…',
+        saved: '✓ Збережено',
+        save_error: 'Помилка збереження',
+        status_active: 'Моніторинг активний',
+        status_trigger_every: 'Тригер кожні {min} хв',
+        status_not_run_no_data: 'Тригер не виконувався: немає даних',
+        status_not_run_age: 'Тригер не виконувався {min} хв',
+        status_threshold: 'Поріг: {min} хв',
+        status_tg_not_configured: '⚠️ Telegram не налаштований',
+        status_last_check_error: 'Остання перевірка з помилкою',
+        status_last_check: 'Остання перевірка: {time}',
+        status_offers_found: 'Офферів: {count}',
+        status_not_run_yet: 'Ще не запускався',
+        status_error: 'Помилка',
+        field_source: 'Джерело',
+        field_vehicle_type: 'Тип транспорту',
+        vtype_all_opt: '🚗🚐 Всі (кемпери та легкові)',
+        vtype_camper_opt: '🚐 Тільки кемпери',
+        vtype_car_opt: '🚗 Тільки легкові авто',
+        field_origin_country: 'Країна відправлення',
+        field_dest_country: 'Країна призначення',
+        field_origin_city: 'Місто відправлення',
+        field_dest_city: 'Місто призначення',
+        field_date_from: 'Шукати з',
+        field_date_to: 'Шукати по',
+        dates_empty_hint: 'Якщо дати порожні — найближча неділя + 14 днів',
+        loading_cities: 'Завантаження міст…',
+        select_country_first: 'Спочатку оберіть країну',
+        select_origin_country_first: 'Спочатку оберіть країну відправлення',
+        loading_destinations: 'Завантаження напрямків…',
+        failed_load_cities: 'Не вдалося завантажити міста',
+        failed_load_destinations: 'Не вдалося завантажити напрямки',
+        all_cities_wildcard: '✨ Всі міста / Будь-яке',
+        btn_done: 'Готово',
+        offers_count_zero: '0 офферів',
+        offers_none_found: 'Оффери не знайдено',
+        offers_count_filter: '{count} офферів (фільтр дат)',
+        offers_count_total: '{count} офферів',
+        offers_none_in_range: 'Немає офферів у вибраному діапазоні дат',
+        status_all_chip: 'Всі',
+        status_new_chip: 'Нові',
+        status_sent_chip: 'Надіслані',
+        status_sent_badge: '✓ Надіслано',
+        status_new_badge: 'Новий',
+        offer_camper_type: '🚐 Будинок на колесах',
+        offer_car_type: '🚗 Легковий автомобіль',
+        offer_sleeping_suffix: ' • {count} спальних місць',
+        offer_last_checked: 'Остання перевірка',
+        delete_offer_title: 'Видалити цей оффер',
+        offer_delete_confirm: 'Видалити цей оффер?',
+        offer_deleted: 'Оффер видалено',
+        btn_book: 'Бронювати',
+        page_prev: '← Назад',
+        page_next: 'Вперед →',
+        page_info: 'Стор. {page} / {total}',
+        page_total_count: '(всього: {total})',
+        offers_found_total: 'Знайдено офферів: {count}',
+        date_today: 'Сьогодні, ',
+        date_yesterday: 'Вчора, ',
+        dates_not_specified: 'Дати не вказані',
+        departure_today: 'Виїзд сьогодні, ',
+        departure_tomorrow: 'Виїзд завтра, ',
+        departure_prefix: 'Виїзд ',
+        added_just_now: 'додано щойно',
+        added_mins_ago: 'додано о {time} ({mins} хв тому)',
+        added_hours_ago: 'додано о {time} ({hours} год тому)',
+        added_at: 'додано о {time}',
+        checking: 'Перевірка…',
+        check_avail_removed: 'Видалено недоступних оферів: {removed} (з {total})',
+        check_avail_all_ok: 'Всі перевірені офери ({total}) актуальні',
+        check_avail_error: 'Помилка перевірки актуальності',
+        access_denied_title: 'Доступ заборонено',
+        access_denied_sub: 'Відкрийте додаток через Telegram бота.',
+        triggers_restored: 'Тригери відновлено ✓ ',
+        triggers_already_ok: 'Тригери вже на місці ✓',
+        triggers_install_error: 'Помилка встановлення тригерів',
+        check_started: 'Перевірку запущено…',
+        check_start_error: 'Помилка запуску'
+      },
+      ru: {
+        loading: 'Загрузка…',
+        routes_title: '📍 Маршруты',
+        add_route: '+ Добавить маршрут',
+        save_main: '💾 Сохранить',
+        check_btn: '▶ Проверить сейчас',
+        lang_title: '🌐 Язык интерфейса',
+        info_checks: 'Информация о проверках',
+        site_status: '🌐 Состояние связи с сайтами',
+        refresh: '🔄 Обновить',
+        settings_title: 'Настройки',
+        poll_interval: 'Интервал опроса, мин',
+        check_neighbors: 'Проверять соседние даты (±2 дня)',
+        telegram_notifications: 'Telegram-уведомления',
+        bot_mode: 'Webhook Telegram-бота',
+        btn_enable_webhook: '⚡ Включить Webhook',
+        btn_disable_webhook: 'Отключить Webhook',
+        btn_reconnect_webhook: '🔄 Перепривязать Webhook',
+        webhook_active_desc: '🟢 Webhook активен',
+        webhook_inactive_desc: '🔴 Webhook не активен',
+        webhook_polling_desc: '🔴 Webhook не активен',
+        max_price: 'Макс. цена оффера, €',
+        notify_all_by_price: 'Уведомлять обо всех слотах до макс. цены',
+        notify_all_desc: 'Игнорировать фильтры дат и стран для Telegram, если цена слота ≤ макс. цены',
+        country_filters: '🌍 Фильтры стран',
+        country_filters_desc: 'Эти фильтры применяются синхронно и для веб-приложения, и для Telegram-бота',
+        origin_countries: '🛫 Откуда (страны отправления)',
+        dest_countries: '🛬 Куда (страны прибытия)',
+        btn_all: 'Все',
+        btn_clear: 'Сбросить',
+        trip_duration: '⏱ Длительность поездки (дней)',
+        silent_hours: '🌙 Режим тихих часов',
+        silent_hours_desc: 'В тихие часы уведомления в Telegram приходят без звука.',
+        silent_status_label: 'Статус:',
+        silent_interval: 'Интервал тихих часов',
+        commands_in_chat: 'Команды управления в чате:',
+        companies_title: '🏢 Компании в мониторинге',
+        companies_desc: 'Отключенные компании не опрашиваются при мониторинге',
+        triggers_title: '🔧 Триггеры автоматизации',
+        triggers_restore: 'Восстановить',
+        triggers_desc: 'Автоматические фоновые службы в Google Apps Script:',
+        save_settings_btn: 'Сохранить настройки',
+        version_label: 'Версия: ',
+        offers_sort_label: 'Сортировка:',
+        offers_sort_added: '🕒 По дате добавления',
+        offers_sort_trip: '📅 По диапазону дат',
+        offers_date_from: 'С:',
+        offers_date_to: 'По:',
+        date_preset_7d: '7 дн',
+        date_preset_14d: '14 дн',
+        date_preset_month: 'Месяц',
+        btn_check_avail: '🔄 Проверить актуальность',
+        analytics_reload: '🔄 Обновить',
+        analytics_daily_title: '📅 Офферы по дням',
+        analytics_legend_total: 'Всего найдено',
+        analytics_legend_matched: 'Подходящие',
+        analytics_hourly_title: '🕐 Когда появляются офферы (UTC)',
+        analytics_top_routes_title: '🗺 Топ направлений',
+        analytics_by_sources_title: '📡 По источникам',
+        analytics_empty: '📭 Данных пока нет.<br>Запустите мониторинг, чтобы накопить статистику.',
+        tab_main: 'Главная',
+        tab_offers: 'Офферы',
+        tab_analytics: 'Аналитика',
+        tab_settings: 'Настройки',
+        all_cities: 'Все города',
+        station_prefix: 'Станция ',
+        any_country: '🌍 Любая страна',
+        campers_badge: '🚐 кемперы',
+        cars_badge: '🚗 легковые',
+        all_badge: '🚗🚐 все',
+        company_disabled: 'компания отключена',
+        edit_route: 'Редактировать маршрут',
+        delete_btn: 'Удалить',
+        all_countries_allowed: 'Все страны разрешены (фильтр отключен)',
+        selected_count: 'Выбрано: {selected} из {total}',
+        silent_on: 'Включены 🔔',
+        silent_off: 'Выключены ⬜',
+        empty_routes: 'Нет маршрутов — добавьте',
+        saving: 'Сохранение…',
+        saved: '✓ Сохранено',
+        save_error: 'Ошибка сохранения',
+        status_active: 'Мониторинг активен',
+        status_trigger_every: 'Триггер каждые {min} мин',
+        status_not_run_no_data: 'Триггер не выполнялся: нет данных',
+        status_not_run_age: 'Триггер не выполнялся {min} мин',
+        status_threshold: 'Порог: {min} мин',
+        status_tg_not_configured: '⚠️ Telegram не настроен',
+        status_last_check_error: 'Последняя проверка с ошибкой',
+        status_last_check: 'Последняя проверка: {time}',
+        status_offers_found: 'Офферов: {count}',
+        status_not_run_yet: 'Ещё не запускался',
+        status_error: 'Ошибка',
+        field_source: 'Источник',
+        field_vehicle_type: 'Тип транспорта',
+        vtype_all_opt: '🚗🚐 Все (кемперы и легковые)',
+        vtype_camper_opt: '🚐 Только кемперы (дома на колёсах)',
+        vtype_car_opt: '🚗 Только легковые авто',
+        field_origin_country: 'Страна отправления',
+        field_dest_country: 'Страна назначения',
+        field_origin_city: 'Город отправления',
+        field_dest_city: 'Город назначения',
+        field_date_from: 'Искать с',
+        field_date_to: 'Искать по',
+        dates_empty_hint: 'Если даты пустые — ближайшее воскресенье + 14 дней',
+        loading_cities: 'Загрузка городов…',
+        select_country_first: 'Сначала выберите страну',
+        select_origin_country_first: 'Сначала выберите страну отправления',
+        loading_destinations: 'Загрузка направлений…',
+        failed_load_cities: 'Не удалось загрузить города',
+        failed_load_destinations: 'Не удалось загрузить направления',
+        all_cities_wildcard: '✨ Все города / Любой',
+        btn_done: 'Готово',
+        offers_count_zero: '0 офферов',
+        offers_none_found: 'Офферы не найдены',
+        offers_count_filter: '{count} офферов (фильтр дат)',
+        offers_count_total: '{count} офферов',
+        offers_none_in_range: 'Нет офферов в выбранном диапазоне дат',
+        status_all_chip: 'Все',
+        status_new_chip: 'Новые',
+        status_sent_chip: 'Отправлены',
+        status_sent_badge: '✓ Отправлен',
+        status_new_badge: 'Новый',
+        offer_camper_type: '🚐 Дом на колёсах',
+        offer_car_type: '🚗 Легковой автомобиль',
+        offer_sleeping_suffix: ' • {count} спальных мест',
+        offer_last_checked: 'Последняя проверка',
+        delete_offer_title: 'Удалить этот оффер',
+        offer_delete_confirm: 'Удалить этот оффер?',
+        offer_deleted: 'Оффер удалён',
+        btn_book: 'Бронировать',
+        page_prev: '← Назад',
+        page_next: 'Вперёд →',
+        page_info: 'Стр. {page} / {total}',
+        page_total_count: '(всего: {total})',
+        offers_found_total: 'Найдено офферов: {count}',
+        date_today: 'Сегодня, ',
+        date_yesterday: 'Вчера, ',
+        dates_not_specified: 'Даты не указаны',
+        departure_today: 'Выезд сегодня, ',
+        departure_tomorrow: 'Выезд завтра, ',
+        departure_prefix: 'Выезд ',
+        added_just_now: 'добавлен только что',
+        added_mins_ago: 'добавлен в {time} ({mins} мин назад)',
+        added_hours_ago: 'добавлен в {time} ({hours} ч назад)',
+        added_at: 'добавлен в {time}',
+        checking: 'Проверка…',
+        check_avail_removed: 'Удалено недоступных офферов: {removed} (из {total})',
+        check_avail_all_ok: 'Все проверенные офферы ({total}) актуальны',
+        check_avail_error: 'Ошибка при проверке доступности',
+        access_denied_title: 'Доступ запрещён',
+        access_denied_sub: 'Откройте приложение через Telegram бота.',
+        triggers_restored: 'Триггеры восстановлены ✓ ',
+        triggers_already_ok: 'Триггеры уже на месте ✓',
+        triggers_install_error: 'Ошибка установки триггеров',
+        check_started: 'Проверка запущена…',
+        check_start_error: 'Ошибка запуска'
+      }
+    };
+
+    function tWeb(key, params) {
+      var dict = I18N_WEB[currentAppLang] || I18N_WEB['ru'];
+      var val = dict[key] || (I18N_WEB['ru'] && I18N_WEB['ru'][key]) || key;
+      if (params && typeof params === 'object') {
+        Object.keys(params).forEach(function(p) {
+          var pVal = params[p];
+          val = val.replace(new RegExp('\\{' + p + '\\}', 'g'), function() { return pVal; });
+        });
+      }
+      return val;
+    }
+
+    function getCountryDisplayName(code, lang) {
+      lang = lang || currentAppLang || 'ru';
+      var dict = WEBAPP_COUNTRY_NAMES[lang] || WEBAPP_COUNTRY_NAMES['en'] || {};
+      if (dict[code]) return dict[code];
+      return code;
+    }
+
+    function setAppLanguage(lang, syncWithBackend) {
+      if (!I18N_WEB[lang]) {
+        lang = 'ru';
+      }
+      currentAppLang = lang;
+      try {
+        localStorage.setItem('camper_monitor_lang', lang);
+      } catch (e) {}
+
+      var hSel = document.getElementById('headerLangSelector');
+      if (hSel) hSel.value = lang;
+      var cSel = document.getElementById('langSelector');
+      if (cSel) cSel.value = lang;
+
+      var els = document.querySelectorAll('[data-i18n]');
+      els.forEach(function(el) {
+        var key = el.getAttribute('data-i18n');
+        if (key && (I18N_WEB[lang][key] || I18N_WEB['ru'][key])) {
+          var text = tWeb(key);
+          if (text.indexOf('<') !== -1) {
+            el.innerHTML = text;
+          } else {
+            el.textContent = text;
+          }
+        }
+      });
+
+      if (state) {
+        renderStatus();
+        renderRoutes();
+        renderCountryChips(
+          'originCountriesChips',
+          'originCountriesCount',
+          'allowed_origin_countries',
+          'btnAllOriginCountries',
+          'btnClearOriginCountries'
+        );
+        renderCountryChips(
+          'destCountriesChips',
+          'destCountriesCount',
+          'allowed_destination_countries',
+          'btnAllDestCountries',
+          'btnClearDestCountries'
+        );
+        var webhookActive = !!(state && state.telegramWebhookActive);
+        var webhookBtn = document.getElementById('btnToggleWebhook');
+        var webhookDesc = document.getElementById('webhookStatusDesc');
+        if (webhookBtn && webhookDesc) {
+          webhookDesc.textContent = webhookActive ? tWeb('webhook_active_desc') : tWeb('webhook_inactive_desc');
+          webhookBtn.textContent = tWeb('btn_reconnect_webhook');
+        }
+        var isSilent = state.settings && isTruthy(state.settings.silent_hours_enabled);
+        var silentStatusTextEl = document.getElementById('silentHoursStatusText');
+        if (silentStatusTextEl) {
+          silentStatusTextEl.textContent = isSilent ? tWeb('silent_on') : tWeb('silent_off');
+        }
+        if (typeof offersData !== 'undefined' && offersData && offersData.offers) {
+          renderSourceFilters();
+          renderOffers();
+        }
+      }
+
+      if (syncWithBackend) {
+        saveSettings();
+      }
+    }
+
+    function onLanguageChange(lang) {
+      setAppLanguage(lang, true);
+    }
+
+    function getInitData() {
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+        return window.Telegram.WebApp.initData;
+      }
+      return '';
+    }
+
+    function getBrowserSession() {
+      try { return localStorage.getItem('camper_monitor_telegram_session') || ''; } catch (e) { return ''; }
+    }
+
+    function setupBrowserTelegramLogin() {
+      var link = document.getElementById('telegramLoginLink');
+      var status = document.getElementById('browserLoginError');
+      var code = document.getElementById('browserLoginCode');
+      status.classList.remove('error');
+      if (location.protocol === 'file:') {
+        code.hidden = true;
+        link.href = APPS_SCRIPT_URL;
+        link.textContent = 'Открыть сайт для входа';
+        link.removeAttribute('aria-disabled');
+        status.textContent = 'Для входа откройте опубликованный сайт по HTTPS.';
+        return;
+      }
+
+      var pending = null;
+      try { pending = JSON.parse(sessionStorage.getItem('camper_monitor_login_pending') || 'null'); } catch (e) {}
+      if (pending && pending.expiresAt > Date.now() && pending.token && pending.loginUrl && pending.code) {
+        activateBrowserTelegramLogin(pending, link, status);
+        return;
+      }
+
+      link.setAttribute('aria-disabled', 'true');
+      code.hidden = true;
+      status.textContent = 'Готовим ссылку для входа…';
+      fetch(APPS_SCRIPT_URL + '/api/auth/telegram/start', { method: 'POST' })
+        .then(function (res) { return res.json().then(function (data) { if (!res.ok) throw new Error(data.error || 'Не удалось создать ссылку'); return data; }); })
+        .then(function (data) {
+          pending = { token: data.token, code: data.code, loginUrl: data.loginUrl, expiresAt: Date.now() + 9 * 60 * 1000 };
+          try { sessionStorage.setItem('camper_monitor_login_pending', JSON.stringify(pending)); } catch (e) {}
+          activateBrowserTelegramLogin(pending, link, status);
+        })
+        .catch(function (err) {
+          status.classList.add('error');
+          status.textContent = (err.message || String(err)) + '. Обновите страницу, чтобы повторить.';
+        });
+    }
+
+    function activateBrowserTelegramLogin(pending, link, status) {
+      document.getElementById('browserLoginCodeValue').textContent = pending.code;
+      document.getElementById('browserLoginCode').hidden = false;
+      link.href = pending.loginUrl;
+      link.removeAttribute('aria-disabled');
+      status.textContent = 'Ожидаем подтверждения в Telegram…';
+      status.classList.remove('error');
+      link.onclick = function () { status.textContent = 'Нажмите «Старт», сверьте код и подтвердите вход в боте.'; };
+      pollBrowserTelegramLogin(pending.token, status);
+    }
+
+    function pollBrowserTelegramLogin(token, status) {
+      fetch(APPS_SCRIPT_URL + '/api/auth/telegram/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token })
+      }).then(function (res) { return res.json().then(function (data) { if (!res.ok) throw new Error(data.error || 'Ошибка проверки входа'); return data; }); })
+        .then(function (data) {
+          if (data.status === 'approved' && data.token) {
+            localStorage.setItem('camper_monitor_telegram_session', data.token);
+            sessionStorage.removeItem('camper_monitor_login_pending');
+            location.reload();
+          } else if (data.status === 'expired') {
+            sessionStorage.removeItem('camper_monitor_login_pending');
+            setupBrowserTelegramLogin();
+          } else {
+            setTimeout(function () { pollBrowserTelegramLogin(token, status); }, 2000);
+          }
+        })
+        .catch(function (err) {
+          status.classList.add('error');
+          status.textContent = 'Не удаётся проверить вход: ' + (err.message || String(err));
+          setTimeout(function () { pollBrowserTelegramLogin(token, status); }, 4000);
+        });
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      var mainBtn      = document.getElementById('tabMain');
+      var settingsBtn  = document.getElementById('tabSettings');
+      var offersBtn    = document.getElementById('tabOffers');
+      var analyticsBtn = document.getElementById('tabAnalytics');
+      var adminBtn     = document.getElementById('tabAdmin');
+      
+      var screenMain      = document.getElementById('screenMain');
+      var screenSettings  = document.getElementById('screenSettings');
+      var screenOffers    = document.getElementById('screenOffers');
+      var screenAnalytics = document.getElementById('screenAnalytics');
+      var screenAdmin     = document.getElementById('screenAdmin');
+      
+      if (mainBtn)      mainBtn.classList.toggle('selected',      tab === 'main');
+      if (settingsBtn)  settingsBtn.classList.toggle('selected',  tab === 'settings');
+      if (offersBtn)    offersBtn.classList.toggle('selected',    tab === 'offers');
+      if (analyticsBtn) analyticsBtn.classList.toggle('selected', tab === 'analytics');
+      if (adminBtn)     adminBtn.classList.toggle('selected',     tab === 'admin');
+      
+      if (screenMain)      screenMain.style.display      = tab === 'main'      ? '' : 'none';
+      if (screenSettings)  screenSettings.style.display  = tab === 'settings'  ? '' : 'none';
+      if (screenOffers)    screenOffers.style.display    = tab === 'offers'    ? '' : 'none';
+      if (screenAnalytics) screenAnalytics.style.display = tab === 'analytics' ? '' : 'none';
+      if (screenAdmin)     screenAdmin.style.display     = tab === 'admin'     ? '' : 'none';
+      
+      if (tab === 'settings')  updateGitVersionDisplay();
+      if (tab === 'offers')    loadOffers();
+      if (tab === 'analytics') loadAnalytics();
+    }
+
+    // ── Analytics ───────────────────────────────────────────────
+    var analyticsData = null;
+
+    function loadAnalytics() {
+      var subtitle = document.getElementById('analyticsSubtitle');
+      if (subtitle) subtitle.textContent = '⏳ Загрузка…';
+      google.script.run
+        .withSuccessHandler(function(data) {
+          analyticsData = data;
+          renderAnalytics(data);
+        })
+        .withFailureHandler(function(err) {
+          if (subtitle) subtitle.textContent = '❌ ' + ((err && err.message) || 'Ошибка загрузки');
+        })
+        .getAnalytics(getInitData());
+    }
+
+    function renderAnalytics(data) {
+      var subtitle = document.getElementById('analyticsSubtitle');
+      var empty    = document.getElementById('analyticsEmpty');
+      var hasData  = data && (
+        (data.dailyCounts   && data.dailyCounts.length)   ||
+        (data.topRoutes     && data.topRoutes.length)     ||
+        (data.bySources     && data.bySources.length)
+      );
+      if (!hasData) {
+        if (empty) empty.style.display = '';
+        ['cardDailyChart','cardHourlyHeatmap','cardTopRoutes','cardBySources'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) el.style.display = 'none';
+        });
+        if (subtitle) subtitle.textContent = '';
+        return;
+      }
+      if (empty) empty.style.display = 'none';
+      ['cardDailyChart','cardHourlyHeatmap','cardTopRoutes','cardBySources'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = '';
+      });
+
+      var totalArchive = data.bySources
+        ? data.bySources.reduce(function(s, x) { return s + (x.total || 0); }, 0)
+        : 0;
+      if (subtitle) subtitle.textContent = 'Всего в архиве: ' + totalArchive + ' офферов';
+
+      renderDailyChart(data.dailyCounts || []);
+      renderHourlyHeatmap(data.hourlyPattern || []);
+      renderTopRoutes(data.topRoutes || []);
+      renderBySources(data.bySources || []);
+    }
+
+    function renderDailyChart(days) {
+      var chartEl  = document.getElementById('dailyBarChart');
+      var labelsEl = document.getElementById('dailyBarLabels');
+      if (!chartEl || !labelsEl) return;
+      chartEl.innerHTML  = '';
+      labelsEl.innerHTML = '';
+      if (!days.length) { chartEl.innerHTML = '<div class="analytics-empty" style="padding:10px 0;">Нет данных</div>'; return; }
+
+      var maxTotal = Math.max.apply(null, days.map(function(d) { return d.total; })) || 1;
+      var CHART_H  = 80; // px — matches CSS .bar-chart height
+
+      days.forEach(function(d) {
+        var totalH   = Math.round((d.total   / maxTotal) * CHART_H);
+        var matchedH = Math.round((d.matched / maxTotal) * CHART_H);
+        var wrap = document.createElement('div');
+        wrap.className = 'bar-chart-wrap';
+        wrap.style.height = CHART_H + 'px';
+        wrap.title = d.date + ': ' + d.total + ' всего, ' + d.matched + ' подходящих';
+
+        var totalBar = document.createElement('div');
+        totalBar.className = 'bar-col total';
+        totalBar.style.height = totalH + 'px';
+        totalBar.style.position = 'relative';
+
+        var matchedBar = document.createElement('div');
+        matchedBar.className = 'bar-col matched';
+        matchedBar.style.height = matchedH + 'px';
+        matchedBar.style.position = 'absolute';
+        matchedBar.style.bottom = '0';
+        matchedBar.style.left   = '0';
+        matchedBar.style.right  = '0';
+
+        totalBar.appendChild(matchedBar);
+        wrap.appendChild(totalBar);
+        chartEl.appendChild(wrap);
+
+        var label = document.createElement('div');
+        label.className = 'heatmap-hour-label';
+        var parts = d.date.split('-');
+        label.textContent = parts.length >= 3 ? parts[1] + '/' + parts[2] : d.date.slice(-5);
+        labelsEl.appendChild(label);
+      });
+
+      // match grid columns count
+      labelsEl.style.gridTemplateColumns = 'repeat(' + days.length + ', 1fr)';
+    }
+
+    function renderHourlyHeatmap(hours) {
+      var heatmapEl = document.getElementById('hourlyHeatmap');
+      var labelsEl  = document.getElementById('hourlyHeatmapLabels');
+      if (!heatmapEl || !labelsEl) return;
+      heatmapEl.innerHTML  = '';
+      labelsEl.innerHTML   = '';
+      var maxCount = Math.max.apply(null, hours.map(function(h) { return h.count; })) || 1;
+      hours.forEach(function(h) {
+        var cell = document.createElement('div');
+        cell.className = 'heatmap-cell';
+        var opacity = h.count > 0 ? Math.max(0.12, h.count / maxCount) : 0.06;
+        cell.style.background = 'rgba(46,166,255,' + opacity.toFixed(2) + ')';
+        cell.title = h.hour + ':00 — ' + h.count + ' офф.';
+        heatmapEl.appendChild(cell);
+
+        var label = document.createElement('div');
+        label.className = 'heatmap-hour-label';
+        label.textContent = h.hour % 6 === 0 ? h.hour + 'h' : '';
+        labelsEl.appendChild(label);
+      });
+    }
+
+    function renderTopRoutes(routes) {
+      var el = document.getElementById('topRoutesList');
+      if (!el) return;
+      el.innerHTML = '';
+      if (!routes.length) { el.innerHTML = '<div style="color:var(--hint);font-size:13px;">Нет данных о подходящих маршрутах</div>'; return; }
+      var maxCount = routes[0].count || 1;
+      routes.forEach(function(r) {
+        var pct = Math.round((r.count / maxCount) * 100);
+        var row = document.createElement('div');
+        row.className = 'route-bar-row';
+        row.innerHTML =
+          '<div class="route-bar-label">' +
+            '<span>' + escHtml(r.route) + '</span>' +
+            '<span class="route-count">' + r.count + '</span>' +
+          '</div>' +
+          '<div class="route-bar-track">' +
+            '<div class="route-bar-fill" style="width:' + pct + '%"></div>' +
+          '</div>';
+        el.appendChild(row);
+      });
+    }
+
+    function renderBySources(sources) {
+      var el = document.getElementById('sourceGrid');
+      if (!el) return;
+      el.innerHTML = '';
+      var SOURCE_LABELS = { roadsurfer: '🚐 Roadsurfer', movacar: '🚗 Movacar', indieCampers: '🏕 Indie', imoova: '🌐 Imoova' };
+      sources.forEach(function(s) {
+        var pct = s.total > 0 ? Math.round(s.matched / s.total * 100) : 0;
+        var card = document.createElement('div');
+        card.className = 'source-card';
+        card.innerHTML =
+          '<div class="source-card-name">' + escHtml(SOURCE_LABELS[s.source] || s.source) + '</div>' +
+          '<div class="source-card-total">' + s.total + '</div>' +
+          '<div class="source-card-matched">✅ ' + s.matched + ' подходящих</div>' +
+          '<div class="source-card-pct">hit rate ' + pct + '%</div>';
+        el.appendChild(card);
+      });
+    }
+
+    function escHtml(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    // ── End Analytics ────────────────────────────────────────────
+
+
+    var cachedSources = [];
+
+    function buildOfferFilterPayload() {
+      var filter = {
+        page: offerFilters.page,
+        limit: 50,
+        sortBy: offerFilters.sortBy
+      };
+      if (offerFilters.source) { filter.source = offerFilters.source; }
+      if (offerFilters.operator) { filter.operator = offerFilters.operator; }
+      if (offerFilters.vehicleType) { filter.vehicleType = offerFilters.vehicleType; }
+      if (offerFilters.sentStatus) { filter.sentStatus = offerFilters.sentStatus; }
+      if (offerFilters.dateFrom) { filter.dateFrom = offerFilters.dateFrom; }
+      if (offerFilters.dateTo) { filter.dateTo = offerFilters.dateTo; }
+      if (offerFilters.isMatched) { filter.isMatched = true; }
+      return filter;
+    }
+
+    function setOfferSort(sortMode) {
+      if (offerFilters.sortBy === sortMode) return;
+      offerFilters.sortBy = sortMode;
+      offerFilters.page = 1;
+      updateSortButtons();
+      applyOfferFilters();
+    }
+
+    function updateSortButtons() {
+      var btnAdded = document.getElementById('sortAddedBtn');
+      var btnTrip = document.getElementById('sortTripBtn');
+      if (btnAdded) {
+        if (offerFilters.sortBy === 'added_desc') btnAdded.classList.add('active');
+        else btnAdded.classList.remove('active');
+      }
+      if (btnTrip) {
+        if (offerFilters.sortBy === 'trip_date') btnTrip.classList.add('active');
+        else btnTrip.classList.remove('active');
+      }
+    }
+
+    function onOfferDateInputChange() {
+      var fromInput = document.getElementById('offerDateFrom');
+      var toInput = document.getElementById('offerDateTo');
+      offerFilters.dateFrom = fromInput ? fromInput.value : '';
+      offerFilters.dateTo = toInput ? toInput.value : '';
+      offerFilters.page = 1;
+      updateClearDateButton();
+      applyOfferFilters();
+    }
+
+    function setDatePreset(type) {
+      var now = new Date();
+      var pad = function(n) { return n < 10 ? '0' + n : String(n); };
+      var formatIsoDate = function(d) {
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+      };
+      var todayStr = formatIsoDate(now);
+      var fromInput = document.getElementById('offerDateFrom');
+      var toInput = document.getElementById('offerDateTo');
+
+      if (type === 'all') {
+        offerFilters.dateFrom = '';
+        offerFilters.dateTo = '';
+      } else if (type === '7d') {
+        var d = new Date(now);
+        d.setDate(d.getDate() + 7);
+        offerFilters.dateFrom = todayStr;
+        offerFilters.dateTo = formatIsoDate(d);
+      } else if (type === '14d') {
+        var d = new Date(now);
+        d.setDate(d.getDate() + 14);
+        offerFilters.dateFrom = todayStr;
+        offerFilters.dateTo = formatIsoDate(d);
+      } else if (type === 'month') {
+        var d = new Date(now);
+        d.setDate(d.getDate() + 30);
+        offerFilters.dateFrom = todayStr;
+        offerFilters.dateTo = formatIsoDate(d);
+      }
+      if (fromInput) fromInput.value = offerFilters.dateFrom;
+      if (toInput) toInput.value = offerFilters.dateTo;
+      offerFilters.page = 1;
+      updateClearDateButton();
+      applyOfferFilters();
+    }
+
+    function clearOfferDateFilter() {
+      var fromInput = document.getElementById('offerDateFrom');
+      var toInput = document.getElementById('offerDateTo');
+      if (fromInput) fromInput.value = '';
+      if (toInput) toInput.value = '';
+      offerFilters.dateFrom = '';
+      offerFilters.dateTo = '';
+      offerFilters.page = 1;
+      updateClearDateButton();
+      applyOfferFilters();
+    }
+
+    function updateClearDateButton() {
+      var btn = document.getElementById('btnClearDates');
+      if (btn) {
+        btn.style.display = (offerFilters.dateFrom || offerFilters.dateTo) ? 'inline-flex' : 'none';
+      }
+    }
+
+    function loadOffers() {
+      var initData = getInitData();
+      var list = document.getElementById('offersList');
+      if (list && (!offersData || !offersData.offers || !offersData.offers.length)) {
+        list.innerHTML = '<div class="offers-empty"><span class="offers-loading-icon">⏳</span><div>Загрузка офферов…</div></div>';
+      }
+      updateSortButtons();
+      updateClearDateButton();
+      google.script.run
+        .withSuccessHandler(function (result) {
+          offersData = result;
+          renderSourceFilters();
+          renderOffers();
+        })
+        .withFailureHandler(function (err) {
+          toast((err && err.message) || 'Ошибка загрузки офферов', true);
+        })
+        .getOffers(buildOfferFilterPayload(), initData);
+    }
+
+    function renderSourceFilters() {
+      var container = document.getElementById('sourceFilters');
+      if (!container) return;
+      container.innerHTML = '';
+
+      var sourceLabels = {
+        roadsurfer: '🚐 Roadsurfer',
+        movacar: '🚗 Movacar',
+        indiecampers: '⛺ Indie Campers',
+        imoova: '🌐 Imoova'
+      };
+
+      if (offersData && Array.isArray(offersData.availableSources) && offersData.availableSources.length) {
+        cachedSources = offersData.availableSources.slice();
+      } else if (!cachedSources.length && offersData && offersData.offers && offersData.offers.length) {
+        var srcMap = {};
+        offersData.offers.forEach(function (o) {
+          var s = String(o.source || '').trim().toLowerCase();
+          if (s) srcMap[s] = true;
+        });
+        cachedSources = Object.keys(srcMap).sort();
+      }
+
+      var availableSources = cachedSources.slice();
+
+      // If selected source filter is not in available sources, clear it
+      if (offerFilters.source && availableSources.indexOf(offerFilters.source.toLowerCase()) === -1) {
+        offerFilters.source = '';
+      }
+
+      // 1. Match filter ("✨ Подходящие")
+      var matchChip = document.createElement('button');
+      matchChip.type = 'button';
+      matchChip.className = 'filter-chip' + (offerFilters.isMatched ? ' active' : '');
+      matchChip.textContent = '✨ Подходящие';
+      matchChip.onclick = function () {
+        offerFilters.isMatched = !offerFilters.isMatched;
+        offerFilters.page = 1;
+        applyOfferFilters();
+      };
+      container.appendChild(matchChip);
+
+      // Vehicle type filters
+      var typeChips = [
+        { value: 'camper', label: '🚐 Кемперы' },
+        { value: 'car', label: '🚗 Легковые' }
+      ];
+      typeChips.forEach(function (t) {
+        var chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'filter-chip' + (offerFilters.vehicleType === t.value ? ' active' : '');
+        chip.textContent = t.label;
+        chip.onclick = function () {
+          offerFilters.vehicleType = offerFilters.vehicleType === t.value ? '' : t.value;
+          offerFilters.page = 1;
+          applyOfferFilters();
+        };
+        container.appendChild(chip);
+      });
+
+      // Spacer
+      var spacer = document.createElement('div');
+      spacer.style.width = '4px';
+      spacer.style.display = 'inline-block';
+      container.appendChild(spacer);
+
+      // 2. Show provider chips only if provider is present in availableSources
+      availableSources.forEach(function (src) {
+        var chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'filter-chip' + (offerFilters.source.toLowerCase() === src.toLowerCase() ? ' active' : '');
+        chip.textContent = sourceLabels[src.toLowerCase()] || (src.charAt(0).toUpperCase() + src.slice(1));
+        chip.onclick = function () {
+          offerFilters.source = offerFilters.source.toLowerCase() === src.toLowerCase() ? '' : src;
+          offerFilters.page = 1;
+          applyOfferFilters();
+        };
+        container.appendChild(chip);
+      });
+
+      // 3. Status filters
+      var statusChips = [
+        { value: '', label: tWeb('status_all_chip') },
+        { value: 'new', label: tWeb('status_new_chip') },
+        { value: 'sent', label: tWeb('status_sent_chip') }
+      ];
+      statusChips.forEach(function (s) {
+        var chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'filter-chip' + (offerFilters.sentStatus === s.value ? ' active' : '');
+        chip.textContent = s.label;
+        chip.onclick = function () {
+          offerFilters.sentStatus = s.value;
+          offerFilters.page = 1;
+          applyOfferFilters();
+        };
+        container.appendChild(chip);
+      });
+    }
+
+    function applyOfferFilters() {
+      var initData = getInitData();
+      var list = document.getElementById('offersList');
+      if (list) {
+        list.style.opacity = '0.5';
+        list.style.pointerEvents = 'none';
+      }
+      updateSortButtons();
+      updateClearDateButton();
+      var filter = buildOfferFilterPayload();
+      google.script.run
+        .withSuccessHandler(function (result) {
+          if (list) {
+            list.style.opacity = '1';
+            list.style.pointerEvents = '';
+          }
+          offersData = result;
+          renderSourceFilters();
+          renderOffers();
+        })
+        .withFailureHandler(function (err) {
+          if (list) {
+            list.style.opacity = '1';
+            list.style.pointerEvents = '';
+          }
+          toast((err && err.message) || 'Ошибка фильтрации', true);
+        })
+        .getOffers(filter, initData);
+    }
+
+    function renderOffers() {
+      var list = document.getElementById('offersList');
+      var pagination = document.getElementById('offersPagination');
+      var badge = document.getElementById('offersCountBadge');
+      if (!list || !pagination) return;
+      list.innerHTML = '';
+      pagination.innerHTML = '';
+
+      if (!offersData || !offersData.offers || !offersData.offers.length) {
+        if (badge) badge.textContent = tWeb('offers_count_zero');
+        list.innerHTML = '<div class="offers-empty"><div class="icon">🎫</div><div>' + escHtml(tWeb('offers_none_found')) + '</div></div>';
+        return;
+      }
+
+      // Client-side date range filter check (ensures consistency even if server didn't filter)
+      var offers = offersData.offers.slice();
+      if (offerFilters.dateFrom) {
+        offers = offers.filter(function (o) {
+          if (!o.pickupDate) return false;
+          return o.pickupDate >= offerFilters.dateFrom;
+        });
+      }
+      if (offerFilters.dateTo) {
+        offers = offers.filter(function (o) {
+          if (!o.pickupDate) return false;
+          return o.pickupDate <= offerFilters.dateTo;
+        });
+      }
+
+      // Client-side sorting guarantee
+      offers.sort(function (a, b) {
+        if (offerFilters.sortBy === 'trip_date') {
+          // Sort by trip date range: earliest departure first, then return date, then newest added
+          var dateA = a.pickupDate || '9999-99-99';
+          var dateB = b.pickupDate || '9999-99-99';
+          if (dateA !== dateB) return dateA.localeCompare(dateB);
+          var retA = a.returnDate || '9999-99-99';
+          var retB = b.returnDate || '9999-99-99';
+          if (retA !== retB) return retA.localeCompare(retB);
+          var timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+          var timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+          return timeB - timeA;
+        } else {
+          // Default: Sort by added date descending (newest offers first)
+          var timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+          var timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+          if (timeA !== timeB) return timeB - timeA;
+          var dateA = a.pickupDate || '9999-99-99';
+          var dateB = b.pickupDate || '9999-99-99';
+          return dateA.localeCompare(dateB);
+        }
+      });
+
+      if (badge) {
+        if (offerFilters.dateFrom || offerFilters.dateTo) {
+          badge.textContent = tWeb('offers_count_filter', { count: offers.length });
+        } else {
+          badge.textContent = (offersData && offersData.total != null) ? tWeb('offers_count_total', { count: offersData.total }) : tWeb('offers_count_total', { count: offers.length });
+        }
+      }
+
+      if (!offers.length) {
+        list.innerHTML = '<div class="offers-empty"><div class="icon">🔍</div><div>' + escHtml(tWeb('offers_none_in_range')) + '</div></div>';
+        return;
+      }
+
+      var lastDateGroup = null;
+      offers.forEach(function (offer) {
+        var groupKey = offerFilters.sortBy === 'trip_date'
+          ? getTripDateGroupKey(offer.pickupDate)
+          : getOfferDateGroupKey(offer.timestamp);
+
+        if (groupKey && groupKey !== lastDateGroup) {
+          lastDateGroup = groupKey;
+          var divider = document.createElement('div');
+          divider.className = 'offers-date-divider';
+          divider.innerHTML = '<span>' + escHtml(groupKey) + '</span>';
+          list.appendChild(divider);
+        }
+        list.appendChild(buildOfferCard(offer));
+      });
+
+      // Combined pagination and summary at the bottom
+      if (offersData.totalPages > 1) {
+        var prev = document.createElement('button');
+        prev.type = 'button';
+        prev.className = 'page-btn';
+        prev.textContent = tWeb('page_prev');
+        prev.disabled = offersData.page <= 1;
+        prev.onclick = function () {
+          offerFilters.page = offersData.page - 1;
+          applyOfferFilters();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+        pagination.appendChild(prev);
+
+        var info = document.createElement('div');
+        info.className = 'page-info';
+        info.innerHTML = tWeb('page_info', { page: offersData.page, total: offersData.totalPages }) +
+          ' <span class="page-total">' + tWeb('page_total_count', { total: offersData.total }) + '</span>';
+        pagination.appendChild(info);
+
+        var next = document.createElement('button');
+        next.type = 'button';
+        next.className = 'page-btn';
+        next.textContent = tWeb('page_next');
+        next.disabled = offersData.page >= offersData.totalPages;
+        next.onclick = function () {
+          offerFilters.page = offersData.page + 1;
+          applyOfferFilters();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+        pagination.appendChild(next);
+      } else if (offersData.total > 0) {
+        var totalInfo = document.createElement('div');
+        totalInfo.className = 'page-info';
+        totalInfo.textContent = tWeb('offers_found_total', { count: (offerFilters.dateFrom || offerFilters.dateTo ? offers.length : offersData.total) });
+        pagination.appendChild(totalInfo);
+      }
+    }
+
+    function buildOfferCard(offer) {
+      var card = document.createElement('div');
+      card.className = 'offer-card';
+
+      // Header with route and source badge
+      var header = document.createElement('div');
+      header.className = 'offer-header';
+      var route = document.createElement('div');
+      route.className = 'offer-route';
+      route.innerHTML = '<span class="flag">' + flagEmoji(offer.originCountry) + '</span>' +
+        escHtml(offer.origin || '—') + ' → <span class="flag">' + flagEmoji(offer.destinationCountry) + '</span>' +
+        escHtml(offer.destination || '—');
+      header.appendChild(route);
+
+      var isCamper = offer.vehicleType === 'camper' || (!offer.vehicleType && offer.source !== 'movacar');
+      var vIcon = isCamper ? '🚐' : '🚗';
+      var srcText = offer.source || '';
+      if (offer.source === 'movacar' && offer.operator && offer.operator !== 'Movacar') {
+        srcText = 'Movacar (' + offer.operator + ')';
+      }
+
+      var sourceBadge = document.createElement('span');
+      sourceBadge.className = 'offer-source';
+      sourceBadge.textContent = vIcon + ' ' + srcText;
+      header.appendChild(sourceBadge);
+      card.appendChild(header);
+
+      // Details section: dates, vehicle, added timestamp
+      var details = document.createElement('div');
+      details.className = 'offer-details';
+
+      // Type tag
+      var typeTag = document.createElement('div');
+      typeTag.style.cssText = 'font-size:12px; font-weight:600; color:' + (isCamper ? 'var(--accent)' : 'var(--hint)') + '; margin-bottom:4px;';
+      var sleepingText = (isCamper && offer.sleeping) ? tWeb('offer_sleeping_suffix', { count: offer.sleeping }) : '';
+      typeTag.textContent = (isCamper ? tWeb('offer_camper_type') : tWeb('offer_car_type')) + (offer.operator ? ' (' + offer.operator + ')' : '') + sleepingText;
+      details.appendChild(typeTag);
+
+      // Compact dates
+      var dates = document.createElement('div');
+      dates.className = 'offer-dates';
+      dates.textContent = '📅 ' + formatOfferDateRange(offer.pickupDate, offer.returnDate);
+      details.appendChild(dates);
+
+      // Vehicle
+      if (offer.vehicle && String(offer.vehicle).trim()) {
+        var vehicle = document.createElement('div');
+        vehicle.className = 'offer-vehicle';
+        vehicle.title = offer.vehicle;
+        vehicle.textContent = vIcon + ' ' + String(offer.vehicle).trim();
+        details.appendChild(vehicle);
+      }
+
+      // Added time
+      if (offer.timestamp) {
+        var addedStr = formatAddedTime(offer.timestamp);
+        if (addedStr) {
+          var added = document.createElement('div');
+          added.className = 'offer-added';
+          added.textContent = '🕒 ' + addedStr;
+          details.appendChild(added);
+        }
+      }
+
+      if (offer.lastSeenAt) {
+        var checkedAt = parseDateFlexible(offer.lastSeenAt);
+        if (checkedAt) {
+          var checked = document.createElement('div');
+          checked.className = 'offer-added';
+          checked.textContent = '✓ ' + tWeb('offer_last_checked') + ': ' + checkedAt.toLocaleString(currentAppLang || 'ru');
+          details.appendChild(checked);
+        }
+      }
+
+      card.appendChild(details);
+
+      // Footer with price, status, action buttons
+      var footer = document.createElement('div');
+      footer.className = 'offer-footer';
+
+      var price = document.createElement('div');
+      price.className = 'offer-price';
+      var priceText = (offer.price != null && offer.price !== '') ? offer.price + ' ' + (offer.currency || 'EUR') : '—';
+      price.textContent = priceText;
+      footer.appendChild(price);
+
+      var status = document.createElement('span');
+      status.className = 'offer-status ' + (offer.telegramSentAt ? 'sent' : 'new');
+      status.textContent = offer.telegramSentAt ? tWeb('status_sent_badge') : tWeb('status_new_badge');
+      footer.appendChild(status);
+
+      var actions = document.createElement('div');
+      actions.className = 'offer-actions';
+
+      var deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn-delete-offer';
+      deleteBtn.innerHTML = '🗑️';
+      deleteBtn.title = tWeb('delete_offer_title');
+      deleteBtn.onclick = function (e) {
+        e.stopPropagation();
+        if (!window.confirm(tWeb('offer_delete_confirm'))) return;
+        deleteBtn.disabled = true;
+        deleteBtn.textContent = '⏳';
+        var initData = getInitData();
+        google.script.run
+          .withSuccessHandler(function (res) {
+            toast(tWeb('offer_deleted'));
+            card.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.95)';
+            setTimeout(function () {
+              if (card.parentNode) {
+                card.parentNode.removeChild(card);
+              }
+              if (offersData && offersData.offers) {
+                offersData.offers = offersData.offers.filter(function (o) {
+                  return o.fingerprint !== offer.fingerprint;
+                });
+                offersData.total = Math.max(0, (offersData.total || 1) - 1);
+                renderOffers();
+                if (offersData.offers.length === 0) {
+                  applyOfferFilters();
+                }
+              }
+            }, 250);
+          })
+          .withFailureHandler(function (err) {
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = '🗑️';
+            toast((err && err.message) || 'Ошибка при удалении оффера', true);
+          })
+          .deleteOffer(offer.fingerprint, initData);
+      };
+      actions.appendChild(deleteBtn);
+
+      var bookBtn = document.createElement('button');
+      bookBtn.type = 'button';
+      bookBtn.className = 'btn-book';
+      bookBtn.textContent = tWeb('btn_book');
+      var targetUrl = offer.bookingUrl || '';
+      if (String(offer.source || '').toLowerCase() === 'movacar') {
+        if (!targetUrl || targetUrl === 'https://movacar.com/' || targetUrl === 'https://movacar.com' || targetUrl.indexOf('origin=') === -1) {
+          var params = [];
+          if (offer.origin) params.push('origin=' + encodeURIComponent(offer.origin));
+          if (offer.destination && offer.destination !== 'Unknown') params.push('destination=' + encodeURIComponent(offer.destination));
+          targetUrl = params.length > 0 ? ('https://www.movacar.com/offers?' + params.join('&')) : 'https://www.movacar.com/offers';
+        }
+      }
+      bookBtn.disabled = !targetUrl;
+      if (targetUrl) {
+        bookBtn.onclick = function () {
+          if (tg) {
+            tg.openLink(targetUrl);
+          } else {
+            window.open(targetUrl, '_blank');
+          }
+        };
+      }
+      actions.appendChild(bookBtn);
+
+      footer.appendChild(actions);
+      card.appendChild(footer);
+      return card;
+    }
+
+    function checkAvailability() {
+      var btn = document.getElementById('btnCheckAvail');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ ' + tWeb('checking');
+      }
+      var initData = getInitData();
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = tWeb('btn_check_avail');
+          }
+          var msg = tWeb('check_avail_all_ok', { total: (res && res.checked) || 0 });
+          if (res && res.removed !== undefined) {
+            msg = res.removed > 0
+              ? tWeb('check_avail_removed', { removed: res.removed, total: res.checked })
+              : tWeb('check_avail_all_ok', { total: res.checked });
+          }
+          toast(msg);
+          applyOfferFilters();
+        })
+        .withFailureHandler(function (err) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = tWeb('btn_check_avail');
+          }
+          toast((err && err.message) || tWeb('check_avail_error'), true);
+        })
+        .checkOffersAvailabilityWeb(initData);
+    }
+
+    function getInitData() {
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+        return window.Telegram.WebApp.initData;
+      }
+      return '';
+    }
+
+    function showAccessDenied(msg) {
+      var banner = document.getElementById('banner');
+      if (banner) {
+        var emoji = banner.querySelector('.emoji');
+        if (emoji) emoji.textContent = '🔒';
+        var title = document.getElementById('bannerTitle');
+        if (title) title.textContent = tWeb('access_denied_title');
+        var sub = document.getElementById('bannerSub');
+        if (sub) sub.textContent = msg || tWeb('access_denied_sub');
+      }
+      var form = document.getElementById('mainForm');
+      if (form) form.style.display = 'none';
+    }
+
+    function updateGitVersionDisplay() {
+      var commitHashEl = document.getElementById('gitCommitHash');
+      var linkEl = document.getElementById('gitVersionLink');
+      if (!commitHashEl) return;
+      if (linkEl) {
+        linkEl.onclick = function (e) {
+          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
+            e.preventDefault();
+            window.Telegram.WebApp.openLink(this.href);
+          }
+        };
+      }
+      try {
+        fetch('https://api.github.com/repos/luksiko/OneCoinCamp/commits/flatback?_t=' + Date.now(), {
+          cache: 'no-cache',
+          headers: { 'Accept': 'application/vnd.github.v3+json' }
+        })
+          .then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+          })
+          .then(function (data) {
+            if (data && data.sha) {
+              var shortSha = data.sha.substring(0, 7);
+              commitHashEl.textContent = shortSha;
+              if (linkEl) {
+                linkEl.href = 'https://github.com/luksiko/OneCoinCamp/commit/' + data.sha;
+                var msg = data.commit && data.commit.message ? data.commit.message.split('\n')[0] : '';
+                if (msg) linkEl.title = msg;
+              }
+            }
+          })
+          .catch(function () {});
+      } catch (e) {}
+    }
+
+    function init() {
+      if (!(tg && getInitData()) && !getBrowserSession()) {
+        setupBrowserTelegramLogin();
+        return;
+      }
+      document.documentElement.classList.remove('browser-auth-required');
+      if (!(tg && getInitData())) {
+        document.documentElement.classList.add('browser-authenticated');
+        document.getElementById('browserLogout').onclick = function () {
+          localStorage.removeItem('camper_monitor_telegram_session');
+          location.reload();
+        };
+      }
+      if (tg && getInitData()) {
+        tg.ready();
+        tg.expand();
+        tg.MainButton.hide(); // Отключаем нативную кнопку, чтобы не ломать табы
+      }
+      updateGitVersionDisplay();
+      document.getElementById('btnRun').onclick = runCheck;
+      var btnTriggers = document.getElementById('btnTriggers');
+      if (btnTriggers) btnTriggers.onclick = installTriggers;
+      var btnCheckAvail = document.getElementById('btnCheckAvail');
+      if (btnCheckAvail) btnCheckAvail.onclick = checkAvailability;
+      document.getElementById('btnAddRoute').onclick = addRoute;
+      document.getElementById('btnSave').onclick = saveSettings;
+      var btnSaveMain = document.getElementById('btnSaveMain');
+      if (btnSaveMain) btnSaveMain.onclick = saveSettings;
+      document.getElementById('telegramEnabled').onchange = function () {
+        state.settings.telegram_enabled = this.checked;
+      };
+      var silentHoursEl = document.getElementById('silentHoursEnabled');
+      if (silentHoursEl) {
+        silentHoursEl.onchange = function () {
+          if (!state) return;
+          if (!state.filters) state.filters = {};
+          state.filters.silent_hours_enabled = this.checked;
+          var statusEl = document.getElementById('silentHoursStatusText');
+          if (statusEl) {
+            statusEl.textContent = this.checked ? tWeb('silent_on') : tWeb('silent_off');
+          }
+        };
+      }
+      var silentStartEl = document.getElementById('silentHoursStart');
+      if (silentStartEl) {
+        silentStartEl.onchange = function () {
+          if (!state) return;
+          if (!state.filters) state.filters = {};
+          state.filters.silent_hours_start = this.value;
+        };
+      }
+      var silentEndEl = document.getElementById('silentHoursEnd');
+      if (silentEndEl) {
+        silentEndEl.onchange = function () {
+          if (!state) return;
+          if (!state.filters) state.filters = {};
+          state.filters.silent_hours_end = this.value;
+        };
+      }
+      var btnToggleWebhook = document.getElementById('btnToggleWebhook');
+      if (btnToggleWebhook) {
+        btnToggleWebhook.onclick = function () {
+          btnToggleWebhook.disabled = true;
+          btnToggleWebhook.textContent = tWeb('loading') || 'Подождите…';
+          google.script.run
+            .withSuccessHandler(function (res) {
+              btnToggleWebhook.disabled = false;
+              btnToggleWebhook.textContent = tWeb('btn_reconnect_webhook');
+              toast(res && res.description ? res.description : (res && res.message ? res.message : 'Готово!'), !(res && res.ok));
+              load();
+            })
+            .withFailureHandler(function (err) {
+              btnToggleWebhook.disabled = false;
+              btnToggleWebhook.textContent = tWeb('btn_reconnect_webhook');
+              var msg = (err && err.message) || String(err);
+              toast(msg, true);
+            })
+            .registerTelegramWebhookWeb(getInitData());
+        };
+      }
+      // Show offers tab only in development (when skipAuth is enabled)
+      var tabNav = document.getElementById('tabNav');
+      google.script.run.withSuccessHandler(function(data) {
+        if (data && data.offersTabEnabled && tabNav) {
+          tabNav.style.display = 'flex';
+        }
+      }).withFailureHandler(function() {}).getUiData(getInitData());
+      
+      var initialLang = 'ru';
+      try {
+        var localLang = localStorage.getItem('camper_monitor_lang');
+        if (localLang && I18N_WEB[localLang]) {
+          initialLang = localLang;
+        } else if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) {
+          var rawCode = String(tg.initDataUnsafe.user.language_code).toLowerCase().slice(0, 2);
+          if (I18N_WEB[rawCode]) {
+            initialLang = rawCode;
+          }
+        }
+      } catch (e) {}
+      setAppLanguage(initialLang, false);
+
+      switchTab(currentTab);
+      load();
+    }
+
+    function load() {
+      var initData = getInitData();
+      google.script.run
+        .withSuccessHandler(function (data) {
+          var form = document.getElementById('mainForm');
+          if (form) form.style.display = 'block';
+          if (data && data.language && I18N_WEB[data.language] && !localStorage.getItem('camper_monitor_lang')) {
+            setAppLanguage(data.language, false);
+          }
+          render(data);
+          checkHealth();
+        })
+        .withFailureHandler(function (err) {
+          var msg = (err && err.message) || err || 'Ошибка загрузки';
+          showAccessDenied(msg);
+          toast(msg, true);
+        })
+        .getUiData(initData);
+    }
+
+    function isProvActive(p) {
+      if (!state || !state.settings) return true;
+      var val = state.settings['provider_' + p + '_enabled'];
+      return val !== undefined ? isTruthy(val) : true;
+    }
+
+    function updateHealthVisibility() {
+      var map = {
+        roadsurfer: 'healthRowRs',
+        movacar: 'healthRowMv',
+        indiecampers: 'healthRowIc',
+        imoova: 'healthRowIm'
+      };
+      Object.keys(map).forEach(function (p) {
+        var row = document.getElementById(map[p]);
+        if (row) {
+          row.style.display = isProvActive(p) ? 'flex' : 'none';
+        }
+      });
+    }
+
+    function checkHealth(forceRefresh) {
+      updateHealthVisibility();
+      var initData = getInitData();
+      var rs = document.getElementById('healthRs');
+      var mv = document.getElementById('healthMv');
+      var ic = document.getElementById('healthIc');
+      var im = document.getElementById('healthIm');
+      var tg = document.getElementById('healthTg');
+      if (rs && isProvActive('roadsurfer')) { rs.textContent = '⏳ ' + tWeb('checking'); rs.style.color = 'var(--hint)'; }
+      if (mv && isProvActive('movacar')) { mv.textContent = '⏳ ' + tWeb('checking'); mv.style.color = 'var(--hint)'; }
+      if (ic && isProvActive('indiecampers')) { ic.textContent = '⏳ ' + tWeb('checking'); ic.style.color = 'var(--hint)'; }
+      if (im && isProvActive('imoova')) { im.textContent = '⏳ ' + tWeb('checking'); im.style.color = 'var(--hint)'; }
+      if (tg) { tg.textContent = '⏳ ' + tWeb('checking'); tg.style.color = 'var(--hint)'; }
+
+      google.script.run
+        .withSuccessHandler(function (h) {
+          if (!h) return;
+          if (rs && h.roadsurfer && isProvActive('roadsurfer')) {
+            rs.textContent = (h.roadsurfer.ok ? '🟢 ' : '🔴 ') + h.roadsurfer.message;
+            rs.style.color = h.roadsurfer.ok ? 'var(--success)' : 'var(--danger)';
+          }
+          if (mv && h.movacar && isProvActive('movacar')) {
+            mv.textContent = (h.movacar.ok ? '🟢 ' : '🔴 ') + h.movacar.message;
+            mv.style.color = h.movacar.ok ? 'var(--success)' : 'var(--danger)';
+          }
+          if (ic && h.indiecampers && isProvActive('indiecampers')) {
+            ic.textContent = (h.indiecampers.ok ? '🟢 ' : '🔴 ') + h.indiecampers.message;
+            ic.style.color = h.indiecampers.ok ? 'var(--success)' : 'var(--danger)';
+          }
+          if (im && h.imoova && isProvActive('imoova')) {
+            im.textContent = (h.imoova.ok ? '🟢 ' : '🔴 ') + h.imoova.message;
+            im.style.color = h.imoova.ok ? 'var(--success)' : 'var(--danger)';
+          }
+          if (tg && h.telegram) {
+            tg.textContent = (h.telegram.ok ? '🟢 ' : '🔴 ') + h.telegram.message;
+            tg.style.color = h.telegram.ok ? 'var(--success)' : 'var(--danger)';
+          }
+        })
+        .withFailureHandler(function (err) {
+          if (rs) rs.textContent = '❌ ' + tWeb('status_error');
+        })
+        .checkProvidersHealth(initData, !!forceRefresh);
+    }
+
+    function render(data) {
+      state = data;
+      var webhookActive = !!(data && data.telegramWebhookActive);
+      var webhookBtn = document.getElementById('btnToggleWebhook');
+      var webhookDesc = document.getElementById('webhookStatusDesc');
+      if (webhookBtn && webhookDesc) {
+        webhookDesc.textContent = webhookActive ? tWeb('webhook_active_desc') : tWeb('webhook_inactive_desc');
+        webhookBtn.textContent = tWeb('btn_reconnect_webhook');
+        webhookBtn.style.color = '';
+      }
+      
+      var tabAdmin = document.getElementById('tabAdmin');
+      if (tabAdmin) tabAdmin.style.display = data.isAdmin ? 'flex' : 'none';
+      
+      renderSubscriptionBanner();
+      initPaddle(data);
+
+      renderStatus();
+      renderSettings();
+      renderRoutes();
+    }
+
+    function renderStatus() {
+      var st = state.status || {};
+      var lastRun = st.lastRun;
+      var bannerTitle = document.getElementById('bannerTitle');
+      var bannerSub = document.getElementById('bannerSub');
+      var emoji = '🟢';
+      var title = tWeb('status_active');
+      var parts = [tWeb('status_trigger_every', { min: st.intervalMinutes })];
+      var freshness = st.freshness || {};
+      var isStale = freshness.isStale === true;
+
+      if (isStale) {
+        emoji = '🔴';
+        title = freshness.ageMinutes === null
+          ? tWeb('status_not_run_no_data')
+          : tWeb('status_not_run_age', { min: freshness.ageMinutes });
+        parts.push(tWeb('status_threshold', { min: freshness.thresholdMinutes }));
+      }
+
+      if (state.telegramReady === false) {
+        parts.push(tWeb('status_tg_not_configured'));
+      }
+      if (lastRun) {
+        if (!isStale && lastRun.status && !['ok', 'partial'].includes(String(lastRun.status).toLowerCase())) {
+          emoji = '⚠️';
+          title = tWeb('status_last_check_error');
+          if (lastRun.error) {
+            parts.push(String(lastRun.error).slice(0, 80));
+          }
+        }
+        parts.push(tWeb('status_last_check', { time: timeAgo(lastRun.finished_at || lastRun.started_at) }));
+        if (lastRun.offers_found !== undefined && lastRun.offers_found !== null && lastRun.offers_found !== '') {
+          parts.push(tWeb('status_offers_found', { count: lastRun.offers_found }));
+        }
+      } else {
+        parts.push(tWeb('status_not_run_yet'));
+      }
+      if (state.monitorError) {
+        var isStaleErr = false;
+        var m = String(state.monitorError).match(/^(\d{4}-\d{2}-\d{2}T[\d:.]+Z?)/);
+        if (m && lastRun && (lastRun.finished_at || lastRun.started_at)) {
+          var errDate = new Date(m[1]);
+          var runDate = new Date(lastRun.finished_at || lastRun.started_at);
+          if (!isNaN(errDate.getTime()) && !isNaN(runDate.getTime()) && runDate > errDate) {
+            isStaleErr = true;
+          }
+        }
+        if (!isStaleErr) {
+          parts.push('⚠️ ' + String(state.monitorError).slice(0, 120));
+        }
+      }
+      bannerSub.innerHTML = '';
+      parts.forEach(function (part, i) {
+        var span = document.createElement('div');
+        span.textContent = part;
+        if (i === 0) { span.className = 'ok'; }
+        bannerSub.appendChild(span);
+      });
+      document.querySelector('#banner .emoji').textContent = emoji;
+      document.getElementById('banner').classList.toggle('stale', isStale);
+      bannerTitle.textContent = title;
+    }
+
+    function renderSettings() {
+      if (!state.isAdmin) {
+        ['intervalSeg', 'checkNeighbors', 'telegramEnabled', 'webhookField', 'notifyAllByPrice'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) {
+            var field = el.closest('.field');
+            if (field) field.style.display = 'none';
+          }
+        });
+        var cardCompanies = document.getElementById('cardCompanies');
+        if (cardCompanies) cardCompanies.style.display = 'none';
+        var cardTriggers = document.getElementById('cardTriggers');
+        if (cardTriggers) cardTriggers.style.display = 'none';
+      }
+
+      renderSeg('intervalSeg', INTERVALS,
+        String(state.settings.poll_interval_minutes),
+        function (v) { state.settings.poll_interval_minutes = v; });
+      var neighborsEl = document.getElementById('checkNeighbors');
+      if (neighborsEl) {
+        neighborsEl.checked = !!state.settings.check_neighbors;
+        neighborsEl.onchange = function () {
+          state.settings.check_neighbors = neighborsEl.checked;
+        };
+      }
+      document.getElementById('telegramEnabled').checked = isTruthy(state.settings.telegram_enabled);
+      var silentHoursEl = document.getElementById('silentHoursEnabled');
+      var silentStatusTextEl = document.getElementById('silentHoursStatusText');
+      var silentStartEl = document.getElementById('silentHoursStart');
+      var silentEndEl = document.getElementById('silentHoursEnd');
+
+      var isSilent = state.filters && isTruthy(state.filters.silent_hours_enabled);
+      if (silentHoursEl) {
+        silentHoursEl.checked = isSilent;
+      }
+      if (silentStatusTextEl) {
+        silentStatusTextEl.textContent = isSilent ? 'Включены ✅' : 'Выключены ⬜';
+      }
+      if (silentStartEl) {
+        silentStartEl.value = (state.filters && state.filters.silent_hours_start) || '23:00';
+      }
+      if (silentEndEl) {
+        silentEndEl.value = (state.filters && state.filters.silent_hours_end) || '07:00';
+      }
+      var maxPriceEl = document.getElementById('maxPriceInput');
+      if (maxPriceEl) {
+        var maxPrice = state.filters && state.filters.max_price != null && state.filters.max_price !== ''
+          ? state.filters.max_price
+          : '';
+        maxPriceEl.value = maxPrice;
+        maxPriceEl.oninput = maxPriceEl.onchange = function () {
+          if (!state.filters) { state.filters = {}; }
+          state.filters.max_price = this.value;
+        };
+      }
+      var notifyAllEl = document.getElementById('notifyAllByPrice');
+      if (notifyAllEl) {
+        notifyAllEl.checked = isTruthy(state.settings && state.settings.notify_all_by_price);
+        notifyAllEl.onchange = function () {
+          if (!state.settings) { state.settings = {}; }
+          state.settings.notify_all_by_price = notifyAllEl.checked;
+        };
+      }
+
+      renderCountryChips(
+        'originCountriesChips',
+        'originCountriesCount',
+        'allowed_origin_countries',
+        'btnAllOriginCountries',
+        'btnClearOriginCountries'
+      );
+      renderCountryChips(
+        'destCountriesChips',
+        'destCountriesCount',
+        'allowed_destination_countries',
+        'btnAllDestCountries',
+        'btnClearDestCountries'
+      );
+
+      var minDaysEl = document.getElementById('minTripDaysInput');
+      if (minDaysEl) {
+        minDaysEl.value = (state.filters && state.filters.min_trip_days) || '';
+        minDaysEl.oninput = minDaysEl.onchange = function () {
+          if (!state.filters) { state.filters = {}; }
+          state.filters.min_trip_days = this.value ? Number(this.value) : '';
+        };
+      }
+
+      var maxDaysEl = document.getElementById('maxTripDaysInput');
+      if (maxDaysEl) {
+        maxDaysEl.value = (state.filters && state.filters.max_trip_days) || '';
+        maxDaysEl.oninput = maxDaysEl.onchange = function () {
+          if (!state.filters) { state.filters = {}; }
+          state.filters.max_trip_days = this.value ? Number(this.value) : '';
+        };
+      }
+
+      var providers = [
+        { id: 'providerRoadsurfer', key: 'provider_roadsurfer_enabled' },
+        { id: 'providerMovacar', key: 'provider_movacar_enabled' },
+        { id: 'providerIndiecampers', key: 'provider_indiecampers_enabled' },
+        { id: 'providerImoova', key: 'provider_imoova_enabled' }
+      ];
+      providers.forEach(function (p) {
+        var el = document.getElementById(p.id);
+        if (el) {
+          var val = state.settings[p.key];
+          el.checked = val !== undefined ? isTruthy(val) : true;
+          el.onchange = function () {
+            state.settings[p.key] = el.checked;
+            renderRoutes();
+            updateHealthVisibility();
+          };
+        }
+      });
+      updateHealthVisibility();
+    }
+
+    function renderSeg(id, values, selected, onPick) {
+      var root = document.getElementById(id);
+      root.innerHTML = '';
+      values.forEach(function (v) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = v;
+        btn.className = String(v) === String(selected) ? 'selected' : '';
+        btn.onclick = function () {
+          onPick(v);
+          Array.prototype.forEach.call(root.children, function (b) { b.classList.remove('selected'); });
+          btn.classList.add('selected');
+        };
+        root.appendChild(btn);
+      });
+    }
+
+
+
+    function renderRoutes() {
+      var list = document.getElementById('routesList');
+      list.innerHTML = '';
+      if (!state.routes.length) {
+        var empty = document.createElement('div');
+        empty.className = 'empty-hint';
+        empty.textContent = tWeb('empty_routes');
+        list.appendChild(empty);
+        return;
+      }
+      state.routes.forEach(function (route, index) {
+        list.appendChild(buildRouteCard(route, index));
+      });
+    }
+
+    function buildRouteCard(route, index) {
+      var card = document.createElement('div');
+      card.className = 'route';
+
+      if (route._editing) {
+        card.appendChild(buildRouteEditor(route, index));
+        return card;
+      }
+
+      var origText = formatRouteStationName(route.originId, route.originName);
+      var destText = formatRouteStationName(route.destinationId, route.destinationName);
+      var head = document.createElement('div');
+      head.className = 'route-head';
+      head.textContent = flagEmoji(route.originCountry) + ' ' + origText + '  ➔  ' +
+        flagEmoji(route.destinationCountry) + ' ' + destText;
+      var badge = document.createElement('span');
+      badge.className = 'src';
+      badge.textContent = route.source;
+      head.appendChild(badge);
+
+      var rVType = String(route.vehicle_type || route.vehicleType || 'all').toLowerCase().trim();
+      var vBadge = document.createElement('span');
+      vBadge.className = 'src';
+      vBadge.style.cssText = 'margin-left:6px;';
+      if (rVType === 'camper') {
+        vBadge.textContent = tWeb('campers_badge');
+      } else if (rVType === 'car') {
+        vBadge.textContent = tWeb('cars_badge');
+      } else {
+        vBadge.textContent = tWeb('all_badge');
+      }
+      head.appendChild(vBadge);
+
+      var provKey = 'provider_' + String(route.source || '').toLowerCase().trim() + '_enabled';
+      var isProvEnabled = state.settings[provKey] !== undefined ? isTruthy(state.settings[provKey]) : true;
+      if (!isProvEnabled) {
+        var offBadge = document.createElement('span');
+        offBadge.style.cssText = 'font-size:11px;color:#f87171;background:rgba(239,68,68,0.15);padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:500;';
+        offBadge.textContent = tWeb('company_disabled');
+        head.appendChild(offBadge);
+      }
+
+      var edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'delete-link';
+      edit.title = tWeb('edit_route');
+      edit.textContent = '✏️';
+      edit.onclick = function () {
+        route._editing = true;
+        renderRoutes();
+      };
+      head.appendChild(edit);
+      card.appendChild(head);
+
+      var foot = document.createElement('div');
+      foot.className = 'route-foot';
+      foot.appendChild(routeDates(route));
+
+      var w = route.window || state.window;
+      var daysUnit = currentAppLang === 'ru' || currentAppLang === 'uk' ? 'дн' : (currentAppLang === 'de' ? 'Tage' : (currentAppLang === 'it' ? 'gg' : 'days'));
+      var daysLabel = document.createTextNode('(' + w.days + ' ' + daysUnit + ')');
+      foot.appendChild(daysLabel);
+
+      if (state.settings.check_neighbors) {
+        var nbSpan = document.createElement('span');
+        nbSpan.style.cssText = 'font-size:11px;color:var(--accent);margin-left:4px;';
+        var nbText = currentAppLang === 'ru' || currentAppLang === 'uk' ? '±2д' : (currentAppLang === 'de' ? '±2T' : (currentAppLang === 'it' ? '±2gg' : '±2d'));
+        nbSpan.textContent = nbText;
+        foot.appendChild(nbSpan);
+      }
+
+      var spacer = document.createElement('span');
+      spacer.className = 'spacer';
+      foot.appendChild(spacer);
+
+      var sw = document.createElement('label');
+      sw.className = 'switch';
+      var chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.checked = isTruthy(route.enabled);
+      chk.onchange = function () {
+        route.enabled = chk.checked;
+        if (chk.checked && isProvEnabled) { card.classList.remove('off'); } else { card.classList.add('off'); }
+      };
+      var slider = document.createElement('span');
+      slider.className = 'slider';
+      sw.appendChild(chk);
+      sw.appendChild(slider);
+      foot.appendChild(sw);
+
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'delete-link';
+      del.title = tWeb('delete_btn');
+      del.textContent = '🗑';
+      del.onclick = function () {
+        state.routes.splice(index, 1);
+        renderRoutes();
+      };
+      foot.appendChild(del);
+
+      card.appendChild(foot);
+      if (!isTruthy(route.enabled) || !isProvEnabled) { card.classList.add('off'); }
+      return card;
+    }
+
+    function routeDates(route) {
+      var w = route.window || state.window;
+      return document.createTextNode(shortDate(w.start) + ' — ' + shortDate(w.end) + ' ');
+    }
+
+    function buildRouteEditor(route, index) {
+      var wrap = document.createElement('div');
+      wrap.className = 'route-edit';
+      wrap.appendChild(fieldLabel(tWeb('field_source')));
+      wrap.appendChild(select(['roadsurfer', 'movacar', 'indiecampers', 'imoova'], route.source, function (v) {
+        route.source = v;
+        renderRoutes();
+      }));
+
+      var vTypes = [
+        { id: 'all', label: tWeb('vtype_all_opt') },
+        { id: 'camper', label: tWeb('vtype_camper_opt') },
+        { id: 'car', label: tWeb('vtype_car_opt') }
+      ];
+      wrap.appendChild(fieldLabel(tWeb('field_vehicle_type')));
+      var vTypeSelect = document.createElement('select');
+      vTypes.forEach(function(vt) {
+        var opt = document.createElement('option');
+        opt.value = vt.id;
+        opt.textContent = vt.label;
+        vTypeSelect.appendChild(opt);
+      });
+      vTypeSelect.value = route.vehicle_type || route.vehicleType || 'all';
+      vTypeSelect.onchange = function() {
+        route.vehicle_type = vTypeSelect.value;
+        route.vehicleType = vTypeSelect.value;
+      };
+      wrap.appendChild(vTypeSelect);
+
+      var countries = document.createElement('div');
+      countries.className = 'pair';
+      countries.appendChild(fieldGroup(tWeb('field_origin_country'), countrySelect(route.originCountry, function (v) {
+        route.originCountry = v;
+        route.originId = '*';
+        route.originName = tWeb('all_cities');
+        renderRoutes();
+      })));
+      countries.appendChild(fieldGroup(tWeb('field_dest_country'), countrySelect(route.destinationCountry, function (v) {
+        route.destinationCountry = v;
+        route.destinationId = '*';
+        route.destinationName = tWeb('all_cities');
+        renderRoutes();
+      }, true)));
+      wrap.appendChild(countries);
+
+      var stations = document.createElement('div');
+      stations.className = 'pair';
+      stations.appendChild(fieldGroup(tWeb('field_origin_city'), providerStationSelect(route, 'origin')));
+      stations.appendChild(fieldGroup(tWeb('field_dest_city'), providerDestinationSelect(route)));
+      wrap.appendChild(stations);
+
+      var dates = document.createElement('div');
+      dates.className = 'pair';
+      dates.appendChild(fieldGroup(tWeb('field_date_from'), dateInput(route.pickupDate, function (v) { route.pickupDate = v; })));
+      dates.appendChild(fieldGroup(tWeb('field_date_to'), dateInput(route.returnDate, function (v) { route.returnDate = v; })));
+      wrap.appendChild(dates);
+
+      var datesHint = document.createElement('div');
+      datesHint.style.cssText = 'font-size:12px;color:var(--hint);margin-bottom:12px;margin-top:-2px;';
+      datesHint.textContent = (!route.pickupDate && !route.returnDate) ? tWeb('dates_empty_hint') : '';
+      wrap.appendChild(datesHint);
+
+      var btnDone = document.createElement('button');
+      btnDone.type = 'button';
+      btnDone.className = 'btn btn-accent';
+      btnDone.textContent = tWeb('btn_done');
+      btnDone.onclick = function () {
+        route._editing = undefined;
+        renderRoutes();
+      };
+      wrap.appendChild(btnDone);
+      return wrap;
+    }
+
+    function providerStationSelect(route, kind) {
+      var idKey = kind === 'origin' ? 'originId' : 'destinationId';
+      var nameKey = kind === 'origin' ? 'originName' : 'destinationName';
+      var country = kind === 'origin' ? route.originCountry : route.destinationCountry;
+      var sel = document.createElement('select');
+      sel.disabled = true;
+      var loading = document.createElement('option');
+      loading.textContent = country ? tWeb('loading_cities') : tWeb('select_country_first');
+      loading.value = '';
+      sel.appendChild(loading);
+      if (!country) return sel;
+
+      google.script.run
+        .withSuccessHandler(function (stations) {
+          sel.innerHTML = '';
+          var wildcardOpt = document.createElement('option');
+          wildcardOpt.value = '*';
+          wildcardOpt.textContent = tWeb('all_cities_wildcard');
+          wildcardOpt.dataset.name = tWeb('all_cities');
+          sel.appendChild(wildcardOpt);
+
+          stations.forEach(function (station) {
+            var option = document.createElement('option');
+            option.value = String(station.id);
+            option.textContent = station.name;
+            option.dataset.name = station.name;
+            sel.appendChild(option);
+          });
+
+          var curVal = String(route[idKey] || '*');
+          if (isWildcardStation(curVal) || isWildcardCityName(route[nameKey])) {
+            sel.value = '*';
+          } else {
+            sel.value = curVal;
+          }
+          sel.disabled = false;
+          sel.onchange = function () {
+            var prevId = route[idKey];
+            route[idKey] = sel.value;
+            var opt = sel.options[sel.selectedIndex];
+            route[nameKey] = (opt && opt.dataset.name) || (isWildcardStation(sel.value) ? tWeb('all_cities') : '');
+            if (kind === 'origin' && prevId !== route.originId) {
+              route.destinationId = '*';
+              route.destinationName = tWeb('all_cities');
+              renderRoutes();
+            }
+          };
+        })
+        .withFailureHandler(function () {
+          loading.textContent = tWeb('failed_load_cities');
+        })
+        .getProviderStations(route.source, [country], getInitData());
+      return sel;
+    }
+
+    function providerDestinationSelect(route) {
+      var sel = document.createElement('select');
+      sel.disabled = true;
+      var loading = document.createElement('option');
+      loading.value = '';
+      if (!route.originCountry && !route.originId) {
+        loading.textContent = tWeb('select_origin_country_first');
+        sel.appendChild(loading);
+        return sel;
+      }
+      var countryFilter = route.destinationCountry ? [route.destinationCountry] : [];
+      loading.textContent = tWeb('loading_destinations');
+      sel.appendChild(loading);
+
+      var expectedOriginId = String(route.originId || '*');
+
+      google.script.run
+        .withSuccessHandler(function (destinations) {
+          if (String(route.originId || '*') !== expectedOriginId) return;
+
+          sel.innerHTML = '';
+          var wildcardOpt = document.createElement('option');
+          wildcardOpt.value = '*';
+          wildcardOpt.textContent = tWeb('all_cities_wildcard');
+          wildcardOpt.dataset.name = tWeb('all_cities');
+          sel.appendChild(wildcardOpt);
+
+          destinations.forEach(function (dest) {
+            var option = document.createElement('option');
+            option.value = String(dest.id);
+            option.textContent = dest.name;
+            option.dataset.name = dest.name;
+            sel.appendChild(option);
+          });
+          var curVal = String(route.destinationId || '*');
+          if (isWildcardStation(curVal) || isWildcardCityName(route.destinationName)) {
+            sel.value = '*';
+          } else {
+            sel.value = curVal;
+          }
+          sel.disabled = false;
+          sel.onchange = function () {
+            route.destinationId = sel.value;
+            var opt = sel.options[sel.selectedIndex];
+            route.destinationName = (opt && opt.dataset.name) || (isWildcardStation(sel.value) ? tWeb('all_cities') : '');
+          };
+        })
+        .withFailureHandler(function () {
+          if (String(route.originId || '*') !== expectedOriginId) return;
+          loading.textContent = tWeb('failed_load_destinations');
+        })
+        .getProviderDestinations(route.source, route.originId || '*', countryFilter, getInitData());
+      return sel;
+    }
+
+    function addRoute() {
+      var route = {
+        enabled: true,
+        source: 'roadsurfer',
+        vehicle_type: 'all',
+        vehicleType: 'all',
+        originName: tWeb('all_cities'),
+        originId: '*',
+        destinationName: tWeb('all_cities'),
+        destinationId: '*',
+        originCountry: 'DE',
+        destinationCountry: 'IT',
+        _editing: true
+      };
+      state.routes.push(route);
+      renderRoutes();
+    }
+
+    function setSavingState(saving, done) {
+      var buttons = [
+        document.getElementById('btnSave'),
+        document.getElementById('btnSaveMain')
+      ];
+      buttons.forEach(function(btn) {
+        if (!btn) return;
+        if (saving) {
+          btn.disabled = true;
+          btn.classList.add('btn-saving');
+          btn.classList.remove('btn-done');
+        } else if (done) {
+          btn.disabled = false;
+          btn.classList.remove('btn-saving');
+          btn.classList.add('btn-done');
+          var spinner = btn.querySelector('.save-spinner');
+          var origInner = btn._origInner;
+          // Temporarily show checkmark label
+          var saveText = btn.querySelector('.save-label');
+          if (saveText) saveText.textContent = tWeb('saved');
+          btn._doneTimer = setTimeout(function() {
+            btn.classList.remove('btn-done');
+            if (origInner) btn.innerHTML = origInner;
+          }, 1600);
+        } else {
+          btn.disabled = false;
+          btn.classList.remove('btn-saving', 'btn-done');
+          if (btn._origInner) btn.innerHTML = btn._origInner;
+        }
+      });
+    }
+
+    function saveSettings() {
+      var initData = getInitData();
+      var pRs = document.getElementById('providerRoadsurfer');
+      var pMv = document.getElementById('providerMovacar');
+      var pIc = document.getElementById('providerIndiecampers');
+      var pIm = document.getElementById('providerImoova');
+      var silentHoursEl = document.getElementById('silentHoursEnabled');
+      var silentStartEl = document.getElementById('silentHoursStart');
+      var silentEndEl = document.getElementById('silentHoursEnd');
+      var notifyAllEl = document.getElementById('notifyAllByPrice');
+      if (notifyAllEl) { state.settings.notify_all_by_price = notifyAllEl.checked; }
+      if (pRs) { state.settings.provider_roadsurfer_enabled = pRs.checked; }
+      if (pMv) { state.settings.provider_movacar_enabled = pMv.checked; }
+      if (pIc) { state.settings.provider_indiecampers_enabled = pIc.checked; }
+      if (pIm) { state.settings.provider_imoova_enabled = pIm.checked; }
+      if (!state.filters) { state.filters = {}; }
+      if (silentHoursEl) { state.filters.silent_hours_enabled = silentHoursEl.checked; }
+      if (silentStartEl && silentStartEl.value) { state.filters.silent_hours_start = silentStartEl.value; }
+      if (silentEndEl && silentEndEl.value) { state.filters.silent_hours_end = silentEndEl.value; }
+
+      var maxPriceEl = document.getElementById('maxPriceInput');
+      var minDaysEl = document.getElementById('minTripDaysInput');
+      var maxDaysEl = document.getElementById('maxTripDaysInput');
+      if (maxPriceEl) { state.filters.max_price = maxPriceEl.value.trim(); }
+      if (minDaysEl) { state.filters.min_trip_days = minDaysEl.value ? Number(minDaysEl.value) : ''; }
+      if (maxDaysEl) { state.filters.max_trip_days = maxDaysEl.value ? Number(maxDaysEl.value) : ''; }
+      var isOnlyCampers = state.filters.only_campers !== false && state.filters.vehicle_type !== 'all';
+      state.filters.only_campers = isOnlyCampers;
+      state.filters.vehicle_type = isOnlyCampers ? 'camper' : 'all';
+
+      var payload = {
+        language: currentAppLang,
+        settings: {
+          poll_interval_minutes: state.settings.poll_interval_minutes,
+          window_days: state.settings.window_days,
+          check_neighbors: state.settings.check_neighbors,
+          telegram_enabled: state.settings.telegram_enabled,
+          notify_all_by_price: state.settings.notify_all_by_price !== undefined ? !!state.settings.notify_all_by_price : false,
+          provider_roadsurfer_enabled: state.settings.provider_roadsurfer_enabled !== undefined ? state.settings.provider_roadsurfer_enabled : true,
+          provider_movacar_enabled: state.settings.provider_movacar_enabled !== undefined ? state.settings.provider_movacar_enabled : true,
+          provider_indiecampers_enabled: state.settings.provider_indiecampers_enabled !== undefined ? state.settings.provider_indiecampers_enabled : true,
+          provider_imoova_enabled: state.settings.provider_imoova_enabled !== undefined ? state.settings.provider_imoova_enabled : true
+        },
+        filters: {
+          allowed_origin_countries: (state.filters.allowed_origin_countries || []).slice(),
+          allowed_destination_countries: (state.filters.allowed_destination_countries || []).slice(),
+          min_trip_days: state.filters.min_trip_days != null ? state.filters.min_trip_days : '',
+          max_trip_days: state.filters.max_trip_days != null ? state.filters.max_trip_days : '',
+          max_price: state.filters.max_price != null ? state.filters.max_price : '',
+          only_campers: state.filters.only_campers,
+          vehicle_type: state.filters.vehicle_type,
+          silent_hours_enabled: state.filters.silent_hours_enabled !== undefined ? !!state.filters.silent_hours_enabled : false,
+          silent_hours_start: state.filters.silent_hours_start || '23:00',
+          silent_hours_end: state.filters.silent_hours_end || '07:00',
+          allowed_operators: state.filters.allowed_operators || [],
+          movacar_operators: state.filters.movacar_operators || [],
+        },
+        routes: state.routes.map(function (r) {
+          var copy = {};
+          Object.keys(r).forEach(function (k) { if (k !== '_editing') { copy[k] = r[k]; } });
+          return copy;
+        })
+      };
+
+      // Store original button HTML for restoration, cancel any pending done-restore
+      [document.getElementById('btnSave'), document.getElementById('btnSaveMain')].forEach(function(btn) {
+        if (!btn) return;
+        if (btn._doneTimer) {
+          clearTimeout(btn._doneTimer);
+          btn._doneTimer = null;
+          // Restore from already-stored original before re-saving
+          if (btn._origInner) btn.innerHTML = btn._origInner;
+        } else {
+          btn._origInner = btn.innerHTML;
+        }
+      });
+
+      setSavingState(true);
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          // result is now { ok: true } — no full reload needed
+          setSavingState(false, true);
+          toast(tWeb('saved'));
+        })
+        .withFailureHandler(function (err) {
+          setSavingState(false, false);
+          toast((err && err.message) || tWeb('save_error'), true);
+        })
+        .saveUiData(payload, initData);
+    }
+
+    function installTriggers() {
+      var initData = getInitData();
+      google.script.run
+        .withSuccessHandler(function (created) {
+          if (created && created.length) {
+            toast(tWeb('triggers_restored') + created.join(', '));
+          } else {
+            toast(tWeb('triggers_already_ok'));
+          }
+          load();
+        })
+        .withFailureHandler(function (err) { toast((err && err.message) || tWeb('triggers_install_error'), true); })
+        .ensureTriggersFromUi(initData);
+    }
+
+    function runCheck() {
+      var initData = getInitData();
+      var btn = document.getElementById('btnRun');
+      if (btn) btn.disabled = true;
+      google.script.run
+        .withSuccessHandler(function () {
+          toast(tWeb('check_started'));
+          setTimeout(function () {
+            if (btn) btn.disabled = false;
+            load();
+          }, 4000);
+        })
+        .withFailureHandler(function (err) {
+          if (btn) btn.disabled = false;
+          toast((err && err.message) || tWeb('check_start_error'), true);
+        })
+        .runMonitorFromUi(initData);
+    }
+
+    function renderCountryChips(containerId, countElId, filterKey, btnAllId, btnClearId) {
+      var container = document.getElementById(containerId);
+      var countEl = document.getElementById(countElId);
+      if (!container) return;
+      container.innerHTML = '';
+      if (!state.filters) { state.filters = {}; }
+      if (!Array.isArray(state.filters[filterKey])) {
+        state.filters[filterKey] = [];
+      }
+      var selected = state.filters[filterKey];
+      var allCountries = state.countries || [];
+
+      function updateCount() {
+        if (!countEl) return;
+        if (selected.length === 0) {
+          countEl.textContent = tWeb('all_countries_allowed');
+        } else {
+          countEl.textContent = tWeb('selected_count', { selected: selected.length, total: allCountries.length });
+        }
+      }
+
+      allCountries.forEach(function (c) {
+        var code = c[0];
+        var name = getCountryDisplayName(code, currentAppLang);
+        var chip = document.createElement('button');
+        chip.type = 'button';
+        var isSel = selected.indexOf(code) !== -1;
+        chip.className = 'filter-chip' + (isSel ? ' active' : '');
+        chip.textContent = flagEmoji(code) + ' ' + name;
+        chip.onclick = function () {
+          var idx = selected.indexOf(code);
+          if (idx !== -1) {
+            selected.splice(idx, 1);
+            chip.className = 'filter-chip';
+          } else {
+            selected.push(code);
+            chip.className = 'filter-chip active';
+          }
+          updateCount();
+        };
+        container.appendChild(chip);
+      });
+
+      var btnAll = document.getElementById(btnAllId);
+      if (btnAll) {
+        btnAll.onclick = function () {
+          selected.length = 0;
+          allCountries.forEach(function (c) { selected.push(c[0]); });
+          renderCountryChips(containerId, countElId, filterKey, btnAllId, btnClearId);
+        };
+      }
+
+      var btnClear = document.getElementById(btnClearId);
+      if (btnClear) {
+        btnClear.onclick = function () {
+          selected.length = 0;
+          renderCountryChips(containerId, countElId, filterKey, btnAllId, btnClearId);
+        };
+      }
+
+      updateCount();
+    }
+
+    // --- UI helpers ---
+    function flagEmoji(code) {
+      if (!code) { return ''; }
+      return String.fromCodePoint.apply(null, String(code).toUpperCase().split('').map(function (ch) {
+        return 127397 + ch.charCodeAt(0);
+      }));
+    }
+
+    var MONTHS_I18N = {
+      ru: {
+        short: ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'],
+        full: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+      },
+      uk: {
+        short: ['січ', 'лют', 'бер', 'кві', 'тра', 'чер', 'лип', 'сер', 'вер', 'жов', 'лис', 'гру'],
+        full: ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня']
+      },
+      en: {
+        short: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        full: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      },
+      de: {
+        short: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+        full: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+      },
+      it: {
+        short: ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'],
+        full: ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+      }
+    };
+
+    function getMonthShort(monthIdx) {
+      var d = MONTHS_I18N[currentAppLang] || MONTHS_I18N['ru'];
+      return d.short[monthIdx] || '';
+    }
+
+    function getMonthFull(monthIdx) {
+      var d = MONTHS_I18N[currentAppLang] || MONTHS_I18N['ru'];
+      return d.full[monthIdx] || '';
+    }
+
+    function parseDateFlexible(val) {
+      if (!val) return null;
+      if (val instanceof Date && !isNaN(val.getTime())) return val;
+      var s = String(val).trim();
+      if (!s) return null;
+      var dateOnlyMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateOnlyMatch) {
+        return new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]));
+      }
+      var d = new Date(s);
+      if (!isNaN(d.getTime())) return d;
+      return null;
+    }
+
+    function getOfferDateGroupKey(iso) {
+      if (!iso) return '';
+      var d = parseDateFlexible(iso);
+      if (!d) return '';
+      var now = new Date();
+      var isToday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+      if (isToday) {
+        return tWeb('date_today') + d.getDate() + ' ' + getMonthFull(d.getMonth());
+      }
+      var yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      var isYesterday = d.getFullYear() === yesterday.getFullYear() && d.getMonth() === yesterday.getMonth() && d.getDate() === yesterday.getDate();
+      if (isYesterday) {
+        return tWeb('date_yesterday') + d.getDate() + ' ' + getMonthFull(d.getMonth());
+      }
+      var curYear = now.getFullYear();
+      return d.getDate() + ' ' + getMonthFull(d.getMonth()) + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
+    }
+
+    function getTripDateGroupKey(val) {
+      if (!val) return tWeb('dates_not_specified');
+      var d = parseDateFlexible(val);
+      if (!d) return tWeb('dates_not_specified');
+      var now = new Date();
+      var isToday = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+      if (isToday) {
+        return tWeb('departure_today') + d.getDate() + ' ' + getMonthFull(d.getMonth());
+      }
+      var tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      var isTomorrow = d.getFullYear() === tomorrow.getFullYear() && d.getMonth() === tomorrow.getMonth() && d.getDate() === tomorrow.getDate();
+      if (isTomorrow) {
+        return tWeb('departure_tomorrow') + d.getDate() + ' ' + getMonthFull(d.getMonth());
+      }
+      var curYear = now.getFullYear();
+      return tWeb('departure_prefix') + d.getDate() + ' ' + getMonthFull(d.getMonth()) + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
+    }
+
+    function formatCompactDate(d) {
+      if (!d) return '—';
+      var curYear = new Date().getFullYear();
+      return d.getDate() + ' ' + getMonthShort(d.getMonth()) + (d.getFullYear() !== curYear ? ' ' + d.getFullYear() : '');
+    }
+
+    function pluralizeDaysWeb(days, lang) {
+      lang = lang || currentAppLang || 'ru';
+      if (lang === 'ru') {
+        var mod10 = days % 10;
+        var mod100 = days % 100;
+        if (mod10 === 1 && mod100 !== 11) return 'день';
+        if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'дня';
+        return 'дней';
+      }
+      if (lang === 'uk') {
+        var mod10 = days % 10;
+        var mod100 = days % 100;
+        if (mod10 === 1 && mod100 !== 11) return 'день';
+        if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'дні';
+        return 'днів';
+      }
+      if (lang === 'de') {
+        return days === 1 ? 'Tag' : 'Tage';
+      }
+      if (lang === 'it') {
+        return days === 1 ? 'giorno' : 'giorni';
+      }
+      return days === 1 ? 'day' : 'days';
+    }
+
+    function formatOfferDateRange(pickup, returnDate) {
+      var p = parseDateFlexible(pickup);
+      var r = parseDateFlexible(returnDate);
+      if (!p && !r) return '—';
+      if (p && !r) return formatCompactDate(p);
+      if (!p && r) return formatCompactDate(r);
+
+      var curYear = new Date().getFullYear();
+      var pYear = p.getFullYear();
+      var rYear = r.getFullYear();
+      var daysDiff = Math.max(1, Math.round((r.getTime() - p.getTime()) / (1000 * 60 * 60 * 24)));
+      var daysLabel = ' (' + daysDiff + ' ' + pluralizeDaysWeb(daysDiff, currentAppLang) + ')';
+
+      if (pYear === rYear && p.getMonth() === r.getMonth()) {
+        if (p.getDate() === r.getDate()) {
+          return p.getDate() + ' ' + getMonthShort(p.getMonth()) + (pYear !== curYear ? ' ' + pYear : '');
+        }
+        return p.getDate() + '–' + r.getDate() + ' ' + getMonthShort(p.getMonth()) + (pYear !== curYear ? ' ' + pYear : '') + daysLabel;
+      }
+
+      if (pYear === rYear) {
+        return p.getDate() + ' ' + getMonthShort(p.getMonth()) + ' – ' + r.getDate() + ' ' + getMonthShort(r.getMonth()) + (pYear !== curYear ? ' ' + pYear : '') + daysLabel;
+      }
+
+      return p.getDate() + ' ' + getMonthShort(p.getMonth()) + ' ' + pYear + ' – ' + r.getDate() + ' ' + getMonthShort(r.getMonth()) + ' ' + rYear + daysLabel;
+    }
+
+    function formatAddedTime(iso) {
+      if (!iso) return '';
+      var d = parseDateFlexible(iso);
+      if (!d) return '';
+      var now = new Date();
+      var diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
+
+      var pad = function(n) { return n < 10 ? '0' + n : String(n); };
+      var timeStr = pad(d.getHours()) + ':' + pad(d.getMinutes());
+
+      if (diffSec >= 0 && diffSec < 60) return tWeb('added_just_now');
+      if (diffSec >= 60 && diffSec < 3600) {
+        var mins = Math.floor(diffSec / 60);
+        return tWeb('added_mins_ago', { time: timeStr, mins: mins });
+      }
+      if (diffSec >= 3600 && diffSec < 86400) {
+        var hours = Math.floor(diffSec / 3600);
+        return tWeb('added_hours_ago', { time: timeStr, hours: hours });
+      }
+      return tWeb('added_at', { time: timeStr });
+    }
+
+    function shortDate(iso) {
+      var d = parseDateFlexible(iso);
+      if (!d) return String(iso || '—');
+      return formatCompactDate(d);
+    }
+
+    function timeAgo(iso) {
+      if (!iso) {
+        var dict = { ru: 'никогда', uk: 'ніколи', de: 'nie', it: 'mai', en: 'never' };
+        return dict[currentAppLang] || 'never';
+      }
+      var t = new Date(iso).getTime();
+      if (isNaN(t)) { return String(iso); }
+      var diff = Math.max(0, (Date.now() - t) / 1000);
+      if (diff < 60) {
+        var dictJustNow = { ru: 'только что', uk: 'щойно', de: 'gerade eben', it: 'proprio ora', en: 'just now' };
+        return dictJustNow[currentAppLang] || 'just now';
+      }
+      var m = Math.floor(diff / 60);
+      if (m < 60) {
+        var dictMins = { ru: ' мин назад', uk: ' хв тому', de: ' Min. her', it: ' min fa', en: 'm ago' };
+        return m + (dictMins[currentAppLang] || 'm ago');
+      }
+      var h = Math.floor(m / 60);
+      if (h < 24) {
+        var dictHours = { ru: ' ч назад', uk: ' год тому', de: ' Std. her', it: ' ore fa', en: 'h ago' };
+        return h + (dictHours[currentAppLang] || 'h ago');
+      }
+      var d = Math.floor(h / 24);
+      var dictDays = { ru: ' дн назад', uk: ' дн тому', de: ' Tage her', it: ' giorni fa', en: 'd ago' };
+      return d + (dictDays[currentAppLang] || 'd ago');
+    }
+
+    function isTruthy(value) {
+      if (typeof value === 'boolean') { return value; }
+      var text = String(value).trim().toLowerCase();
+      return text === 'true' || text === '1' || text === 'yes' || text === 'y';
+    }
+
+    function isWildcardStation(value) {
+      var s = String(value || '').trim().toUpperCase();
+      return !s || s === '*' || s === 'ALL' || s === 'ANY';
+    }
+
+    function isWildcardCityName(name) {
+      if (!name) return true;
+      var s = String(name).trim().toLowerCase();
+      return s === '*' || s === 'all' || s === 'any' ||
+        s === 'все города' || s === 'всі міста' || s === 'all cities' ||
+        s === 'alle städte' || s === 'tutte le città' ||
+        s.indexOf('все города') !== -1 || s.indexOf('all cities') !== -1 ||
+        s.indexOf('alle städte') !== -1 || s.indexOf('tutte le città') !== -1 ||
+        s.indexOf('всі міста') !== -1;
+    }
+
+    function formatRouteStationName(id, name) {
+      if (isWildcardStation(id) || isWildcardCityName(name)) {
+        return tWeb('all_cities');
+      }
+      return name || (tWeb('station_prefix') + id);
+    }
+
+    function fieldLabel(text) {
+      var label = document.createElement('span');
+      label.className = 'field-label';
+      label.textContent = text;
+      return label;
+    }
+    function fieldGroup(labelText, child) {
+      var div = document.createElement('div');
+      if (labelText) {
+        var label = fieldLabel(labelText);
+        div.appendChild(label);
+      }
+      div.appendChild(child);
+      return div;
+    }
+    function textInput(value, onInput) {
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.value = value == null ? '' : value;
+      input.oninput = function () { onInput(input.value); };
+      return input;
+    }
+    function dateInput(value, onChange) {
+      var input = document.createElement('input');
+      input.type = 'date';
+      input.value = value == null ? '' : value;
+      input.style.cssText = 'width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:14px;color-scheme:dark;';
+      input.onchange = function () { onChange(input.value); };
+      return input;
+    }
+    function select(options, value, onPick) {
+      var sel = document.createElement('select');
+      options.forEach(function (opt) {
+        var el = document.createElement('option');
+        el.value = opt;
+        el.textContent = opt;
+        sel.appendChild(el);
+      });
+      sel.value = value;
+      sel.onchange = function () { onPick(sel.value); };
+      return sel;
+    }
+    function countrySelect(value, onPick, allowAll) {
+      var sel = document.createElement('select');
+      if (allowAll) {
+        var anyEl = document.createElement('option');
+        anyEl.value = '';
+        anyEl.textContent = tWeb('any_country');
+        sel.appendChild(anyEl);
+      }
+      (state.countries || []).forEach(function (c) {
+        var el = document.createElement('option');
+        el.value = c[0];
+        el.textContent = flagEmoji(c[0]) + ' ' + getCountryDisplayName(c[0], currentAppLang);
+        sel.appendChild(el);
+      });
+      sel.value = value || '';
+      sel.onchange = function () { onPick(sel.value); };
+      return sel;
+    }
+
+    function toast(message, isError) {
+      var el = document.getElementById('toast');
+      el.textContent = message;
+      el.className = 'show' + (isError ? ' err' : '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { el.className = ''; }, 2500);
+    }
+
+    function adminListUsers() {
+      var container = document.getElementById('adminUserList');
+      container.textContent = 'Loading...';
+      google.script.run
+        .withSuccessHandler(function(users) {
+          container.innerHTML = '';
+          users.forEach(function(u) {
+            var div = document.createElement('div');
+            div.style.padding = '8px';
+            div.style.borderBottom = '1px solid var(--border)';
+            var subText = u.subscription_status === 'active' ? ('Active until ' + new Date(u.subscription_expires_at).toLocaleDateString()) : String(u.subscription_status);
+            div.innerHTML = `<strong>${u.username || u.telegram_id}</strong> (${u.role})<br>Sub: ${subText}<br>
+            <button class="btn btn-secondary" style="display:inline-block;padding:4px 8px;font-size:11px;margin:2px;" onclick="adminGrantSub('${u.telegram_id}', 30)">+30d Premium</button>
+            <button class="btn btn-secondary" style="display:inline-block;padding:4px 8px;font-size:11px;margin:2px;" onclick="adminRevokeSub('${u.telegram_id}')">Revoke</button>`;
+            container.appendChild(div);
+          });
+        })
+        .withFailureHandler(function(e) { container.textContent = 'Error: ' + e; })
+        .adminListUsers(getInitData());
+    }
+    
+    function adminGrantSub(userId, days) {
+      if(!confirm('Grant ' + days + ' days to ' + userId + '?')) return;
+      google.script.run.withSuccessHandler(function(){ adminListUsers(); }).adminGrantSubscription(getInitData(), userId, days);
+    }
+    
+    function adminRevokeSub(userId) {
+      if(!confirm('Revoke sub for ' + userId + '?')) return;
+      google.script.run.withSuccessHandler(function(){ adminListUsers(); }).adminRevokeSubscription(getInitData(), userId);
+    }
+
+    function initPaddle(data) {
+      if (!data.paddleClientToken || !window.Paddle) return;
+      if (window._paddleInitialized) return;
+      window._paddleInitialized = true;
+      var env = data.paddleClientToken.startsWith('live_') ? 'production' : 'sandbox';
+      
+      Paddle.Environment.set(env);
+      Paddle.Initialize({
+        token: data.paddleClientToken,
+        eventCallback: function(event) {
+          if (event.name === 'checkout.completed') {
+            toast('Payment successful! Reloading...');
+            setTimeout(function() { window.location.reload(); }, 2000);
+          }
+        }
+      });
+      
+      var btn = document.getElementById('btnPaddleCheckout');
+      if (btn) {
+        btn.onclick = function() {
+          if (!data.paddlePriceId) {
+            toast('Price ID not configured', true);
+            return;
+          }
+          var userId = data.user ? data.user.id : '';
+          Paddle.Checkout.open({
+            items: [{ priceId: data.paddlePriceId, quantity: 1 }],
+            customData: { telegram_id: userId }
+          });
+        };
+      }
+    }
+    
+    function renderSubscriptionBanner() {
+      var banner = document.getElementById('subscriptionBanner');
+      var btn = document.getElementById('btnPaddleCheckout');
+      var title = document.getElementById('subTitle');
+      var st = document.getElementById('subStatusText');
+      var emoji = document.getElementById('subEmoji');
+      var rl = document.getElementById('subRouteLimitText');
+      if (!banner || !state.user) return;
+      
+      var isActive = state.user.subscriptionStatus === 'active' || state.user.subscriptionStatus === 'trial';
+      var isTrial = state.user.subscriptionStatus === 'trial';
+      var maxRoutes = state.user.maxRoutes || 3;
+      var currentRoutes = state.user.routeCount || 0;
+      
+      if (state.user.role === 'admin') {
+        banner.style.display = 'block';
+        title.textContent = 'Admin Account';
+        st.textContent = 'Unlimited access';
+        emoji.textContent = '🛡️';
+        btn.style.display = 'none';
+        rl.textContent = 'Routes: ' + currentRoutes + ' / ∞';
+        return;
+      }
+      
+      banner.style.display = 'block';
+      if (isActive) {
+        title.textContent = isTrial ? 'Premium (Trial)' : 'Premium Active';
+        emoji.textContent = '👑';
+        if (state.user.subscriptionExpiresAt) {
+           var date = new Date(state.user.subscriptionExpiresAt).toLocaleDateString();
+           st.textContent = 'Valid until ' + date;
+        }
+        btn.style.display = 'none';
+        rl.textContent = 'Routes: ' + currentRoutes + ' / ' + (maxRoutes >= 999 ? '∞' : maxRoutes);
+      } else {
+        title.textContent = 'Free Plan';
+        emoji.textContent = '⚪';
+        st.textContent = 'Subscribe for unlimited routes & analytics';
+        btn.style.display = 'block';
+        rl.textContent = 'Routes: ' + currentRoutes + ' / ' + maxRoutes;
+        
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('subscribe') === '1' && window.Paddle) {
+          setTimeout(function() { btn.click(); }, 1000);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>

@@ -11,6 +11,7 @@ export interface TelegramSecrets {
   chatId?: string;
   webhookSecret?: string;
   workerUrl?: string;
+  cryptoBotToken?: string;
 }
 
 export class TelegramService {
@@ -212,6 +213,44 @@ export class TelegramService {
         return;
       }
 
+      if (data === 'pay_crypto') {
+        if (!this.secrets.cryptoBotToken) {
+          await this.answerCallbackQuery(cb.id, 'Crypto payments not configured');
+          return;
+        }
+        try {
+          const res = await fetch('https://pay.crypt.bot/api/createInvoice', {
+            method: 'POST',
+            headers: {
+              'Crypto-Pay-API-Token': this.secrets.cryptoBotToken,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              asset: 'USDT',
+              amount: '4.99',
+              description: 'Camper Monitor Premium (1 Month)',
+              hidden_message: 'Thank you for your purchase!',
+              payload: JSON.stringify({ telegram_id: String(cb.from.id) })
+            })
+          });
+          const cryptoData = await res.json<any>();
+          if (cryptoData.ok && cryptoData.result?.pay_url) {
+            await this.answerCallbackQuery(cb.id);
+            await this.sendMessage(chatId!, '💎 <b>Crypto Payment (USDT)</b>\n\nClick the link below to pay securely via CryptoBot:', {
+              reply_markup: {
+                inline_keyboard: [[{ text: 'Pay $4.99 USDT', url: cryptoData.result.pay_url }]]
+              }
+            });
+          } else {
+            await this.answerCallbackQuery(cb.id, 'Failed to create invoice');
+          }
+        } catch (e) {
+          console.error(e);
+          await this.answerCallbackQuery(cb.id, 'Error creating invoice');
+        }
+        return;
+      }
+
       if (data.startsWith('disable_route:')) {
         const routeId = data.replace('disable_route:', '');
         if (chatId) {
@@ -255,9 +294,10 @@ export class TelegramService {
         'Open the app below to complete payment:',
         {
           reply_markup: {
-            inline_keyboard: [[
-              { text: '💳 Subscribe — €4.99/mo', web_app: { url: webAppUrl + '?subscribe=1' } }
-            ]]
+            inline_keyboard: [
+              [{ text: '💳 Subscribe (Card) — €4.99/mo', web_app: { url: webAppUrl + '?subscribe=1' } }],
+              [{ text: '💎 Subscribe (USDT) — $4.99', callback_data: 'pay_crypto' }]
+            ]
           }
         }
       );
