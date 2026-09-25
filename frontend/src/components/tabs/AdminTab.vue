@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { api } from '../../api/rpc';
 import { useAppStore } from '../../composables/useAppStore';
+import { useI18n } from '../../composables/useI18n';
 import type { AdminUser, AdminPayment, AdminPromoCode, AdminRunLog } from '../../api/types';
 import { 
   Users, 
@@ -14,12 +15,19 @@ import {
   Plus, 
   Trash2, 
   Check, 
-  AlertCircle 
+  AlertCircle,
+  ShieldCheck,
+  Activity,
+  Calendar,
+  Save,
+  Clock,
+  Download
 } from 'lucide-vue-next';
 
-const { showToast, appState, saveAppData } = useAppStore();
+const { showToast, appState, saveAppData, providersHealth, checkHealth, isHealthLoading, loadAppData } = useAppStore();
+const { t } = useI18n();
 
-type AdminSubTab = 'users' | 'payments' | 'promos' | 'broadcast' | 'runs' | 'settings';
+type AdminSubTab = 'users' | 'payments' | 'promos' | 'broadcast' | 'runs' | 'system';
 const activeSubTab = ref<AdminSubTab>('users');
 
 const users = ref<AdminUser[]>([]);
@@ -27,6 +35,14 @@ const payments = ref<AdminPayment[]>([]);
 const promoCodes = ref<AdminPromoCode[]>([]);
 const runs = ref<AdminRunLog[]>([]);
 const isLoading = ref(false);
+const adminStats = ref<{
+  totalUsers: number;
+  activeSubscribers: number;
+  totalRoutes: number;
+  totalOffers: number;
+  totalPayments: number;
+  totalRevenue: number;
+} | null>(null);
 
 const userRoleFilter = ref<'all' | 'free' | 'premium' | 'admin'>('all');
 const userSearch = ref('');
@@ -41,6 +57,12 @@ const isCreatingPromo = ref(false);
 const broadcastRole = ref<'all' | 'free' | 'premium'>('all');
 const broadcastText = ref('');
 const isSendingBroadcast = ref(false);
+
+async function loadStats() {
+  try {
+    adminStats.value = await api.adminGetStats();
+  } catch {}
+}
 
 async function loadUsers() {
   isLoading.value = true;
@@ -92,16 +114,41 @@ function switchSubTab(subTab: AdminSubTab) {
   if (subTab === 'payments' && payments.value.length === 0) loadPayments();
   if (subTab === 'promos' && promoCodes.value.length === 0) loadPromoCodes();
   if (subTab === 'runs' && runs.value.length === 0) loadRuns();
+  if (subTab === 'system') {
+    checkHealth();
+    if (runs.value.length === 0) loadRuns();
+  }
+}
+
+async function adminRefreshAll() {
+  loadStats();
+  if (activeSubTab.value === 'users') loadUsers();
+  else if (activeSubTab.value === 'payments') loadPayments();
+  else if (activeSubTab.value === 'promos') loadPromoCodes();
+  else if (activeSubTab.value === 'runs') loadRuns();
+  else if (activeSubTab.value === 'system') {
+    checkHealth();
+    loadRuns();
+  }
 }
 
 async function adjustSub(userId: string, days: number) {
   try {
     await api.adminAdjustSubscription(userId, days);
-    showToast(`Подписка изменена на ${days > 0 ? '+' : ''}${days} дн.`);
+    showToast(`Подписка: ${days > 0 ? '+' : ''}${days} дн.`);
     loadUsers();
+    loadStats();
   } catch (err: any) {
     showToast(err.message, true);
   }
+}
+
+function promptCustomDays(userId: string, name?: string) {
+  const input = prompt(`Количество дней подписки для ${name || userId} (+30, -10):`);
+  if (!input) return;
+  const days = parseInt(input.trim(), 10);
+  if (isNaN(days) || days === 0) return;
+  adjustSub(userId, days);
 }
 
 async function revokeSub(userId: string) {
@@ -114,6 +161,7 @@ async function revokeSub(userId: string) {
     await api.adminRevokeSubscription(userId);
     showToast('Подписка отозвана');
     loadUsers();
+    loadStats();
   } catch (err: any) {
     showToast(err.message, true);
   }
@@ -132,6 +180,7 @@ async function changeRole(userId: string, newRole: string) {
     await api.adminSetRole(userId, newRole);
     showToast(`Роль изменена на ${newRole}`);
     loadUsers();
+    loadStats();
   } catch (err: any) {
     showToast(err.message, true);
   }
@@ -185,6 +234,72 @@ async function handleSendBroadcast() {
   }
 }
 
+async function handleRunScanNow() {
+  try {
+    showToast(t('status_checking') || 'Запуск проверки...');
+    await api.triggerMonitor();
+    showToast('Проверка запущена');
+    setTimeout(() => {
+      loadRuns();
+      loadStats();
+    }, 2500);
+  } catch (err: any) {
+    showToast(err.message, true);
+  }
+}
+
+async function handleExpireOffersNow() {
+  try {
+    const count = await api.checkOffersAvailability();
+    showToast(`Очищено ${count} истекших офферов`);
+    loadStats();
+  } catch (err: any) {
+    showToast(err.message, true);
+  }
+}
+
+async function handleReconnectWebhook() {
+  try {
+    showToast(t('loading') || 'Подключение...');
+    await api.registerWebhook();
+    showToast('Webhook успешно перепривязан');
+    loadAppData();
+  } catch (err: any) {
+    showToast(err.message, true);
+  }
+}
+
+async function handleToggleProvider(key: string, enabled: boolean) {
+  try {
+    await api.adminSetProviderToggle(key, enabled);
+    showToast(`Провайдер ${enabled ? 'включен' : 'выключен'}`);
+    loadAppData();
+  } catch (err: any) {
+    showToast(err.message, true);
+  }
+}
+
+function adminExportUsersCsv() {
+  const headers = ['Telegram ID', 'Name', 'Username', 'Role', 'Subscription Status', 'Expires At', 'Routes'];
+  const rows = users.value.map(u => [
+    u.telegram_id,
+    `"${(u.first_name || '').replace(/"/g, '""')}"`,
+    u.username || '',
+    u.role,
+    u.subscription_status || '',
+    u.subscription_expires_at || '',
+    u.route_count || 0,
+  ]);
+  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', `onecoincamp_users_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 const filteredUsers = computed(() => {
   return users.value.filter((u) => {
     if (userRoleFilter.value !== 'all' && u.role !== userRoleFilter.value) return false;
@@ -200,67 +315,100 @@ const filteredUsers = computed(() => {
 });
 
 onMounted(() => {
+  loadStats();
   loadUsers();
 });
 </script>
 
 <template>
   <div class="admin-tab">
+    <!-- KPI Header Card -->
     <div class="glass-card admin-header">
-      <div class="section-title">
-        <span>Панель администратора (CRM)</span>
+      <div class="header-top-row">
+        <div class="section-title">
+          <ShieldCheck :size="16" />
+          <span>{{ t('admin_crm_title') }}</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" @click="adminRefreshAll">
+          <RefreshCw :size="13" :class="{ spin: isLoading }" />
+          <span>{{ t('refresh') }}</span>
+        </button>
       </div>
 
-      <!-- Sub-tabs nav -->
-      <div class="sub-tabs-nav">
-        <button
-          class="sub-tab-btn"
-          :class="{ active: activeSubTab === 'users' }"
-          @click="switchSubTab('users')"
-        >
-          <Users :size="14" />
-          <span>Пользователи ({{ users.length }})</span>
-        </button>
-        <button
-          class="sub-tab-btn"
-          :class="{ active: activeSubTab === 'payments' }"
-          @click="switchSubTab('payments')"
-        >
-          <CreditCard :size="14" />
-          <span>Платежи</span>
-        </button>
-        <button
-          class="sub-tab-btn"
-          :class="{ active: activeSubTab === 'promos' }"
-          @click="switchSubTab('promos')"
-        >
-          <Tag :size="14" />
-          <span>Промокоды</span>
-        </button>
-        <button
-          class="sub-tab-btn"
-          :class="{ active: activeSubTab === 'broadcast' }"
-          @click="switchSubTab('broadcast')"
-        >
-          <Send :size="14" />
-          <span>Рассылка</span>
-        </button>
-        <button
-          class="sub-tab-btn"
-          :class="{ active: activeSubTab === 'runs' }"
-          @click="switchSubTab('runs')"
-        >
-          <FileText :size="14" />
-          <span>Логи запусков</span>
-        </button>
-        <button
-          class="sub-tab-btn"
-          :class="{ active: activeSubTab === 'settings' }"
-          @click="switchSubTab('settings')"
-        >
-          <AlertCircle :size="14" />
-          <span>Системные настройки</span>
-        </button>
+      <!-- KPI Statistics Grid -->
+      <div class="kpi-grid">
+        <div class="kpi-box">
+          <div class="kpi-label">👥 {{ t('admin_kpi_users') }}</div>
+          <div class="kpi-value">{{ adminStats ? adminStats.totalUsers : users.length }}</div>
+          <div v-if="adminStats" class="kpi-sub">⭐ {{ adminStats.activeSubscribers }} PRO</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">💳 {{ t('admin_kpi_revenue') }}</div>
+          <div class="kpi-value">{{ adminStats ? '€' + Number(adminStats.totalRevenue).toFixed(2) : '—' }}</div>
+          <div v-if="adminStats" class="kpi-sub">{{ adminStats.totalPayments }} {{ t('admin_tab_payments') }}</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">🚗 {{ t('admin_kpi_routes') }}</div>
+          <div class="kpi-value">{{ adminStats ? adminStats.totalRoutes : '—' }}</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">🎫 {{ t('admin_kpi_offers') }}</div>
+          <div class="kpi-value">{{ adminStats ? adminStats.totalOffers : '—' }}</div>
+        </div>
+      </div>
+
+      <!-- Sub-tabs Horizontal Navigation -->
+      <div class="sub-tabs-container">
+        <div class="sub-tabs-nav">
+          <button
+            class="sub-tab-btn"
+            :class="{ active: activeSubTab === 'users' }"
+            @click="switchSubTab('users')"
+          >
+            <Users :size="14" />
+            <span>{{ t('admin_tab_users') }} ({{ users.length }})</span>
+          </button>
+          <button
+            class="sub-tab-btn"
+            :class="{ active: activeSubTab === 'payments' }"
+            @click="switchSubTab('payments')"
+          >
+            <CreditCard :size="14" />
+            <span>{{ t('admin_tab_payments') }}</span>
+          </button>
+          <button
+            class="sub-tab-btn"
+            :class="{ active: activeSubTab === 'promos' }"
+            @click="switchSubTab('promos')"
+          >
+            <Tag :size="14" />
+            <span>{{ t('admin_tab_promos') }}</span>
+          </button>
+          <button
+            class="sub-tab-btn"
+            :class="{ active: activeSubTab === 'broadcast' }"
+            @click="switchSubTab('broadcast')"
+          >
+            <Send :size="14" />
+            <span>{{ t('admin_tab_broadcast') }}</span>
+          </button>
+          <button
+            class="sub-tab-btn"
+            :class="{ active: activeSubTab === 'runs' }"
+            @click="switchSubTab('runs')"
+          >
+            <FileText :size="14" />
+            <span>{{ t('admin_tab_runs') }}</span>
+          </button>
+          <button
+            class="sub-tab-btn"
+            :class="{ active: activeSubTab === 'system' }"
+            @click="switchSubTab('system')"
+          >
+            <AlertCircle :size="14" />
+            <span>{{ t('admin_tab_system') }}</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -272,19 +420,23 @@ onMounted(() => {
             v-model="userSearch"
             type="text"
             class="input search-input"
-            placeholder="Поиск по ID, username, имени..."
+            :placeholder="t('admin_search_users')"
           />
-          <div class="role-chips">
-            <button
-              v-for="r in ['all', 'free', 'premium', 'admin'] as const"
-              :key="r"
-              class="chip"
-              :class="{ active: userRoleFilter === r }"
-              @click="userRoleFilter = r"
-            >
-              {{ r.toUpperCase() }}
-            </button>
-          </div>
+          <button class="btn btn-secondary btn-sm" @click="adminExportUsersCsv">
+            <Download :size="13" />
+            <span>{{ t('admin_export_csv') }}</span>
+          </button>
+        </div>
+        <div class="role-chips">
+          <button
+            v-for="r in ['all', 'premium', 'free', 'admin'] as const"
+            :key="r"
+            class="chip"
+            :class="{ active: userRoleFilter === r }"
+            @click="userRoleFilter = r"
+          >
+            {{ r.toUpperCase() }}
+          </button>
         </div>
       </div>
 
@@ -292,7 +444,7 @@ onMounted(() => {
         <div v-for="u in filteredUsers" :key="u.telegram_id" class="glass-card user-card">
           <div class="user-main">
             <div class="user-title">
-              <span class="user-name">{{ u.first_name || 'Без имени' }}</span>
+              <span class="user-name">{{ u.first_name || '—' }}</span>
               <span v-if="u.username" class="user-handle">@{{ u.username }}</span>
               <span v-if="String(u.telegram_id) === String(appState?.user?.id)" class="badge badge-warning">
                 🛡️ Admin (Вы)
@@ -305,12 +457,11 @@ onMounted(() => {
               ID: <code>{{ u.telegram_id }}</code> • Маршрутов: {{ u.route_count || 0 }} • 
               Подписка: {{ u.subscription_expires_at ? new Date(u.subscription_expires_at).toLocaleDateString() : 'нет' }}
             </div>
-            <div v-if="String(u.telegram_id) !== String(appState?.user?.id)" style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 11px; color: var(--text-muted);">Роль:</span>
+            <div v-if="String(u.telegram_id) !== String(appState?.user?.id)" class="role-select-row">
+              <span class="role-select-label">{{ t('admin_role') }}:</span>
               <select
                 :value="u.role"
-                class="select"
-                style="padding: 2px 6px; font-size: 11px; width: auto;"
+                class="select role-select"
                 @change="(e) => changeRole(u.telegram_id, (e.target as HTMLSelectElement).value)"
               >
                 <option value="free">⚪ Free</option>
@@ -320,23 +471,23 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="user-actions">
-            <button class="btn btn-secondary btn-sm" @click="adjustSub(u.telegram_id, 30)">
-              +30 дн.
-            </button>
-            <button class="btn btn-secondary btn-sm" @click="adjustSub(u.telegram_id, -30)">
-              -30 дн.
-            </button>
-            <button class="btn btn-secondary btn-sm" @click="adjustSub(u.telegram_id, 7)">
-              +7 дн.
-            </button>
-            <button
-              v-if="String(u.telegram_id) !== String(appState?.user?.id) && u.role === 'premium'"
-              class="btn btn-danger btn-sm"
-              @click="revokeSub(u.telegram_id)"
-            >
-              Сброс
-            </button>
+          <!-- Subscription Management Compact Grid -->
+          <div class="user-sub-actions">
+            <div class="user-sub-label">{{ t('admin_sub_manage') }}:</div>
+            <div class="user-sub-grid">
+              <button class="btn btn-secondary btn-xs btn-green" @click="adjustSub(u.telegram_id, 30)">+30д</button>
+              <button class="btn btn-secondary btn-xs btn-green" @click="adjustSub(u.telegram_id, 7)">+7д</button>
+              <button class="btn btn-secondary btn-xs btn-orange" @click="adjustSub(u.telegram_id, -7)">-7д</button>
+              <button class="btn btn-secondary btn-xs btn-orange" @click="adjustSub(u.telegram_id, -30)">-30д</button>
+              <button class="btn btn-secondary btn-xs" @click="promptCustomDays(u.telegram_id, u.first_name || u.username)">{{ t('admin_custom_days') }}</button>
+              <button
+                v-if="String(u.telegram_id) !== String(appState?.user?.id) && (u.role === 'premium' || u.subscription_status === 'active')"
+                class="btn btn-danger btn-xs"
+                @click="revokeSub(u.telegram_id)"
+              >
+                {{ t('admin_reset_sub') }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -345,8 +496,8 @@ onMounted(() => {
     <!-- 2. PAYMENTS SUBTAB -->
     <div v-else-if="activeSubTab === 'payments'" class="payments-section">
       <div class="glass-card table-card">
-        <div class="section-title" style="margin-bottom: 12px;">История платежей</div>
-        <div v-if="payments.length === 0" class="empty-text">Платежей пока нет</div>
+        <div class="section-title" style="margin-bottom: 12px;">{{ t('admin_payments_title') }}</div>
+        <div v-if="payments.length === 0" class="empty-text">{{ t('admin_payments_empty') }}</div>
         <div v-else class="table-responsive">
           <table class="admin-table">
             <thead>
@@ -374,33 +525,31 @@ onMounted(() => {
 
     <!-- 3. PROMO CODES SUBTAB -->
     <div v-else-if="activeSubTab === 'promos'" class="promos-section">
-      <!-- Create Promo Code -->
       <div class="glass-card promo-create-card">
-        <div class="section-title">Создать промокод</div>
+        <div class="section-title">{{ t('admin_create_promo') }}</div>
         <form class="promo-create-form" @submit.prevent="handleCreatePromo">
           <div class="form-group">
-            <label class="form-label">Код</label>
+            <label class="form-label">{{ t('admin_promo_code') }}</label>
             <input v-model="newPromoCode" type="text" class="input" placeholder="SUMMER2026" required />
           </div>
           <div class="form-group">
-            <label class="form-label">Дней подписки</label>
+            <label class="form-label">{{ t('admin_promo_days') }}</label>
             <input v-model.number="newPromoDays" type="number" min="1" class="input" required />
           </div>
           <div class="form-group">
-            <label class="form-label">Макс. использований</label>
+            <label class="form-label">{{ t('admin_promo_max_uses') }}</label>
             <input v-model.number="newPromoMaxUses" type="number" min="1" class="input" required />
           </div>
           <button type="submit" class="btn btn-primary" :disabled="isCreatingPromo">
             <Plus :size="15" />
-            <span>Создать</span>
+            <span>{{ t('admin_create_btn') }}</span>
           </button>
         </form>
       </div>
 
-      <!-- Promos List -->
       <div class="glass-card table-card">
-        <div class="section-title" style="margin-bottom: 12px;">Активные промокоды</div>
-        <div v-if="promoCodes.length === 0" class="empty-text">Промокодов пока нет</div>
+        <div class="section-title" style="margin-bottom: 12px;">{{ t('admin_promos_title') }}</div>
+        <div v-if="promoCodes.length === 0" class="empty-text">{{ t('admin_promos_empty') }}</div>
         <div v-else class="table-responsive">
           <table class="admin-table">
             <thead>
@@ -431,25 +580,25 @@ onMounted(() => {
     <!-- 4. BROADCAST SUBTAB -->
     <div v-else-if="activeSubTab === 'broadcast'" class="broadcast-section">
       <div class="glass-card broadcast-card">
-        <div class="section-title">Рассылка сообщений в Telegram</div>
-        <p class="broadcast-sub">Сообщение получат пользователи через Telegram-бота</p>
+        <div class="section-title">{{ t('admin_broadcast_title') }}</div>
+        <p class="broadcast-sub">{{ t('admin_broadcast_sub') }}</p>
 
         <div class="form-group" style="margin-top: 14px;">
-          <label class="form-label">Получатели</label>
+          <label class="form-label">{{ t('admin_broadcast_recipients') }}</label>
           <select v-model="broadcastRole" class="select">
-            <option value="all">Всем пользователям</option>
-            <option value="free">Только Free пользователям</option>
-            <option value="premium">Только PRO пользователям</option>
+            <option value="all">{{ t('admin_broadcast_all') }}</option>
+            <option value="free">{{ t('admin_broadcast_free') }}</option>
+            <option value="premium">{{ t('admin_broadcast_premium') }}</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label class="form-label">Текст сообщения (поддерживается HTML)</label>
+          <label class="form-label">{{ t('admin_broadcast_placeholder') }}</label>
           <textarea
             v-model="broadcastText"
             rows="5"
             class="input"
-            placeholder="Привет! Новые скидки на кемперы..."
+            placeholder="Привет! Новые релокации кемперов за 1€..."
           ></textarea>
         </div>
 
@@ -459,7 +608,7 @@ onMounted(() => {
           @click="handleSendBroadcast"
         >
           <Send :size="15" />
-          <span>{{ isSendingBroadcast ? 'Отправка...' : 'Отправить рассылку' }}</span>
+          <span>{{ isSendingBroadcast ? '...' : t('admin_broadcast_send') }}</span>
         </button>
       </div>
     </div>
@@ -467,13 +616,19 @@ onMounted(() => {
     <!-- 5. RUNS SUBTAB -->
     <div v-else-if="activeSubTab === 'runs'" class="runs-section">
       <div class="glass-card table-card">
-        <div class="section-title" style="margin-bottom: 12px;">История циклов сканирования</div>
-        <div v-if="runs.length === 0" class="empty-text">Логов пока нет</div>
+        <div class="runs-header">
+          <div class="section-title">{{ t('admin_runs_title') }}</div>
+          <button class="btn btn-secondary btn-sm" @click="loadRuns">
+            <RefreshCw :size="13" :class="{ spin: isLoading }" />
+            <span>{{ t('refresh') }}</span>
+          </button>
+        </div>
+        <div v-if="runs.length === 0" class="empty-text">{{ t('admin_runs_empty') }}</div>
         <div v-else class="table-responsive">
           <table class="admin-table">
             <thead>
               <tr>
-                <th>Время старта</th>
+                <th>Время</th>
                 <th>Офферов</th>
                 <th>Новых</th>
                 <th>Алертов</th>
@@ -498,24 +653,135 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 6. SETTINGS SUBTAB -->
-    <div v-else-if="activeSubTab === 'settings'" class="settings-section">
-      <div class="glass-card admin-settings-card">
-        <div class="section-title">Системные настройки</div>
-        
-        <div class="form-group" style="margin-top: 14px;">
-          <label class="form-label">Интервал сканирования (минуты)</label>
-          <div class="intervals-grid">
-            <button
-              v-for="min in [1, 5, 10, 15, 30]"
-              :key="min"
-              class="interval-btn"
-              :class="{ active: appState?.settings?.poll_interval_minutes === min }"
-              @click="saveAppData({}, undefined, { poll_interval_minutes: min })"
-            >
-              {{ min }} мин.
-            </button>
+    <!-- 6. SYSTEM SUBTAB (Restored full system settings) -->
+    <div v-else-if="activeSubTab === 'system'" class="system-section">
+      <!-- Provider Health -->
+      <div class="glass-card system-card">
+        <div class="system-header-row">
+          <div class="section-title">
+            <Activity :size="15" />
+            <span>{{ t('site_status') }}</span>
           </div>
+          <button class="btn btn-secondary btn-sm" :disabled="isHealthLoading" @click="checkHealth">
+            <RefreshCw :size="13" :class="{ spin: isHealthLoading }" />
+            <span>{{ t('refresh') }}</span>
+          </button>
+        </div>
+        <div class="health-list">
+          <div class="health-row">
+            <span>🚐 Roadsurfer Rally</span>
+            <span class="badge" :class="providersHealth?.roadsurfer?.ok ? 'badge-success' : 'badge-neutral'">
+              {{ providersHealth?.roadsurfer?.ok ? t('status_operational') : (providersHealth ? t('status_error_state') : t('status_checking')) }}
+            </span>
+          </div>
+          <div class="health-row">
+            <span>🚗 Movacar API</span>
+            <span class="badge" :class="providersHealth?.movacar?.ok ? 'badge-success' : 'badge-neutral'">
+              {{ providersHealth?.movacar?.ok ? t('status_operational') : (providersHealth ? t('status_error_state') : t('status_checking')) }}
+            </span>
+          </div>
+          <div class="health-row">
+            <span>⛺ Indie Campers</span>
+            <span class="badge" :class="providersHealth?.indiecampers?.ok ? 'badge-success' : 'badge-neutral'">
+              {{ providersHealth?.indiecampers?.ok ? t('status_operational') : (providersHealth ? t('status_error_state') : t('status_checking')) }}
+            </span>
+          </div>
+          <div class="health-row">
+            <span>🌐 Imoova</span>
+            <span class="badge" :class="providersHealth?.imoova?.ok ? 'badge-success' : 'badge-neutral'">
+              {{ providersHealth?.imoova?.ok ? t('status_operational') : (providersHealth ? t('status_error_state') : t('status_checking')) }}
+            </span>
+          </div>
+          <div class="health-row">
+            <span>🤖 Telegram Bot</span>
+            <span class="badge" :class="appState?.telegramWebhookActive ? 'badge-success' : 'badge-warning'">
+              {{ appState?.telegramWebhookActive ? t('webhook_active_desc') : t('webhook_inactive_desc') }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Provider Global Toggles -->
+      <div class="glass-card system-card">
+        <div class="section-title">
+          <span>{{ t('admin_providers_toggle') }}</span>
+        </div>
+        <div class="toggles-list">
+          <div class="toggle-item">
+            <div>
+              <div class="toggle-name">🚐 Roadsurfer Rally</div>
+              <div class="toggle-sub">Кемперы по всей Европе</div>
+            </div>
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                :checked="appState?.settings?.provider_roadsurfer_enabled !== false"
+                @change="(e) => handleToggleProvider('provider_roadsurfer_enabled', (e.target as HTMLInputElement).checked)"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-item">
+            <div>
+              <div class="toggle-name">🚗 Movacar</div>
+              <div class="toggle-sub">Автомобили и кемперы</div>
+            </div>
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                :checked="appState?.settings?.provider_movacar_enabled !== false"
+                @change="(e) => handleToggleProvider('provider_movacar_enabled', (e.target as HTMLInputElement).checked)"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-item">
+            <div>
+              <div class="toggle-name">⛺ Indie Campers</div>
+              <div class="toggle-sub">Кемпервэны</div>
+            </div>
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                :checked="appState?.settings?.provider_indiecampers_enabled !== false"
+                @change="(e) => handleToggleProvider('provider_indiecampers_enabled', (e.target as HTMLInputElement).checked)"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-item">
+            <div>
+              <div class="toggle-name">🌍 Imoova</div>
+              <div class="toggle-sub">Международные перегоны</div>
+            </div>
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                :checked="appState?.settings?.provider_imoova_enabled !== false"
+                @change="(e) => handleToggleProvider('provider_imoova_enabled', (e.target as HTMLInputElement).checked)"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions Card -->
+      <div class="glass-card system-card">
+        <div class="section-title">{{ t('admin_system_title') }}</div>
+        <div class="actions-stack">
+          <button class="btn btn-primary action-btn" @click="handleRunScanNow">
+            <Play :size="15" />
+            <span>{{ t('admin_run_now') }}</span>
+          </button>
+          <button class="btn btn-secondary action-btn" @click="handleExpireOffersNow">
+            <Trash2 :size="15" />
+            <span>{{ t('admin_expire_now') }}</span>
+          </button>
+          <button class="btn btn-secondary action-btn" @click="handleReconnectWebhook">
+            <RefreshCw :size="15" />
+            <span>{{ t('admin_webhook_reconnect') }}</span>
+          </button>
         </div>
       </div>
     </div>
@@ -524,21 +790,84 @@ onMounted(() => {
 
 <style scoped>
 .admin-tab {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  box-sizing: border-box;
 }
 
 .admin-header {
-  padding: 16px 20px;
+  padding: 16px;
+}
+
+.header-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+/* KPI Grid */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+@media (min-width: 640px) {
+  .kpi-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.kpi-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+
+.kpi-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.kpi-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-top: 2px;
+}
+
+.kpi-sub {
+  font-size: 11px;
+  color: var(--accent-primary);
+  margin-top: 2px;
+}
+
+/* Sub-tabs scrolling */
+.sub-tabs-container {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .sub-tabs-nav {
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  margin-top: 14px;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 4px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .sub-tabs-nav::-webkit-scrollbar {
@@ -549,7 +878,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 7px 12px;
   font-size: 12px;
   font-weight: 600;
   border-radius: var(--radius-sm);
@@ -558,6 +887,8 @@ onMounted(() => {
   color: var(--text-muted);
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.16s ease;
 }
 
 .sub-tab-btn:hover {
@@ -571,10 +902,14 @@ onMounted(() => {
   color: #ffffff;
 }
 
-.users-section, .payments-section, .promos-section, .broadcast-section, .runs-section {
+/* Users Section */
+.users-section, .payments-section, .promos-section, .broadcast-section, .runs-section, .system-section {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .users-filter-card {
@@ -583,29 +918,23 @@ onMounted(() => {
 
 .filter-row {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-@media (min-width: 640px) {
-  .filter-row {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 .search-input {
-  max-width: 320px;
+  flex: 1;
 }
 
 .role-chips {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .chip {
-  padding: 5px 10px;
+  padding: 4px 10px;
   font-size: 11px;
   font-weight: 700;
   border-radius: 999px;
@@ -625,27 +954,28 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
 }
 
 .user-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px 18px;
+  gap: 10px;
+  padding: 14px 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-@media (min-width: 640px) {
-  .user-card {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
+.user-main {
+  width: 100%;
+  min-width: 0;
 }
 
 .user-title {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .user-name {
@@ -661,22 +991,73 @@ onMounted(() => {
 .user-sub {
   font-size: 12px;
   color: var(--text-muted);
-  margin-top: 3px;
+  margin-top: 4px;
+  word-break: break-all;
 }
 
-.user-actions {
+.role-select-row {
+  margin-top: 8px;
   display: flex;
+  align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+}
+
+.role-select-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.role-select {
+  padding: 3px 8px;
+  font-size: 11px;
+  width: auto;
+}
+
+.user-sub-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-subtle);
+  width: 100%;
+}
+
+.user-sub-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.user-sub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(55px, 1fr));
+  gap: 4px;
+  width: 100%;
+}
+
+.btn-xs {
+  padding: 5px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.btn-green {
+  color: var(--success);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.btn-orange {
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.3);
 }
 
 /* Tables */
 .table-card {
-  padding: 20px;
-}
-
-.table-responsive {
-  overflow-x: auto;
+  padding: 16px;
 }
 
 .admin-table {
@@ -687,7 +1068,7 @@ onMounted(() => {
 }
 
 .admin-table th {
-  padding: 8px 12px;
+  padding: 8px 10px;
   color: var(--text-subtle);
   border-bottom: 1px solid var(--border-subtle);
   font-weight: 600;
@@ -696,15 +1077,19 @@ onMounted(() => {
 }
 
 .admin-table td {
-  padding: 10px 12px;
+  padding: 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.promo-create-card, .broadcast-card, .system-card {
+  padding: 16px;
 }
 
 .promo-create-form {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 @media (min-width: 640px) {
@@ -712,10 +1097,6 @@ onMounted(() => {
     grid-template-columns: 2fr 1fr 1fr auto;
     align-items: flex-end;
   }
-}
-
-.broadcast-card {
-  padding: 20px;
 }
 
 .broadcast-sub {
@@ -727,41 +1108,93 @@ onMounted(() => {
 .empty-text {
   color: var(--text-muted);
   font-size: 13px;
-  padding: 20px 0;
+  padding: 24px 0;
   text-align: center;
 }
 
-.admin-settings-card {
-  padding: 20px;
+.runs-header, .system-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
-.intervals-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+.health-list, .toggles-list {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  max-width: 400px;
 }
 
-.interval-btn {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 10px 4px;
-  color: var(--text-muted);
+.health-row, .toggle-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.health-row:last-child, .toggle-item:last-child {
+  border-bottom: none;
+}
+
+.toggle-name {
   font-size: 13px;
   font-weight: 600;
+}
+
+.toggle-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.action-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-slider {
+  position: absolute;
   cursor: pointer;
-  transition: all 0.16s ease;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.15);
+  transition: 0.2s;
+  border-radius: 20px;
 }
-
-.interval-btn:hover {
-  background: var(--bg-surface-elevated);
-  color: var(--text-main);
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.2s;
+  border-radius: 50%;
 }
-
-.interval-btn.active {
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
-  color: #ffffff;
+input:checked + .toggle-slider {
+  background-color: var(--accent-primary);
+}
+input:checked + .toggle-slider:before {
+  transform: translateX(18px);
 }
 </style>
