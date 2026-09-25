@@ -940,12 +940,11 @@
         </div>
       </div>
 
-      <!-- Promo code Card -->
       <div class="card" id="cardPromo">
-        <div class="card-title" style="margin-bottom:8px;">🎁 Промокод на Premium</div>
-        <div style="display:flex;gap:6px;">
-          <input type="text" id="inputUserPromo" placeholder="Введите промокод..." style="flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;text-transform:uppercase;">
-          <button type="button" class="btn btn-accent" style="margin:0;padding:8px 14px;font-size:13px;" onclick="redeemUserPromo()">Применить</button>
+        <div class="card-title" style="margin-bottom:8px;">🎁 ПРОМОКОД НА PREMIUM</div>
+        <div style="display:flex;gap:6px;width:100%;">
+          <input type="text" id="inputUserPromo" placeholder="Введите промокод..." style="flex:1;width:100%;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;text-transform:uppercase;">
+          <button type="button" class="btn btn-accent" style="margin:0;padding:8px 14px;font-size:13px;flex-shrink:0;" onclick="redeemUserPromo()">Применить</button>
         </div>
       </div>
 
@@ -5550,13 +5549,20 @@
           emoji.textContent = '👑';
           var date = state.user.subscriptionExpiresAt ? new Date(state.user.subscriptionExpiresAt).toLocaleDateString() : '?';
           st.textContent = 'Valid until ' + date;
+          rl.textContent = 'Routes: ' + currentRoutes + ' / ' + maxRoutes;
         } else {
+          maxRoutes = 0;
           title.textContent = 'Free Plan';
           emoji.textContent = '⚪';
           st.textContent = 'Subscribe for unlimited routes & analytics';
+          rl.textContent = 'Routes: ' + currentRoutes + ' / 0';
         }
         btn.style.display = 'block';
-        rl.textContent = 'Routes: ' + currentRoutes + ' / ' + maxRoutes;
+      }
+      
+      var addRouteBtn = document.getElementById('btnAddRoute');
+      if (addRouteBtn) {
+        addRouteBtn.style.display = (state.user.role === 'admin' || currentRoutes < maxRoutes) ? 'block' : 'none';
       }
       
       var urlParams = new URLSearchParams(window.location.search);
