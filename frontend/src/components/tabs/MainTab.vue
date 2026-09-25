@@ -25,7 +25,8 @@ const {
   checkHealth,
   openRouteModal,
   deleteRoute,
-  toggleRoute
+  toggleRoute,
+  isAdmin
 } = useAppStore();
 
 const { t, getCountryName, pluralizeDays } = useI18n();
@@ -99,7 +100,7 @@ function handleAddRoute() {
           <span class="status-indicator-dot"></span>
           <span class="status-title">{{ t('monitor_active') || 'Мониторинг 24/7' }}</span>
         </div>
-        <button class="btn btn-secondary btn-sm" @click="triggerManualCheck">
+        <button v-if="isAdmin" class="btn btn-secondary btn-sm" @click="triggerManualCheck">
           <Play :size="13" />
           <span>{{ t('btn_check_now') || 'Проверить сейчас' }}</span>
         </button>

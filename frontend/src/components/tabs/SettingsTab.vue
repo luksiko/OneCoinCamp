@@ -122,26 +122,7 @@ function onSave() {
       </div>
     </div>
 
-    <!-- Scanner Interval -->
-    <div class="glass-card settings-card">
-      <div class="section-title">
-        <Clock :size="15" />
-        <span>{{ t('poll_interval') || 'Частота сканирования' }}</span>
-      </div>
-      <p class="setting-sub" style="margin-bottom: 12px;">Как часто сканер проверяет новые предложения</p>
-      
-      <div class="intervals-grid">
-        <button
-          v-for="min in intervals"
-          :key="min"
-          class="interval-btn"
-          :class="{ active: form.poll_interval_minutes === min }"
-          @click="form.poll_interval_minutes = min"
-        >
-          {{ min }} мин.
-        </button>
-      </div>
-    </div>
+
 
     <!-- Duration & Price Filters -->
     <div class="glass-card settings-card">

@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
 import { useAuth } from '../../composables/useAuth';
 import { useI18n } from '../../composables/useI18n';
 import { ShieldCheck, ExternalLink, RefreshCw } from 'lucide-vue-next';
 
-const { isLoginLoading, loginCode, loginUrl, loginError, initLogin } = useAuth();
+const { isLoginLoading, loginCode, loginUrl, loginError, initLogin, stopPolling } = useAuth();
 const { t } = useI18n();
 
 onMounted(() => {
   initLogin();
+});
+
+onUnmounted(() => {
+  stopPolling();
 });
 </script>
 

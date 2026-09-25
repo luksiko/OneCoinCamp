@@ -39,7 +39,8 @@ export function useI18n() {
 
   function t(key: string, params?: Record<string, string | number>): string {
     const langDict = messages[currentLang.value] || messages.en || {};
-    let text = langDict[key] || messages.en?.[key] || key;
+    let text = langDict[key] || messages.en?.[key] || '';
+    if (!text) return '';
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
         text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));

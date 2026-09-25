@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 import { useAuth } from './composables/useAuth';
 import { useRouter } from './composables/useRouter';
 import { useAppStore } from './composables/useAppStore';
@@ -25,6 +25,12 @@ const { loadAppData, isLoading, isAdmin } = useAppStore();
 onMounted(async () => {
   checkInitialAuth();
   if (isAuthenticated.value) {
+    await loadAppData();
+  }
+});
+
+watch(isAuthenticated, async (authed) => {
+  if (authed) {
     await loadAppData();
   }
 });

@@ -19,7 +19,7 @@ import {
 
 const { showToast } = useAppStore();
 
-type AdminSubTab = 'users' | 'payments' | 'promos' | 'broadcast' | 'runs';
+type AdminSubTab = 'users' | 'payments' | 'promos' | 'broadcast' | 'runs' | 'settings';
 const activeSubTab = ref<AdminSubTab>('users');
 
 const users = ref<AdminUser[]>([]);
@@ -230,6 +230,14 @@ onMounted(() => {
         >
           <FileText :size="14" />
           <span>Логи запусков</span>
+        </button>
+        <button
+          class="sub-tab-btn"
+          :class="{ active: activeSubTab === 'settings' }"
+          @click="switchSubTab('settings')"
+        >
+          <AlertCircle :size="14" />
+          <span>Системные настройки</span>
         </button>
       </div>
     </div>
@@ -444,6 +452,28 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- 6. SETTINGS SUBTAB -->
+    <div v-else-if="activeSubTab === 'settings'" class="settings-section">
+      <div class="glass-card admin-settings-card">
+        <div class="section-title">Системные настройки</div>
+        
+        <div class="form-group" style="margin-top: 14px;">
+          <label class="form-label">Интервал сканирования (минуты)</label>
+          <div class="intervals-grid">
+            <button
+              v-for="min in [1, 5, 10, 15, 30]"
+              :key="min"
+              class="interval-btn"
+              :class="{ active: useAppStore().appState.value?.settings?.poll_interval_minutes === min }"
+              @click="useAppStore().saveAppData({}, undefined, { poll_interval_minutes: min })"
+            >
+              {{ min }} мин.
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -654,5 +684,39 @@ onMounted(() => {
   font-size: 13px;
   padding: 20px 0;
   text-align: center;
+}
+
+.admin-settings-card {
+  padding: 20px;
+}
+
+.intervals-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  max-width: 400px;
+}
+
+.interval-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.interval-btn:hover {
+  background: var(--bg-surface-elevated);
+  color: var(--text-main);
+}
+
+.interval-btn.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #ffffff;
 }
 </style>

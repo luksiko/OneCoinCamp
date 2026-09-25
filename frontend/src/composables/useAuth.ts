@@ -89,6 +89,13 @@ export function useAuth() {
     window.location.reload();
   }
 
+  function stopPolling() {
+    if (pollTimer) {
+      clearTimeout(pollTimer);
+      pollTimer = null;
+    }
+  }
+
   return {
     isTelegramMiniApp,
     isAuthenticated,
@@ -98,6 +105,7 @@ export function useAuth() {
     loginError,
     checkInitialAuth,
     initLogin,
+    stopPolling,
     logout,
   };
 }

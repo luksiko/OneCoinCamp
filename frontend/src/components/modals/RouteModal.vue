@@ -59,13 +59,13 @@ async function loadStations() {
 }
 
 async function loadDestinations() {
-  if (!form.value.source || !form.value.originId) return;
+  if (!form.value.source) return;
   isLoadingDestinations.value = true;
   try {
     const list = await api.getProviderDestinations(
       form.value.source,
       form.value.destinationCountry,
-      form.value.originId
+      form.value.originId || ''
     );
     destinations.value = list || [];
   } catch {
