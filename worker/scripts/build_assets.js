@@ -14,6 +14,10 @@ mkdirSync(resolve(targetDir, 'app'), { recursive: true });
 // 1. Build frontend if it exists
 if (existsSync(resolve(frontendDir, 'package.json'))) {
   console.log('Building Vue 3 frontend...');
+  if (!existsSync(resolve(frontendDir, 'node_modules'))) {
+    console.log('node_modules not found, running npm install...');
+    execSync('npm install', { cwd: frontendDir, stdio: 'inherit' });
+  }
   execSync('npm run build', { cwd: frontendDir, stdio: 'inherit' });
 }
 
