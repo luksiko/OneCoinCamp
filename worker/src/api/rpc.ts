@@ -572,9 +572,10 @@ async function registerTelegramWebhook(ctx: RpcContext): Promise<any> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url: webhookUrl, secret_token: ctx.telegram.getWebhookSecret() }),
   });
-  await ctx.telegram.setChatMenuButton(undefined, ctx.workerUrl);
+  await ctx.telegram.setMyCommands();
+  await ctx.telegram.setChatMenuButton(undefined, 'commands');
   if (ctx.chatId) {
-    await ctx.telegram.setChatMenuButton(ctx.chatId, ctx.workerUrl);
+    await ctx.telegram.setChatMenuButton(ctx.chatId, 'commands');
   }
   return result;
 }

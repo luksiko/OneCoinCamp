@@ -77,3 +77,94 @@ describe('TelegramService.sendOfferAlert', () => {
     expect(sentText).toContain('🛏 Спальных мест: <b>4</b>');
   });
 });
+
+describe('TelegramService main menu & navigation', () => {
+  it('builds a 5-row 2-column inline keyboard with web app and action callbacks', async () => {
+    const { getMainMenuKeyboard } = await import('../src/services/telegram');
+    const kb = getMainMenuKeyboard('https://example.com/miniapp');
+    expect(kb.inline_keyboard).toHaveLength(5);
+    for (const row of kb.inline_keyboard) {
+      expect(row).toHaveLength(2);
+    }
+    // Row 1: Mini App and Actual Offers
+    expect(kb.inline_keyboard[0][0]).toEqual({
+      text: '🚐 Mini App ▫️',
+      web_app: { url: 'https://example.com/miniapp' },
+    });
+    expect(kb.inline_keyboard[0][1]).toEqual({
+      text: '🎯 Офферы 1€',
+      callback_data: 'menu_actual',
+    });
+    // Row 2: Routes and Check
+    expect(kb.inline_keyboard[1][0].callback_data).toBe('menu_routes');
+    expect(kb.inline_keyboard[1][1].callback_data).toBe('menu_check');
+    // Row 3: Digest and Subscribe
+    expect(kb.inline_keyboard[2][0].callback_data).toBe('menu_digest');
+    expect(kb.inline_keyboard[2][1].callback_data).toBe('menu_subscribe');
+    // Row 4: Account and Silent
+    expect(kb.inline_keyboard[3][0].callback_data).toBe('menu_account');
+    expect(kb.inline_keyboard[3][1].callback_data).toBe('menu_silent');
+    // Row 5: Status and Help
+    expect(kb.inline_keyboard[4][0].callback_data).toBe('menu_status');
+    expect(kb.inline_keyboard[4][1].callback_data).toBe('menu_help');
+  });
+
+  it('sendMainMenu sets chat menu button to commands and sends 2-column keyboard', async () => {
+    const fakeDb = {
+      upsertUser: vi.fn().mockResolvedValue(undefined),
+    } as any;
+    const service = new TelegramService(
+      { botToken: 'mock-token', workerUrl: 'https://worker.test' },
+      fakeDb
+    );
+
+    const setMenuSpy = vi.spyOn(service, 'setChatMenuButton').mockResolvedValue({ ok: true });
+    let sentPayload: any = null;
+    vi.spyOn(service, 'sendMessage').mockImplementation(async (_chatId, text, options) => {
+      sentPayload = { text, options };
+      return { ok: true };
+    });
+
+    await service.sendMainMenu('999');
+
+    expect(setMenuSpy).toHaveBeenCalledWith('999', 'commands');
+    expect(sentPayload.text).toContain('Camper Monitor — перегоны кемперов за 1€');
+    expect(sentPayload.options.reply_markup.inline_keyboard).toHaveLength(5);
+  });
+
+  it('handles menu_help callback query and answers callback', async () => {
+    const fakeDb = {
+      upsertUser: vi.fn().mockResolvedValue(undefined),
+    } as any;
+    const service = new TelegramService(
+      { botToken: 'mock-token', workerUrl: 'https://worker.test' },
+      fakeDb
+    );
+
+    const answerSpy = vi.spyOn(service, 'answerCallbackQuery').mockResolvedValue({ ok: true });
+    let sentMsg = '';
+    let sentMarkup: any = null;
+    vi.spyOn(service, 'sendMessage').mockImplementation(async (_chatId, text, options) => {
+      sentMsg = text;
+      sentMarkup = options?.reply_markup;
+      return { ok: true };
+    });
+
+    await service.processUpdate(
+      {
+        callback_query: {
+          id: 'cb-123',
+          data: 'menu_help',
+          message: { chat: { id: 777 } },
+          from: { id: 777, username: 'testuser' },
+        },
+      },
+      async () => ({ offersFound: 0 })
+    );
+
+    expect(answerSpy).toHaveBeenCalledWith('cb-123');
+    expect(sentMsg).toContain('Camper Monitor — Справка');
+    expect(sentMarkup.inline_keyboard[0][0].callback_data).toBe('menu_main');
+  });
+});
+

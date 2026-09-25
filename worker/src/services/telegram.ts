@@ -2,7 +2,7 @@ import { DbClient } from '../db/client';
 import { NormalizedOffer, UserRoute, UserFilters } from '../types';
 import { t, pluralizeDays } from './i18n';
 import { fetchJson } from '../utils/http';
-import { routeMatchesOffer, offerMatchesUserFilters, isSilentHoursActive, parseIsoDate } from './filters';
+import { routeMatchesOffer, offerMatchesUserFilters, parseIsoDate } from './filters';
 import { browserLoginCode } from '../utils/telegram-login';
 import { formatSubscriptionStatus } from './subscription';
 
@@ -14,12 +14,125 @@ export interface TelegramSecrets {
   cryptoBotToken?: string;
 }
 
+export const BOT_COMMANDS_RU = [
+  { command: 'start', description: 'Главное меню' },
+  { command: 'actual', description: 'Актуальные офферы за 1€' },
+  { command: 'routes', description: 'Мои маршруты' },
+  { command: 'check', description: 'Проверить сейчас' },
+  { command: 'digest', description: 'Дайджест за 24 часа' },
+  { command: 'subscribe', description: 'Премиум подписка' },
+  { command: 'account', description: 'Мой аккаунт' },
+  { command: 'silent', description: 'Тихие часы' },
+  { command: 'status', description: 'Статус мониторинга' },
+  { command: 'help', description: 'Справка и инструкции' },
+];
+
+export const BOT_COMMANDS_EN = [
+  { command: 'start', description: 'Main menu' },
+  { command: 'actual', description: 'Active 1€ offers' },
+  { command: 'routes', description: 'My tracked routes' },
+  { command: 'check', description: 'Check offers now' },
+  { command: 'digest', description: '24h digest' },
+  { command: 'subscribe', description: 'Premium subscription' },
+  { command: 'account', description: 'My account' },
+  { command: 'silent', description: 'Silent hours' },
+  { command: 'status', description: 'System status' },
+  { command: 'help', description: 'Help & instructions' },
+];
+
+export function getMainMenuKeyboard(webAppUrl?: string) {
+  const miniAppBtn = webAppUrl
+    ? { text: '🚐 Mini App ▫️', web_app: { url: webAppUrl } }
+    : { text: '🚐 Mini App', callback_data: 'menu_help' };
+
+  return {
+    inline_keyboard: [
+      [
+        miniAppBtn,
+        { text: '🎯 Офферы 1€', callback_data: 'menu_actual' },
+      ],
+      [
+        { text: '🚗 Мои маршруты', callback_data: 'menu_routes' },
+        { text: '🔍 Проверить', callback_data: 'menu_check' },
+      ],
+      [
+        { text: '📋 Дайджест 24ч', callback_data: 'menu_digest' },
+        { text: '💎 Подписка', callback_data: 'menu_subscribe' },
+      ],
+      [
+        { text: '👤 Мой аккаунт', callback_data: 'menu_account' },
+        { text: '🌙 Тихие часы', callback_data: 'menu_silent' },
+      ],
+      [
+        { text: '📊 Статус', callback_data: 'menu_status' },
+        { text: 'ℹ️ Помощь', callback_data: 'menu_help' },
+      ],
+    ],
+  };
+}
+
 export class TelegramService {
   constructor(private secrets: TelegramSecrets, private db: DbClient) {}
 
   getWebhookSecret(): string {
     if (!this.secrets.webhookSecret) throw new Error('Webhook secret not configured');
     return this.secrets.webhookSecret;
+  }
+
+  async setMyCommands(): Promise<any> {
+    if (!this.secrets.botToken) return null;
+
+    // Set default / English commands
+    await fetchJson(this.apiUrl('setMyCommands'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commands: BOT_COMMANDS_EN }),
+      retries: 1,
+    });
+
+    // Set Russian commands
+    return fetchJson(this.apiUrl('setMyCommands'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commands: BOT_COMMANDS_RU, language_code: 'ru' }),
+      retries: 1,
+    });
+  }
+
+  async setChatMenuButton(
+    chatId?: string | number,
+    menuType: 'commands' | 'default' | 'web_app' | string = 'commands',
+    webAppUrl?: string
+  ): Promise<any> {
+    if (!this.secrets.botToken) return null;
+    let menu_button: any;
+    if (menuType.startsWith('http')) {
+      menu_button = {
+        type: 'web_app',
+        text: 'Open Monitor',
+        web_app: { url: menuType },
+      };
+    } else if (menuType === 'web_app') {
+      const url = webAppUrl || this.secrets.workerUrl;
+      if (!url) return null;
+      menu_button = {
+        type: 'web_app',
+        text: 'Open Monitor',
+        web_app: { url },
+      };
+    } else {
+      menu_button = { type: 'commands' };
+    }
+
+    return fetchJson(this.apiUrl('setChatMenuButton'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...(chatId ? { chat_id: String(chatId) } : {}),
+        menu_button,
+      }),
+      retries: 1,
+    });
   }
 
   async registerWebhook(webhookUrl: string): Promise<void> {
@@ -30,25 +143,8 @@ export class TelegramService {
       retries: 1,
     });
     if (!response?.ok) throw new Error(response?.description || 'Telegram rejected webhook');
-  }
-
-  async setChatMenuButton(chatId?: string | number, webAppUrl?: string): Promise<any> {
-    if (!this.secrets.botToken) return null;
-    const url = webAppUrl || this.secrets.workerUrl;
-    if (!url) return null;
-    return fetchJson(this.apiUrl('setChatMenuButton'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...(chatId ? { chat_id: String(chatId) } : {}),
-        menu_button: {
-          type: 'web_app',
-          text: 'Open Monitor',
-          web_app: { url },
-        },
-      }),
-      retries: 1,
-    });
+    await this.setMyCommands();
+    await this.setChatMenuButton(undefined, 'commands');
   }
 
   private apiUrl(method: string): string {
@@ -105,7 +201,6 @@ export class TelegramService {
   ): Promise<void> {
     if (!this.secrets.botToken) throw new Error('Telegram Bot Token not configured');
     const isCamper = offer.vehicle_type === 'camper';
-    const icon = isCamper ? '🚐' : '🚗';
     const providerIcons: Record<string, string> = {
       roadsurfer: '🚐',
       movacar: '🚗',
@@ -165,6 +260,278 @@ export class TelegramService {
     }
   }
 
+  async sendMainMenu(chatId: string | number): Promise<void> {
+    const webAppUrl = this.secrets.workerUrl || '';
+    const welcomeText =
+      `🚐 <b>Camper Monitor — перегоны кемперов за 1€</b>\n\n` +
+      `Автоматический мониторинг кемперов и автомобилей за 1 евро (Roadsurfer, Movacar, Indie Campers, Imoova).\n\n` +
+      `Используйте меню ниже для быстрого доступа ко всем функциям или откройте Mini App для интерактивной карты:`;
+
+    // Ensure user has commands button (≡) available in their chat bar
+    await this.setChatMenuButton(chatId, 'commands');
+
+    await this.sendMessage(chatId, welcomeText, {
+      reply_markup: getMainMenuKeyboard(webAppUrl),
+    });
+  }
+
+  async showActualOffers(chatId: string | number, telegramId: string): Promise<void> {
+    const userFilters = await this.db.getUserFilters(telegramId);
+    const userRoutes = await this.db.getUserRoutes(telegramId);
+    const activeOffers = await this.db.getOffers(50, 0);
+
+    const matched = activeOffers.filter((offer) => {
+      const r = userRoutes.find((route) => routeMatchesOffer(route, offer));
+      return r && offerMatchesUserFilters(offer, userFilters, r);
+    });
+
+    const webAppUrl = this.secrets.workerUrl || '';
+
+    if (matched.length === 0) {
+      const emptyButtons = [
+        [{ text: '🔍 Запустить проверку', callback_data: 'menu_check' }],
+        webAppUrl ? [{ text: '🚐 Настроить в Mini App ▫️', web_app: { url: webAppUrl } }] : [],
+        [{ text: '◀️ Главное меню', callback_data: 'menu_main' }],
+      ].filter((r) => r.length > 0);
+
+      await this.sendMessage(
+        chatId,
+        `📋 <b>Актуальные офферы</b>\n\nСейчас нет доступных предложений по вашим фильтрам.\nЗапустите проверку провайдеров или добавьте новые маршруты в Mini App.`,
+        { reply_markup: { inline_keyboard: emptyButtons } }
+      );
+      return;
+    }
+
+    await this.sendMessage(chatId, `🎯 <b>Актуальные офферы (${matched.length}):</b>`);
+    for (const off of matched.slice(0, 5)) {
+      await this.sendOfferAlert(chatId, off);
+    }
+
+    await this.sendMessage(chatId, `Показано предложений: <b>${Math.min(matched.length, 5)}</b> из <b>${matched.length}</b>.`, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🔍 Проверить ещё раз', callback_data: 'menu_check' }],
+          [{ text: '◀️ Главное меню', callback_data: 'menu_main' }],
+        ],
+      },
+    });
+  }
+
+  async showRoutesMenu(chatId: string | number, telegramId: string): Promise<void> {
+    const routes = await this.db.getUserRoutes(telegramId);
+    const webAppUrl = this.secrets.workerUrl || '';
+
+    let resp = '';
+    if (routes.length === 0) {
+      resp = `🚗 <b>Отслеживаемые маршруты</b>\n\nУ вас пока нет активных маршрутов.\nОткройте Mini App, выберите нужные направления и сохраните их.`;
+    } else {
+      resp = `🚗 <b>Отслеживаемые маршруты (${routes.length}):</b>\n\n`;
+      for (const r of routes) {
+        const statusIcon = r.enabled ? '✅' : '⏸️';
+        resp += `${statusIcon} <b>${escapeHtml(r.source)}</b>: ${escapeHtml(r.origin_name || '*')} ➔ ${escapeHtml(r.destination_name || '*')}\n`;
+      }
+    }
+
+    const inlineKeyboard: any[] = [];
+    if (webAppUrl) {
+      inlineKeyboard.push([{ text: '🚐 Настроить маршруты в Mini App ▫️', web_app: { url: webAppUrl } }]);
+    }
+    if (routes.length > 0) {
+      inlineKeyboard.push([{ text: '🗑 Очистить все маршруты', callback_data: 'clear_routes_confirm' }]);
+    }
+    inlineKeyboard.push([{ text: '◀️ Главное меню', callback_data: 'menu_main' }]);
+
+    await this.sendMessage(chatId, resp, { reply_markup: { inline_keyboard: inlineKeyboard } });
+  }
+
+  async showDigest(chatId: string | number, telegramId: string): Promise<void> {
+    const userFilters = await this.db.getUserFilters(telegramId);
+    const userRoutes = await this.db.getUserRoutes(telegramId);
+    const since = Date.now() - 24 * 60 * 60 * 1000;
+    const archive = await this.db.getOfferArchive(telegramId);
+    const recent = archive.filter((offer) => {
+      if (Date.parse(offer.found_at || '') < since) return false;
+      const route = userRoutes.find((item) => routeMatchesOffer(item, offer));
+      return route && offerMatchesUserFilters(offer, userFilters, route);
+    });
+
+    if (recent.length === 0) {
+      await this.sendMessage(chatId, '📋 <b>Дайджест за 24 часа</b>\n\nНовых подходящих офферов за последние 24 часа не найдено.', {
+        reply_markup: {
+          inline_keyboard: [[{ text: '◀️ Главное меню', callback_data: 'menu_main' }]],
+        },
+      });
+      return;
+    }
+
+    const lines = [`📋 <b>Дайджест за 24 часа (${recent.length}):</b>\n`];
+    for (const offer of recent.slice(0, 10)) {
+      lines.push(`• <b>${escapeHtml(offer.origin)}</b> ➔ <b>${escapeHtml(offer.destination)}</b> · ${offer.price} € · <code>${escapeHtml(offer.pickup_date)}</code>`);
+    }
+    if (recent.length > 10) lines.push(`\n<i>И ещё ${recent.length - 10} предложений в архиве Mini App.</i>`);
+
+    await this.sendMessage(chatId, lines.join('\n'), {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🎯 Актуальные офферы', callback_data: 'menu_actual' }],
+          [{ text: '◀️ Главное меню', callback_data: 'menu_main' }],
+        ],
+      },
+    });
+  }
+
+  async showSubscriptionMenu(chatId: string | number, telegramId: string): Promise<void> {
+    const user = await this.db.getUser(telegramId);
+    const isActive = this.db.isSubscriptionActive(user);
+
+    if (isActive && user?.subscription_status !== 'trial') {
+      const expiry = user?.subscription_expires_at
+        ? new Date(user.subscription_expires_at).toLocaleDateString('ru-RU')
+        : '?';
+      await this.sendMessage(
+        chatId,
+        `💎 <b>Ваша подписка активна!</b>\n\nСтатус: <b>Premium</b>\nДействует до: <b>${expiry}</b>\n\nВам доступны безлимитные маршруты и мгновенные уведомления.`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '👤 Мой аккаунт', callback_data: 'menu_account' }],
+              [{ text: '◀️ Главное меню', callback_data: 'menu_main' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    const webAppUrl = this.secrets.workerUrl || '';
+    const text =
+      `💎 <b>Camper Monitor Premium</b>\n\n` +
+      `• Безлимитные маршруты и моментальные алерты\n` +
+      `• Полный архив офферов и аналитика\n` +
+      `• Приоритетный мониторинг перегонов\n\n` +
+      `Стоимость: <b>€4.99 / месяц</b> или <b>$5.99 USDT</b>\n\n` +
+      `Выберите удобный способ оплаты:`;
+
+    const buttons: any[] = [];
+    if (webAppUrl) {
+      buttons.push([{ text: '💳 Оплатить картой — €4.99/мес ▫️', web_app: { url: webAppUrl + '?subscribe=1' } }]);
+    }
+    buttons.push([{ text: '💎 Оплатить USDT — $5.99', callback_data: 'pay_crypto' }]);
+    buttons.push([{ text: '◀️ Главное меню', callback_data: 'menu_main' }]);
+
+    await this.sendMessage(chatId, text, {
+      reply_markup: { inline_keyboard: buttons },
+    });
+  }
+
+  async showAccountMenu(chatId: string | number, telegramId: string): Promise<void> {
+    const user = await this.db.getUser(telegramId);
+    const isActive = this.db.isSubscriptionActive(user);
+    const statusText = formatSubscriptionStatus(user!, isActive);
+    const routes = await this.db.getUserRoutes(telegramId);
+    const routeCount = routes.length;
+    const maxRoutes = this.db.getUserMaxRoutes(user);
+    const routeInfo = maxRoutes >= 999
+      ? `Маршрутов: <b>${routeCount}</b> (без ограничений)`
+      : `Маршрутов: <b>${routeCount} / ${maxRoutes}</b>`;
+
+    let msgStr = `👤 <b>Ваш аккаунт</b>\n\n${statusText}\n📍 ${routeInfo}`;
+
+    const buttons: any[] = [];
+    if (!isActive) {
+      buttons.push([{ text: '💎 Оформить Premium', callback_data: 'menu_subscribe' }]);
+    }
+    buttons.push([{ text: '🚗 Мои маршруты', callback_data: 'menu_routes' }]);
+    buttons.push([{ text: '◀️ Главное меню', callback_data: 'menu_main' }]);
+
+    await this.sendMessage(chatId, msgStr, {
+      reply_markup: { inline_keyboard: buttons },
+    });
+  }
+
+  async showSilentMenu(chatId: string | number, telegramId: string): Promise<void> {
+    const current = await this.db.getUserFilters(telegramId);
+    const isEnabled = Boolean(current.silent_hours_enabled);
+    const statusStr = isEnabled ? '🔔 ВКЛЮЧЕНЫ' : '🔕 ВЫКЛЮЧЕНЫ';
+    const rangeStr = `${current.silent_hours_start || '23:00'} – ${current.silent_hours_end || '07:00'}`;
+
+    const toggleBtn = isEnabled
+      ? { text: '☀️ Выключить тихий режим', callback_data: 'silent_set:off' }
+      : { text: '🌙 Включить тихий режим', callback_data: 'silent_set:on' };
+
+    const msg =
+      `🌙 <b>Режим тихих часов</b>\n\n` +
+      `В тихие часы бот присылает уведомления без звука, чтобы не беспокоить вас.\n\n` +
+      `Текущий статус: <b>${statusStr}</b>\n` +
+      `Интервал: <code>${rangeStr}</code>\n\n` +
+      `Выберите действие или пресет времени:`;
+
+    const keyboard = {
+      inline_keyboard: [
+        [toggleBtn],
+        [
+          { text: '⏱ 23:00–07:00', callback_data: 'silent_set:23:00-07:00' },
+          { text: '⏱ 22:00–08:00', callback_data: 'silent_set:22:00-08:00' },
+        ],
+        [
+          { text: '⏱ 00:00–08:00', callback_data: 'silent_set:00:00-08:00' },
+          { text: '⏱ 23:00–09:00', callback_data: 'silent_set:23:00-09:00' },
+        ],
+        [{ text: '◀️ Главное меню', callback_data: 'menu_main' }],
+      ],
+    };
+
+    await this.sendMessage(chatId, msg, { reply_markup: keyboard });
+  }
+
+  async showStatusMenu(chatId: string | number): Promise<void> {
+    const latestRun = await this.db.getLatestRun();
+    const activeUsers = await this.db.listActiveUsers();
+    const message = t('status_header', 'ru', {
+      lastRun: latestRun?.finished_at || 'Нет данных',
+      status: latestRun?.status || 'ok',
+      found: latestRun?.offers_found || 0,
+      sent: latestRun?.alerts_sent || 0,
+      users: activeUsers.length,
+    });
+
+    await this.sendMessage(chatId, message, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🔍 Запустить проверку сейчас', callback_data: 'menu_check' }],
+          [{ text: '◀️ Главное меню', callback_data: 'menu_main' }],
+        ],
+      },
+    });
+  }
+
+  async showHelpMenu(chatId: string | number): Promise<void> {
+    const helpMsg =
+      `🚐 <b>Camper Monitor — Справка</b>\n\n` +
+      `Бот сканирует сайты провайдеров каждые несколько минут и мгновенно оповещает о доступных перегонах за <b>1€</b>.\n\n` +
+      `<b>Поддерживаемые провайдеры:</b>\n` +
+      `• <b>Roadsurfer Rally</b> — кемперы по всей Европе\n` +
+      `• <b>Movacar</b> — автомобили и кемперы\n` +
+      `• <b>Indie Campers</b> — кемпервэны\n` +
+      `• <b>Imoova</b> — международные перегоны\n\n` +
+      `<b>Быстрые команды:</b>\n` +
+      `• /actual — активные предложения по фильтрам\n` +
+      `• /routes — список ваших маршрутов\n` +
+      `• /check — запуск сканирования прямо сейчас\n` +
+      `• /digest — дайджест найденного за 24 часа\n` +
+      `• /silent — тихие часы (без звука)\n` +
+      `• /subscribe — оформление Premium\n` +
+      `• /account — статус аккаунта и лимиты\n` +
+      `• /status — статус сканера и последний прогон\n\n` +
+      `💡 Вы также можете в любой момент нажать кнопку <b>[ ≡ Меню ]</b> в левом нижнем углу экрана.`;
+
+    await this.sendMessage(chatId, helpMsg, {
+      reply_markup: {
+        inline_keyboard: [[{ text: '◀️ Главное меню', callback_data: 'menu_main' }]],
+      },
+    });
+  }
+
   async handleWebhook(request: Request, triggerMonitorFn: () => Promise<any>): Promise<Response> {
     const secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token');
     if (!this.secrets.webhookSecret) return new Response('Webhook secret not configured', { status: 503 });
@@ -192,6 +559,11 @@ export class TelegramService {
       const cb = update.callback_query;
       const data = String(cb.data || '');
       const chatId = cb.message?.chat?.id;
+      const fromId = String(cb.from?.id || chatId);
+
+      if (chatId) {
+        await this.db.upsertUser(fromId, chatId, cb.from?.username, cb.from?.first_name);
+      }
 
       const browserLogin = data.match(/^browser_login:([A-Za-z0-9_-]{32})$/);
       if (browserLogin) {
@@ -200,7 +572,9 @@ export class TelegramService {
           return;
         }
         const approved = await this.db.approveBrowserLoginChallenge(browserLogin[1], {
-          id: String(cb.from.id), username: cb.from.username, language: cb.from.language_code,
+          id: String(cb.from.id),
+          username: cb.from.username,
+          language: cb.from.language_code,
         });
         await this.answerCallbackQuery(cb.id, approved ? 'Вход подтверждён' : 'Ссылка устарела');
         if (approved) {
@@ -213,9 +587,130 @@ export class TelegramService {
         return;
       }
 
+      if (data === 'menu_main') {
+        await this.answerCallbackQuery(cb.id);
+        await this.sendMainMenu(chatId);
+        return;
+      }
+
+      if (data === 'menu_actual') {
+        await this.answerCallbackQuery(cb.id);
+        await this.showActualOffers(chatId, fromId);
+        return;
+      }
+
+      if (data === 'menu_routes') {
+        await this.answerCallbackQuery(cb.id);
+        await this.showRoutesMenu(chatId, fromId);
+        return;
+      }
+
+      if (data === 'menu_check') {
+        await this.answerCallbackQuery(cb.id, 'Запускаю сканирование...');
+        await this.sendMessage(chatId, '⏳ <b>Сканирование провайдеров запущено...</b>\nПроверяем Roadsurfer, Movacar, Indie Campers и Imoova.');
+        try {
+          const result = await triggerMonitorFn();
+          const found = result?.offersFound || 0;
+          await this.sendMessage(chatId, `✅ <b>Сканирование завершено.</b>\nНайдено новых офферов: <b>${found}</b>.`, {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🎯 Посмотреть актуальные', callback_data: 'menu_actual' }],
+                [{ text: '◀️ Главное меню', callback_data: 'menu_main' }],
+              ],
+            },
+          });
+        } catch (err: any) {
+          await this.sendMessage(chatId, `❌ Ошибка проверки: ${err.message || err}`, {
+            reply_markup: { inline_keyboard: [[{ text: '◀️ Главное меню', callback_data: 'menu_main' }]] },
+          });
+        }
+        return;
+      }
+
+      if (data === 'menu_digest') {
+        await this.answerCallbackQuery(cb.id);
+        await this.showDigest(chatId, fromId);
+        return;
+      }
+
+      if (data === 'menu_subscribe') {
+        await this.answerCallbackQuery(cb.id);
+        await this.showSubscriptionMenu(chatId, fromId);
+        return;
+      }
+
+      if (data === 'menu_account') {
+        await this.answerCallbackQuery(cb.id);
+        await this.showAccountMenu(chatId, fromId);
+        return;
+      }
+
+      if (data === 'menu_silent') {
+        await this.answerCallbackQuery(cb.id);
+        await this.showSilentMenu(chatId, fromId);
+        return;
+      }
+
+      if (data.startsWith('silent_set:')) {
+        const val = data.replace('silent_set:', '');
+        if (val === 'on') {
+          await this.db.setUserFilters(fromId, { silent_hours_enabled: true });
+          await this.answerCallbackQuery(cb.id, 'Тихий режим включен');
+        } else if (val === 'off') {
+          await this.db.setUserFilters(fromId, { silent_hours_enabled: false });
+          await this.answerCallbackQuery(cb.id, 'Тихий режим выключен');
+        } else if (val.includes('-')) {
+          const [start, end] = val.split('-');
+          await this.db.setUserFilters(fromId, {
+            silent_hours_enabled: true,
+            silent_hours_start: start,
+            silent_hours_end: end,
+          });
+          await this.answerCallbackQuery(cb.id, `Установлено: ${start} - ${end}`);
+        }
+        await this.showSilentMenu(chatId, fromId);
+        return;
+      }
+
+      if (data === 'clear_routes_confirm') {
+        await this.answerCallbackQuery(cb.id);
+        await this.sendMessage(chatId, '⚠️ <b>Вы уверены, что хотите удалить все сохранённые маршруты?</b>', {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '❌ Да, удалить все', callback_data: 'clear_routes_do' }],
+              [{ text: 'Отмена', callback_data: 'menu_routes' }],
+            ],
+          },
+        });
+        return;
+      }
+
+      if (data === 'clear_routes_do') {
+        const removed = await this.db.clearUserRoutes(fromId);
+        await this.answerCallbackQuery(cb.id, `Удалено: ${removed}`);
+        await this.sendMessage(chatId, `🗑 Все маршруты удалены (кол-во: <b>${removed}</b>).`, {
+          reply_markup: {
+            inline_keyboard: [[{ text: '◀️ Главное меню', callback_data: 'menu_main' }]],
+          },
+        });
+        return;
+      }
+
+      if (data === 'menu_status') {
+        await this.answerCallbackQuery(cb.id);
+        await this.showStatusMenu(chatId);
+        return;
+      }
+
+      if (data === 'menu_help') {
+        await this.answerCallbackQuery(cb.id);
+        await this.showHelpMenu(chatId);
+        return;
+      }
+
       if (data === 'pay_crypto') {
         if (!this.secrets.cryptoBotToken) {
-          await this.answerCallbackQuery(cb.id, 'Crypto payments not configured');
+          await this.answerCallbackQuery(cb.id, 'Оплата криптой временно недоступна');
           return;
         }
         try {
@@ -223,30 +718,37 @@ export class TelegramService {
             method: 'POST',
             headers: {
               'Crypto-Pay-API-Token': this.secrets.cryptoBotToken,
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
             },
             body: JSON.stringify({
               asset: 'USDT',
-              amount: '4.99',
+              amount: '5.99',
               description: 'Camper Monitor Premium (1 Month)',
-              hidden_message: 'Thank you for your purchase!',
-              payload: JSON.stringify({ telegram_id: String(cb.from.id) })
-            })
+              hidden_message: 'Спасибо за оплату подписки Camper Monitor!',
+              payload: JSON.stringify({ telegram_id: fromId }),
+            }),
           });
           const cryptoData = await res.json<any>();
           if (cryptoData.ok && cryptoData.result?.pay_url) {
             await this.answerCallbackQuery(cb.id);
-            await this.sendMessage(chatId!, '💎 <b>Crypto Payment (USDT)</b>\n\nClick the link below to pay securely via CryptoBot:', {
-              reply_markup: {
-                inline_keyboard: [[{ text: 'Pay $4.99 USDT', url: cryptoData.result.pay_url }]]
+            await this.sendMessage(
+              chatId,
+              `💎 <b>Оплата через CryptoBot (USDT)</b>\n\nСумма: <b>$5.99 USDT</b>\nСрок: <b>30 дней Premium</b>\n\nНажмите кнопку ниже для быстрой оплаты в боте CryptoBot:`,
+              {
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: 'Оплатить $5.99 USDT ➔', url: cryptoData.result.pay_url }],
+                    [{ text: '◀️ Главное меню', callback_data: 'menu_main' }],
+                  ],
+                },
               }
-            });
+            );
           } else {
-            await this.answerCallbackQuery(cb.id, 'Failed to create invoice');
+            await this.answerCallbackQuery(cb.id, 'Не удалось создать счет в CryptoBot');
           }
         } catch (e) {
-          console.error(e);
-          await this.answerCallbackQuery(cb.id, 'Error creating invoice');
+          console.error('CryptoBot invoice error:', e);
+          await this.answerCallbackQuery(cb.id, 'Ошибка при обращении к CryptoBot');
         }
         return;
       }
@@ -256,9 +758,18 @@ export class TelegramService {
         if (chatId) {
           await this.db.disableUserRoute(chatId, routeId);
           await this.answerCallbackQuery(cb.id, 'Маршрут успешно отключен!');
-          await this.sendMessage(chatId, '🚫 Маршрут был отключен.');
+          await this.sendMessage(chatId, '🚫 Маршрут был отключен.', {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🚗 Мои маршруты', callback_data: 'menu_routes' }],
+                [{ text: '◀️ Главное меню', callback_data: 'menu_main' }],
+              ],
+            },
+          });
         }
+        return;
       }
+
       return;
     }
 
@@ -271,56 +782,6 @@ export class TelegramService {
 
     // Register / update user in DB
     await this.db.upsertUser(telegramId, chatId, msg.from?.username, msg.from?.first_name);
-
-    if (text.startsWith('/subscribe')) {
-      const user = await this.db.getUser(telegramId);
-      const isActive = this.db.isSubscriptionActive(user);
-      if (isActive && user?.subscription_status !== 'trial') {
-        const expiry = user?.subscription_expires_at
-          ? new Date(user.subscription_expires_at).toLocaleDateString('en-GB')
-          : '?';
-        await this.sendMessage(chatId,
-          `✅ You already have an active Premium subscription until <b>${expiry}</b>.`
-        );
-        return;
-      }
-      // Send link to Mini App with subscribe intent
-      const webAppUrl = this.secrets.workerUrl || '';
-      await this.sendMessage(chatId,
-        '💳 <b>Subscribe to Camper Monitor Premium</b>\n\n' +
-        '• Unlimited routes and monitoring alerts\n' +
-        '• Full offer archive and analytics\n' +
-        `• <b>€4.99/month</b>\n\n` +
-        'Open the app below to complete payment:',
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '💳 Subscribe (Card) — €4.99/mo', web_app: { url: webAppUrl + '?subscribe=1' } }],
-              [{ text: '💎 Subscribe (USDT) — $4.99', callback_data: 'pay_crypto' }]
-            ]
-          }
-        }
-      );
-      return;
-    }
-
-    if (text.startsWith('/account')) {
-      const user = await this.db.getUser(telegramId);
-      const isActive = this.db.isSubscriptionActive(user);
-      const statusText = formatSubscriptionStatus(user!, isActive);
-      const routeCount = (await this.db.getUserRoutes(telegramId)).length;
-      const maxRoutes = this.db.getUserMaxRoutes(user);
-      const routeInfo = maxRoutes >= 999
-        ? `📍 Routes: ${routeCount} (unlimited)`
-        : `📍 Routes: ${routeCount} / ${maxRoutes}`;
-
-      let msgStr = `👤 <b>Your Account</b>\n\n${statusText}\n${routeInfo}`;
-      if (!isActive) {
-        msgStr += '\n\n💡 Use /subscribe to get Premium access.';
-      }
-      await this.sendMessage(chatId, msgStr);
-      return;
-    }
 
     const browserLogin = text.match(/^\/start(?:@\w+)?\s+login_([A-Za-z0-9_-]{32})$/);
     if (browserLogin) {
@@ -338,108 +799,53 @@ export class TelegramService {
     }
 
     if (text.startsWith('/start')) {
-      if (this.secrets.workerUrl) {
-        await this.setChatMenuButton(chatId, this.secrets.workerUrl);
-      }
-      await this.sendMessage(chatId, t('start_welcome', 'ru'));
-      return;
-    }
-
-    if (text.startsWith('/help')) {
-      await this.sendMessage(chatId, t('help_text', 'ru'));
-      return;
-    }
-
-    if (text.startsWith('/status')) {
-      const latestRun = await this.db.getLatestRun();
-      const activeUsers = await this.db.listActiveUsers();
-      const message = t('status_header', 'ru', {
-        lastRun: latestRun?.finished_at || 'Нет данных',
-        status: latestRun?.status || 'ok',
-        found: latestRun?.offers_found || 0,
-        sent: latestRun?.alerts_sent || 0,
-        users: activeUsers.length,
-      });
-      await this.sendMessage(chatId, message);
-      return;
-    }
-
-    if (text.startsWith('/routes')) {
-      const routes = await this.db.getUserRoutes(telegramId);
-      if (routes.length === 0) {
-        await this.sendMessage(chatId, t('routes_empty', 'ru'));
-        return;
-      }
-      let resp = t('routes_header', 'ru');
-      for (let i = 0; i < routes.length; i++) {
-        const r = routes[i];
-        const statusIcon = r.enabled ? '✅' : '⏸️';
-        resp += `${statusIcon} ${r.source}: ${r.origin_name || '*'} (${r.origin_country || '*'}) ➔ ${r.destination_name || '*'} (${r.destination_country || '*'})\n`;
-      }
-      await this.sendMessage(chatId, resp);
-      return;
-    }
-
-    if (text.startsWith('/clear_routes') || text.startsWith('/reset_routes')) {
-      const removed = await this.db.clearUserRoutes(telegramId);
-      await this.sendMessage(chatId, `Удалено маршрутов: ${removed}.`);
-      return;
-    }
-
-    if (text.startsWith('/digest')) {
-      const userFilters = await this.db.getUserFilters(telegramId);
-      const userRoutes = await this.db.getUserRoutes(telegramId);
-      const since = Date.now() - 24 * 60 * 60 * 1000;
-      const archive = await this.db.getOfferArchive(telegramId);
-      const recent = archive.filter((offer) => {
-        if (Date.parse(offer.found_at || '') < since) return false;
-        const route = userRoutes.find((item) => routeMatchesOffer(item, offer));
-        return route && offerMatchesUserFilters(offer, userFilters, route);
-      });
-      if (recent.length === 0) {
-        await this.sendMessage(chatId, '📋 За последние 24 часа новых подходящих офферов не найдено.');
-        return;
-      }
-      const lines = [`📋 <b>Дайджест за 24 часа: ${recent.length}</b>`];
-      for (const offer of recent.slice(0, 10)) {
-        lines.push(`${escapeHtml(offer.origin)} → ${escapeHtml(offer.destination)} · ${offer.price} € · ${escapeHtml(offer.pickup_date)}`);
-      }
-      if (recent.length > 10) lines.push(`И ещё ${recent.length - 10} в архиве.`);
-      await this.sendMessage(chatId, lines.join('\n'));
-      return;
-    }
-
-    if (text.startsWith('/check')) {
-      await this.sendMessage(chatId, t('check_starting', 'ru'));
-      try {
-        const result = await triggerMonitorFn();
-        const found = result?.offersFound || 0;
-        await this.sendMessage(chatId, t('check_finished', 'ru', { count: found }));
-      } catch (err: any) {
-        await this.sendMessage(chatId, `❌ Ошибка проверки: ${err.message || err}`);
-      }
+      await this.sendMainMenu(chatId);
       return;
     }
 
     if (text.startsWith('/actual')) {
-      const userFilters = await this.db.getUserFilters(telegramId);
-      const userRoutes = await this.db.getUserRoutes(telegramId);
-      const activeOffers = await this.db.getOffers(50, 0);
+      await this.showActualOffers(chatId, telegramId);
+      return;
+    }
 
-      const matched = activeOffers.filter((offer) => {
-        const r = userRoutes.find((route) => routeMatchesOffer(route, offer));
-        return r && offerMatchesUserFilters(offer, userFilters, r);
-      });
+    if (text.startsWith('/routes')) {
+      await this.showRoutesMenu(chatId, telegramId);
+      return;
+    }
 
-      if (matched.length === 0) {
-        await this.sendMessage(chatId, t('actual_empty', 'ru'));
-        return;
+    if (text.startsWith('/check')) {
+      await this.sendMessage(chatId, '⏳ <b>Сканирование провайдеров запущено...</b>\nПроверяем Roadsurfer, Movacar, Indie Campers и Imoova.');
+      try {
+        const result = await triggerMonitorFn();
+        const found = result?.offersFound || 0;
+        await this.sendMessage(chatId, `✅ <b>Сканирование завершено.</b>\nНайдено новых офферов: <b>${found}</b>.`, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🎯 Посмотреть актуальные', callback_data: 'menu_actual' }],
+              [{ text: '◀️ Главное меню', callback_data: 'menu_main' }],
+            ],
+          },
+        });
+      } catch (err: any) {
+        await this.sendMessage(chatId, `❌ Ошибка проверки: ${err.message || err}`, {
+          reply_markup: { inline_keyboard: [[{ text: '◀️ Главное меню', callback_data: 'menu_main' }]] },
+        });
       }
+      return;
+    }
 
-      await this.sendMessage(chatId, `🎯 <b>Актуальные офферы (${matched.length}):</b>`);
-      for (const off of matched.slice(0, 5)) {
-        await this.sendOfferAlert(chatId, off);
-      }
+    if (text.startsWith('/digest')) {
+      await this.showDigest(chatId, telegramId);
+      return;
+    }
+
+    if (text.startsWith('/subscribe')) {
+      await this.showSubscriptionMenu(chatId, telegramId);
+      return;
+    }
+
+    if (text.startsWith('/account')) {
+      await this.showAccountMenu(chatId, telegramId);
       return;
     }
 
@@ -448,10 +854,14 @@ export class TelegramService {
       const arg = parts[1] || '';
       if (arg === 'on') {
         await this.db.setUserFilters(telegramId, { silent_hours_enabled: true });
-        await this.sendMessage(chatId, t('silent_on', 'ru'));
+        await this.sendMessage(chatId, t('silent_on', 'ru'), {
+          reply_markup: { inline_keyboard: [[{ text: '◀️ Главное меню', callback_data: 'menu_main' }]] },
+        });
       } else if (arg === 'off') {
         await this.db.setUserFilters(telegramId, { silent_hours_enabled: false });
-        await this.sendMessage(chatId, t('silent_off', 'ru'));
+        await this.sendMessage(chatId, t('silent_off', 'ru'), {
+          reply_markup: { inline_keyboard: [[{ text: '◀️ Главное меню', callback_data: 'menu_main' }]] },
+        });
       } else if (arg.includes('-')) {
         const [start, end] = arg.split('-');
         if (/^\d{1,2}:\d{2}$/.test(start) && /^\d{1,2}:\d{2}$/.test(end)) {
@@ -460,18 +870,33 @@ export class TelegramService {
             silent_hours_start: start,
             silent_hours_end: end,
           });
-          await this.sendMessage(chatId, t('silent_set', 'ru', { start, end }));
+          await this.sendMessage(chatId, t('silent_set', 'ru', { start, end }), {
+            reply_markup: { inline_keyboard: [[{ text: '◀️ Главное меню', callback_data: 'menu_main' }]] },
+          });
         } else {
           await this.sendMessage(chatId, t('silent_invalid_format', 'ru'));
         }
       } else {
-        const current = await this.db.getUserFilters(telegramId);
-        const status = current.silent_hours_enabled ? 'ВКЛЮЧЕНЫ' : 'ВЫКЛЮЧЕНЫ';
-        await this.sendMessage(
-          chatId,
-          `🌙 <b>Тихие часы</b>\n\nТекущий статус: <b>${status}</b>\nИнтервал: <code>${current.silent_hours_start} - ${current.silent_hours_end}</code>\n\nКоманды:\n• <code>/silent on</code>\n• <code>/silent off</code>\n• <code>/silent 23:00-08:00</code>`
-        );
+        await this.showSilentMenu(chatId, telegramId);
       }
+      return;
+    }
+
+    if (text.startsWith('/status')) {
+      await this.showStatusMenu(chatId);
+      return;
+    }
+
+    if (text.startsWith('/help')) {
+      await this.showHelpMenu(chatId);
+      return;
+    }
+
+    if (text.startsWith('/clear_routes') || text.startsWith('/reset_routes')) {
+      const removed = await this.db.clearUserRoutes(telegramId);
+      await this.sendMessage(chatId, `🗑 Удалено маршрутов: <b>${removed}</b>.`, {
+        reply_markup: { inline_keyboard: [[{ text: '◀️ Главное меню', callback_data: 'menu_main' }]] },
+      });
       return;
     }
   }

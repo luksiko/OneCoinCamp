@@ -52,12 +52,13 @@ export default {
           const settings = await db.getSettings();
           if (settings.webhook_cutover_complete !== true) {
             await telegram.registerWebhook(`${env.WORKER_PUBLIC_URL}/webhook/telegram`);
-            await telegram.setChatMenuButton(undefined, env.WORKER_PUBLIC_URL);
+            await telegram.setMyCommands();
+            await telegram.setChatMenuButton(undefined, 'commands');
             if (env.TELEGRAM_CHAT_ID) {
-              await telegram.setChatMenuButton(env.TELEGRAM_CHAT_ID, env.WORKER_PUBLIC_URL);
+              await telegram.setChatMenuButton(env.TELEGRAM_CHAT_ID, 'commands');
             }
             await db.setSetting('webhook_cutover_complete', true);
-            console.log('Telegram webhook and menu button moved to Cloudflare Worker.');
+            console.log('Telegram webhook, commands and menu button configured on Cloudflare Worker.');
           }
         } catch (error) {
           console.error('Telegram webhook cutover failed:', error);
@@ -209,11 +210,30 @@ export default {
       try {
         const targetWorkerUrl = env.WORKER_PUBLIC_URL || `${url.protocol}//${url.host}`;
         await telegram.registerWebhook(`${targetWorkerUrl}/webhook/telegram`);
-        await telegram.setChatMenuButton(undefined, targetWorkerUrl);
+        await telegram.setMyCommands();
+        await telegram.setChatMenuButton(undefined, 'commands');
         if (env.TELEGRAM_CHAT_ID) {
-          await telegram.setChatMenuButton(env.TELEGRAM_CHAT_ID, targetWorkerUrl);
+          await telegram.setChatMenuButton(env.TELEGRAM_CHAT_ID, 'commands');
         }
-        return new Response(JSON.stringify({ ok: true, message: 'Webhook registered successfully with secret token' }), {
+        return new Response(JSON.stringify({ ok: true, message: 'Webhook, commands and menu button registered successfully' }), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (err: any) {
+        return new Response(JSON.stringify({ ok: false, error: err.message || String(err) }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    if (url.pathname === '/telegram/setup-menu') {
+      try {
+        await telegram.setMyCommands();
+        await telegram.setChatMenuButton(undefined, 'commands');
+        if (env.TELEGRAM_CHAT_ID) {
+          await telegram.setChatMenuButton(env.TELEGRAM_CHAT_ID, 'commands');
+        }
+        return new Response(JSON.stringify({ ok: true, message: 'Commands and menu button configured successfully' }), {
           headers: { 'Content-Type': 'application/json' },
         });
       } catch (err: any) {
