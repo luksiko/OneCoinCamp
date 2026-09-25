@@ -1147,13 +1147,6 @@
         </div>
       </div>
 
-      <div class="card" id="cardPromo">
-        <div class="card-title" style="margin-bottom:8px;">🎁 ПРОМОКОД НА PREMIUM</div>
-        <div style="display:flex;gap:6px;width:100%;">
-          <input type="text" id="inputUserPromo" placeholder="Введите промокод..." style="flex:1;width:100%;min-width:0;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--section);color:var(--text);font-size:13px;text-transform:uppercase;">
-          <button type="button" class="btn btn-accent" style="margin:0;padding:8px 14px;font-size:13px;flex-shrink:0;" onclick="redeemUserPromo()">Применить</button>
-        </div>
-      </div>
 
       <!-- User Preferences Card -->
       <div class="card" id="cardUserPreferences">
@@ -5583,25 +5576,6 @@
     }
 
     // ── User Promo Redemption ──
-    function redeemUserPromo() {
-      var input = document.getElementById('inputUserPromo');
-      var code = (input?.value || '').trim().toUpperCase();
-      if (!code) {
-        toast('Введите промокод', true);
-        return;
-      }
-      toast('Проверка промокода...');
-      google.script.run
-        .withSuccessHandler(function(res) {
-          toast('🎉 Промокод применен! Добавлено дней: ' + (res?.daysAdded || 30));
-          if (input) input.value = '';
-          setTimeout(function() { window.location.reload(); }, 1500);
-        })
-        .withFailureHandler(function(e) {
-          toast('Ошибка: ' + (e && e.message || e), true);
-        })
-        .redeemPromoCodeWeb(code);
-    }
 
     function initPaddle(data) {
       if (!data.paddleClientToken || !window.Paddle) return;
