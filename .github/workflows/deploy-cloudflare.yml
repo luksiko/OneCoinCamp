@@ -5,7 +5,7 @@ on:
     branches: [master]
     paths:
       - .github/workflows/deploy-cloudflare.yml
-      - docs/index.html
+      - docs/**
       - worker/**
   workflow_dispatch:
 

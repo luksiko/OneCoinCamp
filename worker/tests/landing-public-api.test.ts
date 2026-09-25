@@ -112,7 +112,7 @@ describe('Landing Page, SEO, and Desktop Public Endpoints', () => {
     expect(data.paddleClientToken).toBe('live_test123');
   });
 
-  it('rewrites /app to serve app.html asset', async () => {
+  it('serves /app asset directly through ASSETS without redirect loop', async () => {
     const env = createMockEnv();
     const req = new Request('https://camper-monitor.luksiko90.workers.dev/app');
     const res = await worker.fetch(req, env, mockCtx);
@@ -120,6 +120,6 @@ describe('Landing Page, SEO, and Desktop Public Endpoints', () => {
     expect(res.status).toBe(200);
     expect(env.ASSETS.fetch).toHaveBeenCalled();
     const fetchCallArg = (env.ASSETS.fetch as any).mock.calls[0][0];
-    expect(new URL(fetchCallArg.url).pathname).toBe('/app.html');
+    expect(new URL(fetchCallArg.url).pathname).toBe('/app');
   });
 });

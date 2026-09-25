@@ -376,12 +376,6 @@ export default {
       });
     }
 
-    // Rewrite /app to serve app.html
-    if (url.pathname === '/app' || url.pathname === '/app/') {
-      const appUrl = new URL('/app.html', request.url);
-      return env.ASSETS.fetch(new Request(appUrl.toString(), request));
-    }
-
     if (request.method === 'GET' || request.method === 'HEAD') return env.ASSETS.fetch(request);
     return new Response('Not Found', { status: 404 });
   },
