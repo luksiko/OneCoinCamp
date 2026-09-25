@@ -138,6 +138,9 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
       case 'adminSetRole': {
         if (!isAdmin) return jsonError('Forbidden', 403);
         const { targetId, param } = extractAdminArgs(args);
+        if (String(targetId) === String(identity.id) && param !== 'admin') {
+          return jsonError('Cannot demote yourself from admin', 400);
+        }
         await ctx.db.setUserRole(targetId, param);
         result = { ok: true };
         break;
@@ -152,6 +155,9 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
       case 'adminRevokeSubscription': {
         if (!isAdmin) return jsonError('Forbidden', 403);
         const { targetId } = extractAdminArgs(args);
+        if (String(targetId) === String(identity.id)) {
+          return jsonError('Cannot revoke subscription from yourself', 400);
+        }
         const targetUser = await ctx.db.getUser(targetId);
         if (targetUser) {
           await ctx.db.setSubscription(targetId, 'expired',

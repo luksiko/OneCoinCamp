@@ -4995,7 +4995,7 @@
         if (u.subscription_status === 'active') statusBadge = '🟢 Активна';
         else if (u.subscription_status === 'trial') statusBadge = '🟡 Пробная';
         else if (u.subscription_status === 'expired') statusBadge = '🔴 Истекла';
-        else statusBadge = '⚪ Неактивна';
+        var isSelf = Boolean(state && state.user && String(state.user.id) === String(u.telegram_id));
 
         card.innerHTML = `
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
@@ -5022,7 +5022,11 @@
                 <button class="btn btn-secondary" style="width:100%;padding:6px 0;font-size:11px;margin:0;color:#ff9500;border-color:rgba(255,149,0,0.3);" onclick="adminAdjustSub('${u.telegram_id}', -7)">-7д</button>
                 <button class="btn btn-secondary" style="width:100%;padding:6px 0;font-size:11px;margin:0;color:#ff9500;border-color:rgba(255,149,0,0.3);" onclick="adminAdjustSub('${u.telegram_id}', -30)">-30д</button>
                 <button class="btn btn-secondary" style="width:100%;padding:6px 0;font-size:11px;margin:0;" onclick="adminPromptCustomDays('${u.telegram_id}', '${userName}')">⏳ Кастом</button>
-                <button class="btn btn-secondary" style="width:100%;padding:6px 0;font-size:11px;margin:0;color:var(--danger);border-color:rgba(255,91,102,0.3);" onclick="adminRevokeSub('${u.telegram_id}')">❌ Сброс</button>
+                ${isSelf ? `
+                  <button class="btn btn-secondary" style="width:100%;padding:6px 0;font-size:11px;margin:0;color:var(--hint);opacity:0.4;border-color:rgba(255,255,255,0.1);cursor:not-allowed;" disabled title="Нельзя сбросить свою подписку">❌ Сброс</button>
+                ` : `
+                  <button class="btn btn-secondary" style="width:100%;padding:6px 0;font-size:11px;margin:0;color:var(--danger);border-color:rgba(255,91,102,0.3);" onclick="adminRevokeSub('${u.telegram_id}')">❌ Сброс</button>
+                `}
               </div>
             </div>
           </div>
@@ -5030,11 +5034,15 @@
           <div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px solid var(--border);">
             <div style="display:flex;align-items:center;gap:6px;">
               <span style="font-size:11px;color:var(--hint);">Роль:</span>
-              <select style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:11px;padding:2px 6px;" onchange="adminChangeRole('${u.telegram_id}', this.value)">
-                <option value="free" ${u.role === 'free' ? 'selected' : ''}>⚪ Free</option>
-                <option value="premium" ${u.role === 'premium' ? 'selected' : ''}>👑 Premium</option>
-                <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>🛡️ Admin</option>
-              </select>
+              ${isSelf ? `
+                <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:rgba(255,149,0,0.15);color:#ff9500;border:1px solid rgba(255,149,0,0.3);" title="Свою роль нельзя изменить">🛡️ Admin (Вы)</span>
+              ` : `
+                <select style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:11px;padding:2px 6px;" onchange="adminChangeRole('${u.telegram_id}', this.value)">
+                  <option value="free" ${u.role === 'free' ? 'selected' : ''}>⚪ Free</option>
+                  <option value="premium" ${u.role === 'premium' ? 'selected' : ''}>👑 Premium</option>
+                  <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>🛡️ Admin</option>
+                </select>
+              `}
             </div>
             <div>
               <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;margin:0;" onclick="adminViewUserPayments('${u.telegram_id}', '${userName}')">
@@ -5074,6 +5082,10 @@
     }
 
     function adminRevokeSub(userId) {
+      if (state && state.user && String(state.user.id) === String(userId)) {
+        toast('Нельзя сбросить подписку собственной учетной записи', true);
+        return;
+      }
       if (!confirm('Полностью аннулировать подписку для ' + userId + '?')) return;
       toast('Аннулирование подписки...');
       google.script.run
@@ -5088,6 +5100,11 @@
     }
 
     function adminChangeRole(userId, newRole) {
+      if (state && state.user && String(state.user.id) === String(userId)) {
+        toast('Нельзя изменить роль собственной учетной записи', true);
+        adminListUsers();
+        return;
+      }
       if (!confirm('Изменить роль пользователя ' + userId + ' на ' + newRole + '?')) {
         adminListUsers();
         return;

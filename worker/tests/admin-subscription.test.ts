@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DbClient } from '../src/db/client';
+import { handleRpcRequest } from '../src/api/rpc';
+import { createBrowserSession } from '../src/utils/telegram-login';
 
 function createMockD1() {
   const prepare = vi.fn().mockReturnValue({
@@ -199,5 +201,58 @@ describe('Admin Subscription & Payments', () => {
     const res = await client.redeemPromoCode('user10', 'OLD');
     expect(res.success).toBe(false);
     expect(res.error).toBe('code_expired');
+  });
+
+  it('prevents an admin from demoting themselves or revoking their own subscription via RPC', async () => {
+    const d1 = createMockD1();
+    const client = new DbClient(d1);
+    vi.spyOn(client, 'getUser').mockResolvedValue({
+      telegram_id: '999999999',
+      chat_id: '999999999',
+      role: 'admin',
+      status: 'active',
+      subscription_status: 'active',
+    } as any);
+
+    const token = await createBrowserSession({ id: '999999999', username: 'admin' }, 'secret');
+    const ctx = {
+      db: client,
+      botToken: 'secret',
+      workerUrl: 'http://test',
+    } as any;
+
+    // Try to demote self
+    const demoteReq = new Request('http://test/api/rpc', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        method: 'adminSetRole',
+        args: ['999999999', 'premium'],
+      }),
+    });
+    const demoteRes = await handleRpcRequest(demoteReq, ctx);
+    expect(demoteRes.status).toBe(400);
+    const demoteJson = await demoteRes.json<any>();
+    expect(demoteJson.error).toContain('Cannot demote yourself');
+
+    // Try to revoke own subscription
+    const revokeReq = new Request('http://test/api/rpc', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        method: 'adminRevokeSubscription',
+        args: ['999999999'],
+      }),
+    });
+    const revokeRes = await handleRpcRequest(revokeReq, ctx);
+    expect(revokeRes.status).toBe(400);
+    const revokeJson = await revokeRes.json<any>();
+    expect(revokeJson.error).toContain('Cannot revoke subscription from yourself');
   });
 });
