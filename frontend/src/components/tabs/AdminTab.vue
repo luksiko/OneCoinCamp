@@ -17,7 +17,7 @@ import {
   AlertCircle 
 } from 'lucide-vue-next';
 
-const { showToast } = useAppStore();
+const { showToast, appState, saveAppData } = useAppStore();
 
 type AdminSubTab = 'users' | 'payments' | 'promos' | 'broadcast' | 'runs' | 'settings';
 const activeSubTab = ref<AdminSubTab>('users');
@@ -465,8 +465,8 @@ onMounted(() => {
               v-for="min in [1, 5, 10, 15, 30]"
               :key="min"
               class="interval-btn"
-              :class="{ active: useAppStore().appState.value?.settings?.poll_interval_minutes === min }"
-              @click="useAppStore().saveAppData({}, undefined, { poll_interval_minutes: min })"
+              :class="{ active: appState?.settings?.poll_interval_minutes === min }"
+              @click="saveAppData({}, undefined, { poll_interval_minutes: min })"
             >
               {{ min }} мин.
             </button>

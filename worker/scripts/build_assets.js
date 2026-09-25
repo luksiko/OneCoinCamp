@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync, copyFileSync, cpSync, existsSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, copyFileSync, cpSync, rmSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { execSync } from 'node:child_process';
@@ -9,7 +9,6 @@ const frontendDir = resolve(workerDir, '../frontend');
 const targetDir = resolve(workerDir, 'public');
 
 mkdirSync(targetDir, { recursive: true });
-mkdirSync(resolve(targetDir, 'app'), { recursive: true });
 
 // 1. Build frontend if it exists
 if (existsSync(resolve(frontendDir, 'package.json'))) {
@@ -31,6 +30,7 @@ if (existsSync(indexPath)) {
 // 3. Process Vue 3 app in docs/app -> targetDir/app
 const docsAppDir = resolve(docsDir, 'app');
 if (existsSync(docsAppDir)) {
+  rmSync(resolve(targetDir, 'app'), { recursive: true, force: true });
   cpSync(docsAppDir, resolve(targetDir, 'app'), { recursive: true });
 }
 
