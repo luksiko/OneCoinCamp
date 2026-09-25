@@ -34,17 +34,7 @@ if (existsSync(docsAppDir)) {
   cpSync(docsAppDir, resolve(targetDir, 'app'), { recursive: true });
 }
 
-// 4. Process legacy app.html fallback
-const legacyAppPath = resolve(docsDir, 'app.html');
-if (existsSync(legacyAppPath)) {
-  const legacyAppHtml = readFileSync(legacyAppPath, 'utf8').replace(
-    /var APPS_SCRIPT_URL\s*=\s*['"][^'"]*['"];/,
-    'var APPS_SCRIPT_URL = window.location.origin;'
-  );
-  writeFileSync(resolve(targetDir, 'app.html'), legacyAppHtml);
-}
-
-// 5. Process favicon.png
+// 4. Process favicon.png
 const faviconPath = resolve(docsDir, 'favicon.png');
 if (existsSync(faviconPath)) {
   copyFileSync(faviconPath, resolve(targetDir, 'favicon.png'));

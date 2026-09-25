@@ -7,6 +7,7 @@ on:
       - .github/workflows/deploy-cloudflare.yml
       - docs/**
       - worker/**
+      - frontend/**
   workflow_dispatch:
 
 permissions:

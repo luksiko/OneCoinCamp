@@ -105,10 +105,32 @@ async function adjustSub(userId: string, days: number) {
 }
 
 async function revokeSub(userId: string) {
+  if (String(userId) === String(appState.value?.user?.id)) {
+    showToast('Нельзя сбросить подписку собственной учетной записи', true);
+    return;
+  }
   if (!confirm('Отозвать подписку у пользователя?')) return;
   try {
     await api.adminRevokeSubscription(userId);
     showToast('Подписка отозвана');
+    loadUsers();
+  } catch (err: any) {
+    showToast(err.message, true);
+  }
+}
+
+async function changeRole(userId: string, newRole: string) {
+  if (String(userId) === String(appState.value?.user?.id)) {
+    showToast('Нельзя изменить роль собственной учетной записи', true);
+    return;
+  }
+  if (!confirm(`Изменить роль пользователя на ${newRole}?`)) {
+    loadUsers();
+    return;
+  }
+  try {
+    await api.adminSetRole(userId, newRole);
+    showToast(`Роль изменена на ${newRole}`);
     loadUsers();
   } catch (err: any) {
     showToast(err.message, true);
@@ -272,7 +294,10 @@ onMounted(() => {
             <div class="user-title">
               <span class="user-name">{{ u.first_name || 'Без имени' }}</span>
               <span v-if="u.username" class="user-handle">@{{ u.username }}</span>
-              <span class="badge" :class="u.role === 'admin' ? 'badge-warning' : (u.role === 'premium' ? 'badge-success' : 'badge-neutral')">
+              <span v-if="String(u.telegram_id) === String(appState?.user?.id)" class="badge badge-warning">
+                🛡️ Admin (Вы)
+              </span>
+              <span v-else class="badge" :class="u.role === 'admin' ? 'badge-warning' : (u.role === 'premium' ? 'badge-success' : 'badge-neutral')">
                 {{ u.role.toUpperCase() }}
               </span>
             </div>
@@ -280,17 +305,37 @@ onMounted(() => {
               ID: <code>{{ u.telegram_id }}</code> • Маршрутов: {{ u.route_count || 0 }} • 
               Подписка: {{ u.subscription_expires_at ? new Date(u.subscription_expires_at).toLocaleDateString() : 'нет' }}
             </div>
+            <div v-if="String(u.telegram_id) !== String(appState?.user?.id)" style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 11px; color: var(--text-muted);">Роль:</span>
+              <select
+                :value="u.role"
+                class="select"
+                style="padding: 2px 6px; font-size: 11px; width: auto;"
+                @change="(e) => changeRole(u.telegram_id, (e.target as HTMLSelectElement).value)"
+              >
+                <option value="free">⚪ Free</option>
+                <option value="premium">👑 Premium</option>
+                <option value="admin">🛡️ Admin</option>
+              </select>
+            </div>
           </div>
 
           <div class="user-actions">
             <button class="btn btn-secondary btn-sm" @click="adjustSub(u.telegram_id, 30)">
               +30 дн.
             </button>
+            <button class="btn btn-secondary btn-sm" @click="adjustSub(u.telegram_id, -30)">
+              -30 дн.
+            </button>
             <button class="btn btn-secondary btn-sm" @click="adjustSub(u.telegram_id, 7)">
               +7 дн.
             </button>
-            <button v-if="u.role === 'premium'" class="btn btn-danger btn-sm" @click="revokeSub(u.telegram_id)">
-              Отозвать
+            <button
+              v-if="String(u.telegram_id) !== String(appState?.user?.id) && u.role === 'premium'"
+              class="btn btn-danger btn-sm"
+              @click="revokeSub(u.telegram_id)"
+            >
+              Сброс
             </button>
           </div>
         </div>
