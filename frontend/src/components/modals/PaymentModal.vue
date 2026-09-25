@@ -120,8 +120,8 @@ async function handleRedeemPromo() {
         <button class="pay-btn stars-btn" :disabled="isGeneratingInvoice" @click="payWithStars">
           <div class="pay-btn-icon">⭐</div>
           <div class="pay-btn-text">
-            <div class="pay-btn-title">Telegram Stars</div>
-            <div class="pay-btn-sub">500 Stars • Мгновенно в приложении</div>
+            <div class="pay-btn-title">{{ t('pay_stars_title') }}</div>
+            <div class="pay-btn-sub">{{ t('pay_stars_sub') }}</div>
           </div>
         </button>
 
@@ -129,8 +129,8 @@ async function handleRedeemPromo() {
         <button class="pay-btn card-btn" @click="payWithPaddle">
           <CreditCard :size="22" class="pay-icon" />
           <div class="pay-btn-text">
-            <div class="pay-btn-title">Банковская карта (Paddle)</div>
-            <div class="pay-btn-sub">Visa, Mastercard, Apple Pay, PayPal</div>
+            <div class="pay-btn-title">{{ t('pay_card_title') }}</div>
+            <div class="pay-btn-sub">{{ t('pay_card_sub') }}</div>
           </div>
         </button>
 
@@ -138,8 +138,8 @@ async function handleRedeemPromo() {
         <button class="pay-btn crypto-btn" :disabled="isGeneratingInvoice" @click="payWithCrypto">
           <Coins :size="22" class="pay-icon" />
           <div class="pay-btn-text">
-            <div class="pay-btn-title">CryptoBot</div>
-            <div class="pay-btn-sub">USDT, TON, BTC через Telegram</div>
+            <div class="pay-btn-title">{{ t('pay_crypto_title') }}</div>
+            <div class="pay-btn-sub">{{ t('pay_crypto_sub') }}</div>
           </div>
         </button>
       </div>
@@ -148,7 +148,7 @@ async function handleRedeemPromo() {
       <div class="promo-section">
         <div class="promo-label">
           <Tag :size="14" />
-          <span>{{ t('promo_have_code') || 'Есть промокод?' }}</span>
+          <span>{{ t('promo_have_code') }}</span>
         </div>
         <form class="promo-form" @submit.prevent="handleRedeemPromo">
           <input
@@ -159,7 +159,7 @@ async function handleRedeemPromo() {
           />
           <button type="submit" class="btn btn-secondary btn-sm" :disabled="isRedeeming || !promoCodeInput.trim()">
             <Check :size="14" />
-            <span>{{ isRedeeming ? '...' : (t('apply') || 'Применить') }}</span>
+            <span>{{ isRedeeming ? '...' : t('apply') }}</span>
           </button>
         </form>
       </div>

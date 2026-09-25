@@ -2,6 +2,7 @@
 import { ref, onMounted, watch } from 'vue';
 import { api } from '../../api/rpc';
 import { useI18n } from '../../composables/useI18n';
+import { useAppStore } from '../../composables/useAppStore';
 import type { Offer, OffersFilterPayload } from '../../api/types';
 import { 
   Filter, 
@@ -11,17 +12,19 @@ import {
   ChevronLeft, 
   ChevronRight, 
   RefreshCw, 
-  Check, 
-  Sparkles 
+  Sparkles,
+  CheckCircle2
 } from 'lucide-vue-next';
 
-const { t, getCountryName, pluralizeDays } = useI18n();
+const { t, getCountryName } = useI18n();
+const { showToast } = useAppStore();
 
 const offers = ref<Offer[]>([]);
 const totalOffers = ref(0);
 const currentPage = ref(1);
 const totalPages = ref(1);
 const isLoading = ref(false);
+const isCheckingAvail = ref(false);
 
 const filterSource = ref('');
 const filterVehicleType = ref('');
@@ -31,10 +34,10 @@ const dateFrom = ref('');
 const dateTo = ref('');
 
 const providers = [
-  { id: '', label: 'Все' },
+  { id: '', label: 'all_badge' },
   { id: 'roadsurfer', label: '🚐 Roadsurfer' },
   { id: 'movacar', label: '🚗 Movacar' },
-  { id: 'indiecampers', label: '⛺ Indie' },
+  { id: 'indiecampers', label: '⛺ Indie Campers' },
   { id: 'imoova', label: '🌐 Imoova' },
 ];
 
@@ -63,6 +66,19 @@ async function loadOffers() {
   }
 }
 
+async function checkAvailability() {
+  isCheckingAvail.value = true;
+  try {
+    const removedCount = await api.checkOffersAvailability();
+    showToast(`Очищено ${removedCount} истекших офферов`);
+    loadOffers();
+  } catch (err: any) {
+    showToast(err.message || 'Ошибка проверки актуальности', true);
+  } finally {
+    isCheckingAvail.value = false;
+  }
+}
+
 function calculateDays(pickup: string, dropoff: string): number {
   if (!pickup || !dropoff) return 1;
   const p = new Date(pickup);
@@ -72,7 +88,7 @@ function calculateDays(pickup: string, dropoff: string): number {
   return Math.max(1, diffDays);
 }
 
-function setDatePreset(type: 'weekend' | '7days' | '14days') {
+function setDatePreset(type: '7days' | '14days' | 'month') {
   const now = new Date();
   if (type === '7days') {
     dateFrom.value = now.toISOString().split('T')[0];
@@ -82,6 +98,10 @@ function setDatePreset(type: 'weekend' | '7days' | '14days') {
     dateFrom.value = now.toISOString().split('T')[0];
     const next14 = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
     dateTo.value = next14.toISOString().split('T')[0];
+  } else if (type === 'month') {
+    dateFrom.value = now.toISOString().split('T')[0];
+    const next30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    dateTo.value = next30.toISOString().split('T')[0];
   }
   currentPage.value = 1;
   loadOffers();
@@ -111,15 +131,14 @@ onMounted(() => {
       <div class="filter-top">
         <div class="filter-title">
           <Filter :size="15" />
-          <span>{{ t('offers_filters') || 'Фильтры' }}</span>
+          <span>{{ t('tab_offers') }}</span>
           <span class="badge badge-neutral">{{ totalOffers }}</span>
         </div>
 
         <div class="sort-selector">
           <select v-model="filterSortBy" class="select select-sm">
-            <option value="added_desc">🕒 Сначала новые</option>
-            <option value="pickup_asc">📅 Сначала ближайшие даты</option>
-            <option value="price_asc">💶 Сначала дешевле</option>
+            <option value="added_desc">{{ t('offers_sort_added') }}</option>
+            <option value="trip_date">{{ t('offers_sort_trip') }}</option>
           </select>
         </div>
       </div>
@@ -133,7 +152,7 @@ onMounted(() => {
           :class="{ active: filterSource === p.id }"
           @click="filterSource = p.id"
         >
-          {{ p.label }}
+          {{ p.id === '' ? t('all_badge') : p.label }}
         </button>
 
         <button
@@ -142,16 +161,28 @@ onMounted(() => {
           @click="filterMatched = !filterMatched"
         >
           <Sparkles :size="12" />
-          <span>{{ t('my_routes_only') || 'Мои маршруты' }}</span>
+          <span>{{ t('filter_only_matched') }}</span>
         </button>
       </div>
 
-      <!-- Date presets -->
-      <div class="date-presets">
-        <button class="preset-btn" @click="setDatePreset('7days')">7 дней</button>
-        <button class="preset-btn" @click="setDatePreset('14days')">14 дней</button>
-        <button v-if="dateFrom || dateTo" class="preset-btn clear-btn" @click="clearDates">
-          ✕ Сброс дат
+      <!-- Date Presets & Check Avail Button -->
+      <div class="filter-actions-row">
+        <div class="date-presets">
+          <button class="preset-btn" @click="setDatePreset('7days')">{{ t('date_preset_7d') }}</button>
+          <button class="preset-btn" @click="setDatePreset('14days')">{{ t('date_preset_14d') }}</button>
+          <button class="preset-btn" @click="setDatePreset('month')">{{ t('date_preset_month') }}</button>
+          <button v-if="dateFrom || dateTo" class="preset-btn clear-btn" @click="clearDates">
+            ✕ {{ t('btn_clear') }}
+          </button>
+        </div>
+
+        <button 
+          class="btn btn-secondary btn-sm check-avail-btn" 
+          :disabled="isCheckingAvail" 
+          @click="checkAvailability"
+        >
+          <RefreshCw :size="13" :class="{ spin: isCheckingAvail }" />
+          <span>{{ t('btn_check_avail') }}</span>
         </button>
       </div>
     </div>
@@ -164,8 +195,8 @@ onMounted(() => {
 
     <div v-else-if="offers.length === 0" class="glass-card empty-state">
       <div class="empty-icon">🎫</div>
-      <div class="empty-title">{{ t('offers_empty') || 'Предложений не найдено' }}</div>
-      <div class="empty-sub">Попробуйте изменить выбранные фильтры или провайдеров</div>
+      <div class="empty-title">{{ t('offers_empty_title') }}</div>
+      <div class="empty-sub">{{ t('offers_empty_desc') }}</div>
     </div>
 
     <div v-else class="offers-grid">
@@ -191,7 +222,7 @@ onMounted(() => {
           <div class="meta-item">
             <Calendar :size="13" />
             <span>{{ offer.pickupDate }} — {{ offer.returnDate }}</span>
-            <span class="days-badge">({{ calculateDays(offer.pickupDate, offer.returnDate) }} дн.)</span>
+            <span class="days-badge">({{ t('offers_days_trip', { days: calculateDays(offer.pickupDate, offer.returnDate) }) }})</span>
           </div>
           <div v-if="offer.vehicle" class="vehicle-title">
             🚐 {{ offer.vehicle }}
@@ -204,7 +235,7 @@ onMounted(() => {
           rel="noopener"
           class="btn btn-primary book-btn"
         >
-          <span>{{ t('btn_book') || 'Забронировать' }}</span>
+          <span>{{ t('btn_book') }}</span>
           <ExternalLink :size="14" />
         </a>
       </div>
@@ -218,7 +249,7 @@ onMounted(() => {
         @click="currentPage--; loadOffers()"
       >
         <ChevronLeft :size="14" />
-        <span>Назад</span>
+        <span>{{ t('page_prev') }}</span>
       </button>
 
       <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
@@ -228,7 +259,7 @@ onMounted(() => {
         :disabled="currentPage >= totalPages || isLoading"
         @click="currentPage++; loadOffers()"
       >
-        <span>Вперёд</span>
+        <span>{{ t('page_next') }}</span>
         <ChevronRight :size="14" />
       </button>
     </div>
@@ -237,9 +268,13 @@ onMounted(() => {
 
 <style scoped>
 .offers-tab {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  box-sizing: border-box;
 }
 
 .filter-card {
@@ -260,20 +295,23 @@ onMounted(() => {
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  color: var(--text-subtle);
 }
 
 .select-sm {
   padding: 6px 10px;
   font-size: 12px;
+  width: auto;
 }
 
 .chips-scroll {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 6px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 6px;
+  scrollbar-width: none;
 }
 
 .chips-scroll::-webkit-scrollbar {
@@ -308,34 +346,57 @@ onMounted(() => {
 }
 
 .chip-matched.active {
-  background: linear-gradient(135deg, #f59e0b, #ea580c);
-  border-color: #f59e0b;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #10b981;
+}
+
+.filter-actions-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+@media (min-width: 640px) {
+  .filter-actions-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 }
 
 .date-presets {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .preset-btn {
-  background: transparent;
-  border: 1px dashed var(--border-subtle);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 4px 10px;
+  padding: 5px 10px;
   font-size: 11px;
+  font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
+  transition: all 0.16s ease;
 }
 
 .preset-btn:hover {
+  background: var(--bg-surface-elevated);
   color: var(--text-main);
-  border-color: rgba(255, 255, 255, 0.2);
 }
 
-.clear-btn {
+.preset-btn.clear-btn {
   color: var(--danger);
   border-color: rgba(239, 68, 68, 0.3);
+}
+
+.check-avail-btn {
+  align-self: flex-start;
 }
 
 /* Offers Grid */
@@ -347,16 +408,15 @@ onMounted(() => {
 
 @media (min-width: 640px) {
   .offers-grid {
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: 1fr 1fr;
   }
 }
 
 .offer-card {
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   gap: 12px;
-  padding: 16px;
 }
 
 .offer-header {
@@ -368,21 +428,17 @@ onMounted(() => {
 .provider-tag {
   font-size: 11px;
   font-weight: 700;
-  color: var(--text-muted);
-  background: var(--bg-surface-elevated);
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border-subtle);
+  text-transform: uppercase;
+  color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.12);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
 }
 
 .price-badge {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
   color: #10b981;
-  background: rgba(16, 185, 129, 0.12);
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 .route-display {
@@ -393,34 +449,41 @@ onMounted(() => {
 }
 
 .route-node {
+  display: flex;
+  flex-direction: column;
   flex: 1;
 }
 
+.route-node:last-child {
+  text-align: right;
+}
+
 .node-city {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  display: block;
+  color: var(--text-main);
 }
 
 .node-country {
   font-size: 11px;
   color: var(--text-muted);
-  display: block;
+  margin-top: 1px;
 }
 
 .route-arrow {
-  color: var(--accent-primary);
-  font-size: 16px;
+  color: var(--text-subtle);
+  font-size: 13px;
 }
 
 .offer-meta {
-  border-top: 1px solid var(--border-subtle);
-  padding-top: 10px;
-  font-size: 12px;
-  color: var(--text-muted);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
 }
 
 .meta-item {
@@ -430,66 +493,56 @@ onMounted(() => {
 }
 
 .days-badge {
-  color: var(--text-subtle);
-  font-size: 11px;
+  color: var(--accent-primary);
+  font-weight: 600;
 }
 
 .vehicle-title {
+  font-size: 11px;
   color: var(--text-main);
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 500;
 }
 
 .book-btn {
   width: 100%;
   padding: 10px;
-  font-size: 13px;
+  justify-content: center;
 }
 
+.loading-state, .empty-state {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
+
+.empty-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.empty-sub {
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* Pagination */
 .pagination-bar {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16px;
-  padding: 12px 0;
+  padding: 16px 0;
 }
 
 .page-info {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
-}
-
-.loading-state, .empty-state {
-  text-align: center;
-  padding: 48px 20px;
-}
-
-.empty-icon {
-  font-size: 36px;
-  margin-bottom: 8px;
-}
-
-.empty-title {
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.empty-sub {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-  color: var(--accent-primary);
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 </style>

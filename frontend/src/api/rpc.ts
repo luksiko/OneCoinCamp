@@ -75,6 +75,7 @@ export const api = {
   checkProvidersHealth: () => callRpc<ProvidersHealth>('checkProvidersHealth'),
   triggerMonitor: () => callRpc<any>('runMonitorFromUi'),
   checkOffersAvailability: () => callRpc<number>('checkOffersAvailabilityWeb'),
+  registerWebhook: () => callRpc<any>('registerTelegramWebhookWeb'),
 
   // Station and destination suggestions (Notice backend signatures: getProviderStations(provider, countries[]), getProviderDestinations(provider, originId, countries[]))
   getProviderStations: (provider: string, country?: string) =>

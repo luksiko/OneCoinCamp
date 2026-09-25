@@ -48,13 +48,13 @@ onMounted(() => {
       <div class="header-left">
         <BarChart3 :size="20" class="header-icon" />
         <div>
-          <h2 class="header-title">{{ t('tab_analytics') || 'Аналитика' }}</h2>
-          <p class="header-sub">Статистика появления предложений за 1€ по дням и часам</p>
+          <h2 class="header-title">{{ t('tab_analytics') }}</h2>
+          <p class="header-sub">{{ t('analytics_legend_total') }} &amp; {{ t('analytics_legend_matched') }}</p>
         </div>
       </div>
       <button class="btn btn-secondary btn-sm" :disabled="isLoading" @click="loadAnalytics">
         <RefreshCw :size="13" :class="{ spin: isLoading }" />
-        <span>{{ t('refresh') || 'Обновить' }}</span>
+        <span>{{ t('analytics_reload') }}</span>
       </button>
     </div>
 
@@ -64,7 +64,7 @@ onMounted(() => {
     </div>
 
     <div v-else-if="!analytics" class="glass-card empty-state">
-      <p>Данные аналитики пока недоступны</p>
+      <p v-html="t('analytics_empty')"></p>
     </div>
 
     <div v-else class="analytics-sections">
@@ -72,14 +72,14 @@ onMounted(() => {
       <div class="glass-card chart-card">
         <div class="section-title">
           <TrendingUp :size="15" />
-          <span>Динамика по дням (последние дни)</span>
+          <span>{{ t('analytics_daily_title') }}</span>
         </div>
         <div class="daily-bars-container">
           <div
             v-for="day in analytics.dailyCounts.slice(-14)"
             :key="day.date"
             class="bar-column"
-            :title="`${day.date}: ${day.total} предложений`"
+            :title="`${day.date}: ${day.total} (${day.matched} ${t('analytics_legend_matched')})`"
           >
             <div class="bar-value">{{ day.total }}</div>
             <div class="bar-track">
@@ -91,15 +91,18 @@ onMounted(() => {
             <div class="bar-label">{{ day.date.slice(5) }}</div>
           </div>
         </div>
+        <div class="bar-chart-legend">
+          <span><span class="dot total"></span>{{ t('analytics_legend_total') }}</span>
+          <span><span class="dot matched"></span>{{ t('analytics_legend_matched') }}</span>
+        </div>
       </div>
 
-      <!-- 2. Hourly Heatmap / Distribution (00:00 - 23:00) -->
+      <!-- 2. Hourly Heatmap / Distribution (00:00 - 23:00 UTC) -->
       <div class="glass-card chart-card">
         <div class="section-title">
           <Clock :size="15" />
-          <span>Лучшие часы для поиска (UTC)</span>
+          <span>{{ t('analytics_hourly_title') }}</span>
         </div>
-        <p class="chart-desc">В это время компании чаще всего выгружают новые релокации</p>
         <div class="hourly-grid">
           <div
             v-for="h in analytics.hourlyPattern"
@@ -108,7 +111,7 @@ onMounted(() => {
             :style="{
               background: `rgba(59, 130, 246, ${Math.max(0.12, (h.count / maxHourlyCount) * 0.9)})`,
             }"
-            :title="`${h.hour}:00 — ${h.count} предл.`"
+            :title="`${h.hour}:00 — ${h.count}`"
           >
             <div class="hour-time">{{ h.hour }}:00</div>
             <div class="hour-count">{{ h.count }}</div>
@@ -121,7 +124,7 @@ onMounted(() => {
         <!-- Top Routes -->
         <div class="glass-card sub-card">
           <div class="section-title" style="margin-bottom: 12px;">
-            <span>Популярные направления</span>
+            <span>{{ t('analytics_top_routes_title') }}</span>
           </div>
           <div class="top-list">
             <div v-for="r in analytics.topRoutes.slice(0, 7)" :key="r.route" class="list-item">
@@ -142,7 +145,7 @@ onMounted(() => {
         <!-- By Sources -->
         <div class="glass-card sub-card">
           <div class="section-title" style="margin-bottom: 12px;">
-            <span>По провайдерам</span>
+            <span>{{ t('analytics_by_sources_title') }}</span>
           </div>
           <div class="top-list">
             <div v-for="s in analytics.bySources" :key="s.source" class="list-item">
@@ -167,9 +170,13 @@ onMounted(() => {
 
 <style scoped>
 .analytics-tab {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  box-sizing: border-box;
 }
 
 .analytics-header {
@@ -190,13 +197,20 @@ onMounted(() => {
 }
 
 .header-title {
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .header-sub {
   font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.loading-state, .empty-state {
+  padding: 40px;
+  text-align: center;
   color: var(--text-muted);
 }
 
@@ -206,45 +220,43 @@ onMounted(() => {
   gap: 16px;
 }
 
-.chart-card {
+.chart-card, .sub-card {
   padding: 20px;
-}
-
-.chart-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-bottom: 16px;
 }
 
 /* Daily Bars */
 .daily-bars-container {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
   height: 160px;
   padding-top: 24px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .bar-column {
   flex: 1;
+  min-width: 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 6px;
   height: 100%;
 }
 
 .bar-value {
   font-size: 10px;
+  font-weight: 700;
   color: var(--text-subtle);
-  margin-bottom: 4px;
 }
 
 .bar-track {
   flex: 1;
   width: 100%;
-  max-width: 24px;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 6px;
+  max-width: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
   display: flex;
   align-items: flex-end;
   overflow: hidden;
@@ -253,21 +265,48 @@ onMounted(() => {
 .bar-fill {
   width: 100%;
   background: var(--accent-gradient);
-  border-radius: 6px 6px 0 0;
+  border-radius: 4px;
+  min-height: 4px;
   transition: height 0.3s ease;
 }
 
 .bar-label {
   font-size: 10px;
-  color: var(--text-muted);
-  margin-top: 6px;
+  color: var(--text-subtle);
+  white-space: nowrap;
 }
 
-/* Hourly Grid */
+.bar-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.bar-chart-legend .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.bar-chart-legend .dot.total {
+  background: var(--accent-primary);
+}
+
+.bar-chart-legend .dot.matched {
+  background: #10b981;
+}
+
+/* Hourly Heatmap Grid */
 .hourly-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 6px;
+  margin-top: 14px;
 }
 
 @media (min-width: 640px) {
@@ -277,25 +316,31 @@ onMounted(() => {
 }
 
 .hour-cell {
-  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 8px 4px;
   text-align: center;
+  border: 1px solid var(--border-subtle);
+  transition: transform 0.15s ease;
+}
+
+.hour-cell:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .hour-time {
   font-size: 10px;
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .hour-count {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-main);
   margin-top: 2px;
 }
 
-/* Sub-cards and Progress */
+/* Grid 2 */
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr;
@@ -308,14 +353,10 @@ onMounted(() => {
   }
 }
 
-.sub-card {
-  padding: 18px;
-}
-
 .top-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .list-item {
@@ -331,12 +372,13 @@ onMounted(() => {
 }
 
 .item-name {
-  color: var(--text-main);
   font-weight: 600;
+  color: var(--text-main);
 }
 
 .item-val {
-  color: var(--text-muted);
+  font-weight: 700;
+  color: var(--accent-primary);
 }
 
 .progress-track {
@@ -350,20 +392,6 @@ onMounted(() => {
   height: 100%;
   background: var(--accent-gradient);
   border-radius: 999px;
-}
-
-.loading-state, .empty-state {
-  text-align: center;
-  padding: 40px;
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-  color: var(--accent-primary);
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  transition: width 0.3s ease;
 }
 </style>

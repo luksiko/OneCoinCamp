@@ -9,10 +9,9 @@ import {
   RefreshCw, 
   Edit3, 
   Trash2, 
-  CheckCircle2, 
-  AlertCircle, 
-  MapPin, 
-  Calendar 
+  Activity,
+  Calendar,
+  Save
 } from 'lucide-vue-next';
 
 const { 
@@ -26,7 +25,8 @@ const {
   openRouteModal,
   deleteRoute,
   toggleRoute,
-  isAdmin
+  saveAppData,
+  isSaving
 } = useAppStore();
 
 const { t, getCountryName, pluralizeDays } = useI18n();
@@ -40,7 +40,6 @@ const daysLeft = computed(() => {
   if (!expiresAt) return 0;
   return Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
 });
-const subStatus = computed(() => appState.value?.user?.subscriptionStatus || 'inactive');
 
 function getProviderName(src: string) {
   const map: Record<string, string> = {
@@ -59,37 +58,37 @@ function handleAddRoute() {
   }
   openRouteModal();
 }
+
+function handleSaveMain() {
+  saveAppData();
+}
 </script>
 
 <template>
   <div class="main-tab">
-    <!-- Subscription Banner -->
+    <!-- Subscription Banner (Free Users) -->
     <div v-if="!isPremium" class="sub-banner glass-card" @click="isPaymentModalOpen = true">
       <div class="banner-content">
-        <div class="banner-badge">FREE PLAN</div>
-        <div class="banner-title">
-          {{ t('sub_banner_title') || 'Разблокируйте все маршруты и мгновенные уведомления' }}
-        </div>
-        <div class="banner-sub">
-          {{ t('sub_banner_desc') || 'Отслеживайте неограниченное число направлений и первыми бронируйте кемперы за 1€' }}
-        </div>
+        <div class="banner-badge">{{ t('sub_free_plan') }}</div>
+        <div class="banner-title">{{ t('sub_banner_title') }}</div>
+        <div class="banner-sub">{{ t('sub_banner_desc') }}</div>
       </div>
       <button class="btn btn-primary banner-btn">
         <Sparkles :size="15" />
-        <span>PRO (€4.99)</span>
+        <span>{{ t('subscribe_pro_btn') }}</span>
       </button>
     </div>
 
-    <!-- Active Subscription Status (for Premium users) -->
+    <!-- Active Subscription Status (Premium Users) -->
     <div v-else class="premium-active-card glass-card">
       <div class="active-info">
-        <div class="active-badge">⭐ PRO АКТИВЕН</div>
+        <div class="active-badge">{{ t('sub_pro_active') }}</div>
         <div class="active-text">
-          Осталось <strong>{{ daysLeft }} {{ pluralizeDays(daysLeft) }}</strong> подписки
+          {{ t('sub_days_left', { days: `${daysLeft} ${pluralizeDays(daysLeft)}` }) }}
         </div>
       </div>
       <button class="btn btn-secondary btn-sm" @click="isPaymentModalOpen = true">
-        <span>Продлить</span>
+        <span>{{ t('extend_btn') }}</span>
       </button>
     </div>
 
@@ -98,20 +97,28 @@ function handleAddRoute() {
       <div class="status-header">
         <div class="status-meta">
           <span class="status-indicator-dot"></span>
-          <span class="status-title">{{ t('monitor_active') || 'Мониторинг 24/7' }}</span>
+          <span class="status-title">{{ t('status_live_monitor') }}</span>
         </div>
-        <button v-if="isAdmin" class="btn btn-secondary btn-sm" @click="triggerManualCheck">
-          <Play :size="13" />
-          <span>{{ t('btn_check_now') || 'Проверить сейчас' }}</span>
-        </button>
+        <div class="status-actions">
+          <button class="btn btn-secondary btn-sm" @click="triggerManualCheck">
+            <Play :size="13" />
+            <span>{{ t('check_btn') }}</span>
+          </button>
+        </div>
       </div>
       <div class="status-details">
         <div class="status-item">
-          <div class="status-item-label">{{ t('last_check') || 'Последняя проверка' }}</div>
-          <div class="status-item-value">{{ appState?.status?.lastRun?.finished_at ? new Date(appState.status.lastRun.finished_at).toLocaleTimeString() : (appState?.status?.lastRun?.timestamp ? new Date(appState.status.lastRun.timestamp).toLocaleTimeString() : 'Недавно') }}</div>
+          <div class="status-item-label">{{ t('status_last_run') }}</div>
+          <div class="status-item-value">
+            {{ appState?.status?.lastRun?.finished_at ? new Date(appState.status.lastRun.finished_at).toLocaleTimeString() : (appState?.status?.lastRun?.timestamp ? new Date(appState.status.lastRun.timestamp).toLocaleTimeString() : '—') }}
+          </div>
         </div>
         <div class="status-item">
-          <div class="status-item-label">{{ t('active_routes') || 'Активных маршрутов' }}</div>
+          <div class="status-item-label">{{ t('status_interval') }}</div>
+          <div class="status-item-value">{{ appState?.settings?.poll_interval_minutes || 5 }} {{ t('minutes') || 'мин' }}</div>
+        </div>
+        <div class="status-item">
+          <div class="status-item-label">{{ t('routes_title') }}</div>
           <div class="status-item-value">{{ routes.filter(r => r.enabled).length }} / {{ routes.length }}</div>
         </div>
       </div>
@@ -121,23 +128,24 @@ function handleAddRoute() {
     <div class="routes-section">
       <div class="section-header">
         <div class="section-title">
-          <span>{{ t('routes_title') || 'Маршруты' }}</span>
+          <span>{{ t('routes_title') }}</span>
           <span class="badge badge-neutral">{{ routes.length }} / {{ isPremium ? '∞' : maxRoutes }}</span>
         </div>
-        <button class="btn btn-primary btn-sm" @click="handleAddRoute">
-          <Plus :size="14" />
-          <span>{{ t('btn_add_route') || 'Добавить' }}</span>
-        </button>
+        <div class="routes-header-actions">
+          <button class="btn btn-primary btn-sm" @click="handleAddRoute">
+            <Plus :size="14" />
+            <span>{{ t('add_route') }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- Empty State -->
       <div v-if="routes.length === 0" class="empty-card glass-card">
         <div class="empty-icon">📍</div>
-        <div class="empty-title">{{ t('routes_empty_title') || 'Нет активных маршрутов' }}</div>
-        <div class="empty-sub">{{ t('routes_empty_desc') || 'Добавьте направления, которые вы хотите отслеживать' }}</div>
+        <div class="empty-title">{{ t('empty_routes') }}</div>
         <button class="btn btn-primary" style="margin-top: 14px;" @click="handleAddRoute">
           <Plus :size="15" />
-          <span>{{ t('btn_add_route') || 'Добавить маршрут' }}</span>
+          <span>{{ t('add_route') }}</span>
         </button>
       </div>
 
@@ -159,12 +167,12 @@ function handleAddRoute() {
 
           <div class="route-path">
             <div class="point point-origin">
-              <span class="point-label">Откуда</span>
+              <span class="point-label">{{ t('origin_countries') }}</span>
               <span class="point-val">{{ route.originName || getCountryName(route.originCountry) }}</span>
             </div>
             <div class="route-arrow">➔</div>
             <div class="point point-dest">
-              <span class="point-label">Куда</span>
+              <span class="point-label">{{ t('dest_countries') }}</span>
               <span class="point-val">{{ route.destinationName || getCountryName(route.destinationCountry) }}</span>
             </div>
           </div>
@@ -175,14 +183,22 @@ function handleAddRoute() {
           </div>
 
           <div class="route-actions">
-            <button class="action-btn" title="Редактировать" @click="openRouteModal(idx)">
+            <button class="action-btn" :title="t('edit_route')" @click="openRouteModal(idx)">
               <Edit3 :size="14" />
             </button>
-            <button class="action-btn delete-btn" title="Удалить" @click="deleteRoute(idx)">
+            <button class="action-btn delete-btn" :title="t('delete_btn')" @click="deleteRoute(idx)">
               <Trash2 :size="14" />
             </button>
           </div>
         </div>
+      </div>
+
+      <!-- Bottom Save Action Bar for Main Tab -->
+      <div v-if="routes.length > 0" class="main-save-row">
+        <button class="btn btn-primary" :disabled="isSaving" @click="handleSaveMain">
+          <Save :size="15" />
+          <span>{{ isSaving ? t('saving') : t('save_main') }}</span>
+        </button>
       </div>
     </div>
 
@@ -190,37 +206,38 @@ function handleAddRoute() {
     <div class="health-section glass-card">
       <div class="section-header" style="margin-bottom: 12px;">
         <div class="section-title">
-          <span>{{ t('site_status') || 'Связь с сайтами' }}</span>
+          <Activity :size="15" />
+          <span>{{ t('site_status') }}</span>
         </div>
         <button class="btn btn-secondary btn-sm" :disabled="isHealthLoading" @click="checkHealth">
           <RefreshCw :size="12" :class="{ spin: isHealthLoading }" />
-          <span>{{ isHealthLoading ? 'Проверка...' : (t('refresh') || 'Обновить') }}</span>
+          <span>{{ isHealthLoading ? t('status_checking') : t('refresh') }}</span>
         </button>
       </div>
 
       <div class="health-grid">
         <div class="health-item">
-          <span class="health-name">🚐 Roadsurfer</span>
+          <span class="health-name">🚐 Roadsurfer Rally</span>
           <span class="health-status" :class="providersHealth?.roadsurfer?.ok ? 'ok' : 'pending'">
-            {{ providersHealth?.roadsurfer ? (providersHealth.roadsurfer.ok ? 'Работает' : 'Ошибка') : 'Готов' }}
+            {{ providersHealth?.roadsurfer ? (providersHealth.roadsurfer.ok ? t('status_operational') : t('status_error_state')) : t('status_checking') }}
           </span>
         </div>
         <div class="health-item">
-          <span class="health-name">🚗 Movacar</span>
+          <span class="health-name">🚗 Movacar API</span>
           <span class="health-status" :class="providersHealth?.movacar?.ok ? 'ok' : 'pending'">
-            {{ providersHealth?.movacar ? (providersHealth.movacar.ok ? 'Работает' : 'Ошибка') : 'Готов' }}
+            {{ providersHealth?.movacar ? (providersHealth.movacar.ok ? t('status_operational') : t('status_error_state')) : t('status_checking') }}
           </span>
         </div>
         <div class="health-item">
           <span class="health-name">⛺ Indie Campers</span>
           <span class="health-status" :class="providersHealth?.indiecampers?.ok ? 'ok' : 'pending'">
-            {{ providersHealth?.indiecampers ? (providersHealth.indiecampers.ok ? 'Работает' : 'Ошибка') : 'Готов' }}
+            {{ providersHealth?.indiecampers ? (providersHealth.indiecampers.ok ? t('status_operational') : t('status_error_state')) : t('status_checking') }}
           </span>
         </div>
         <div class="health-item">
           <span class="health-name">🌐 Imoova</span>
           <span class="health-status" :class="providersHealth?.imoova?.ok ? 'ok' : 'pending'">
-            {{ providersHealth?.imoova ? (providersHealth.imoova.ok ? 'Работает' : 'Ошибка') : 'Готов' }}
+            {{ providersHealth?.imoova ? (providersHealth.imoova.ok ? t('status_operational') : t('status_error_state')) : t('status_checking') }}
           </span>
         </div>
       </div>
@@ -230,9 +247,13 @@ function handleAddRoute() {
 
 <style scoped>
 .main-tab {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  box-sizing: border-box;
 }
 
 /* Sub banner */
@@ -240,69 +261,79 @@ function handleAddRoute() {
   background: linear-gradient(135deg, rgba(37, 99, 235, 0.25) 0%, rgba(147, 51, 234, 0.25) 100%);
   border: 1px solid rgba(59, 130, 246, 0.35);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
+  gap: 14px;
   cursor: pointer;
   padding: 18px 20px;
 }
 
+@media (min-width: 640px) {
+  .sub-banner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
 .banner-badge {
-  display: inline-block;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.1em;
   color: #60a5fa;
+  letter-spacing: 0.08em;
   margin-bottom: 4px;
 }
 
 .banner-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.01em;
-  margin-bottom: 2px;
+  color: var(--text-main);
+  line-height: 1.3;
 }
 
 .banner-sub {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
 }
 
 .banner-btn {
   flex-shrink: 0;
 }
 
+/* Premium active card */
 .premium-active-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
-  background: rgba(245, 158, 11, 0.08);
-  border-color: rgba(245, 158, 11, 0.25);
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%);
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .active-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
-  color: #fbbf24;
-  margin-bottom: 2px;
+  color: #34d399;
+  letter-spacing: 0.06em;
 }
 
 .active-text {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-main);
+  margin-top: 2px;
 }
 
-/* Status Card */
+/* Status card */
 .status-card {
-  padding: 16px 20px;
+  padding: 18px 20px;
 }
 
 .status-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .status-meta {
@@ -314,8 +345,8 @@ function handleAddRoute() {
 .status-indicator-dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
   background: var(--success);
+  border-radius: 50%;
   box-shadow: 0 0 10px var(--success);
 }
 
@@ -325,17 +356,16 @@ function handleAddRoute() {
 }
 
 .status-details {
-  display: flex;
-  gap: 24px;
-  border-top: 1px solid var(--border-subtle);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
   padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .status-item-label {
   font-size: 11px;
-  color: var(--text-subtle);
-  text-transform: uppercase;
-  font-weight: 600;
+  color: var(--text-muted);
 }
 
 .status-item-value {
@@ -344,7 +374,34 @@ function handleAddRoute() {
   margin-top: 2px;
 }
 
-/* Routes */
+/* Routes section */
+.routes-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.routes-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty-card {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.empty-icon {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+.empty-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
 .routes-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -353,20 +410,20 @@ function handleAddRoute() {
 
 @media (min-width: 640px) {
   .routes-grid {
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: 1fr 1fr;
   }
 }
 
 .route-card {
-  position: relative;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px;
+  gap: 12px;
+  transition: opacity 0.2s;
 }
 
 .route-card.disabled {
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
 .route-top {
@@ -378,11 +435,12 @@ function handleAddRoute() {
 .provider-pill {
   font-size: 11px;
   font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--bg-surface-elevated);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.12);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
 }
 
 .route-path {
@@ -393,76 +451,134 @@ function handleAddRoute() {
 }
 
 .point {
+  display: flex;
+  flex-direction: column;
   flex: 1;
 }
 
+.point-dest {
+  text-align: right;
+}
+
 .point-label {
-  display: block;
   font-size: 10px;
-  color: var(--text-subtle);
   text-transform: uppercase;
+  color: var(--text-subtle);
   font-weight: 600;
 }
 
 .point-val {
   font-size: 14px;
   font-weight: 700;
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--text-main);
+  margin-top: 2px;
 }
 
 .route-arrow {
-  color: var(--accent-primary);
-  font-size: 16px;
+  color: var(--text-subtle);
+  font-size: 14px;
 }
 
 .route-dates {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
+  background: var(--bg-surface);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
 }
 
 .route-actions {
   display: flex;
-  align-items: center;
   justify-content: flex-end;
   gap: 8px;
+  padding-top: 8px;
   border-top: 1px solid var(--border-subtle);
-  padding-top: 10px;
-  margin-top: 4px;
 }
 
 .action-btn {
   background: transparent;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 5px 8px;
+  padding: 6px;
   color: var(--text-muted);
   cursor: pointer;
+  display: flex;
+  align-items: center;
   transition: all 0.16s ease;
 }
 
 .action-btn:hover {
   color: var(--text-main);
-  background: var(--bg-hover);
+  background: var(--bg-surface-elevated);
 }
 
 .action-btn.delete-btn:hover {
   color: var(--danger);
   border-color: rgba(239, 68, 68, 0.3);
-  background: var(--danger-bg);
+}
+
+.main-save-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+/* Health section */
+.health-section {
+  padding: 18px 20px;
+}
+
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 640px) {
+  .health-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.health-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.health-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.health-status {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.health-status.ok {
+  color: var(--success);
+}
+
+.health-status.pending {
+  color: var(--warning);
 }
 
 /* Toggle Switch */
 .toggle-switch {
   position: relative;
   display: inline-block;
-  width: 36px;
+  width: 38px;
   height: 20px;
+  flex-shrink: 0;
 }
 .toggle-switch input {
   opacity: 0;
@@ -492,75 +608,6 @@ input:checked + .toggle-slider {
   background-color: var(--accent-primary);
 }
 input:checked + .toggle-slider:before {
-  transform: translateX(16px);
-}
-
-/* Empty Card */
-.empty-card {
-  text-align: center;
-  padding: 36px 20px;
-}
-.empty-icon {
-  font-size: 36px;
-  margin-bottom: 8px;
-}
-.empty-title {
-  font-size: 15px;
-  font-weight: 700;
-}
-.empty-sub {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-
-/* Health Section */
-.health-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-@media (min-width: 640px) {
-  .health-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-.health-item {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.health-name {
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.health-status {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.health-status.ok {
-  color: var(--success);
-}
-
-.health-status.pending {
-  color: var(--text-muted);
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  transform: translateX(18px);
 }
 </style>

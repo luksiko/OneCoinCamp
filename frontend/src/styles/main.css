@@ -80,7 +80,10 @@ body {
 
 /* Base Container */
 .app-container {
+  width: 100%;
   max-width: 1080px;
+  min-width: 0;
+  box-sizing: border-box;
   margin: 0 auto;
   padding: 16px 16px 90px;
 }
@@ -93,6 +96,10 @@ body {
 
 /* Glass Cards */
 .glass-card {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   background: var(--bg-card);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -101,6 +108,14 @@ body {
   padding: 20px;
   box-shadow: var(--shadow-sm);
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.table-responsive {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  display: block;
 }
 
 .glass-card:hover {

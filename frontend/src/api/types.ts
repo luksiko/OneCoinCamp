@@ -28,7 +28,13 @@ export interface UserFilters {
 
 export interface UserSettings {
   poll_interval_minutes: number;
+  check_neighbors?: boolean;
   telegram_enabled?: boolean;
+  notify_all_by_price?: boolean;
+  provider_roadsurfer_enabled?: boolean;
+  provider_movacar_enabled?: boolean;
+  provider_indiecampers_enabled?: boolean;
+  provider_imoova_enabled?: boolean;
   timezone?: string;
   [key: string]: any;
 }

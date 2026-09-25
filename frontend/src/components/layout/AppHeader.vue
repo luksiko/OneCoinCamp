@@ -97,7 +97,7 @@ const tabs = computed<Array<{ id: AppTab; label: string; icon: any }>>(() => {
         <button
           v-if="!isTelegramMiniApp && isAuthenticated"
           class="logout-btn"
-          title="Выйти"
+          :title="t('logout')"
           @click="logout"
         >
           <LogOut :size="15" />
