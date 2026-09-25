@@ -72,15 +72,15 @@
             "name": "What providers does OneCoinCamp monitor?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "We scan Roadsurfer Rally, Movacar, Indie Campers, and Imoova every 10 minutes via automated API integrations."
+              "text": "We scan Roadsurfer Rally, Movacar, Indie Campers, and Imoova in real-time (every 60 seconds) via automated integrations."
             }
           },
           {
             "@type": "Question",
-            "name": "Are fuel and highway tolls included?",
+            "name": "Who pays for fuel and highway tolls?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Many relocations (especially Roadsurfer and Movacar) include fuel allowances ranging from €100 to €300, which are refunded to you upon presenting receipts."
+              "text": "Fuel and highway tolls are paid by the driver. Even with fuel costs, paying only €1/day saves over €800 compared to standard commercial campervan rentals."
             }
           },
           {
@@ -132,13 +132,17 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
+    html {
+      scroll-behavior: smooth;
+      overflow-x: hidden;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
       line-height: 1.55;
       overflow-x: hidden;
+      max-width: 100vw;
       padding-bottom: 70px;
     }
 
@@ -260,6 +264,7 @@
       padding: 70px 0 50px;
       text-align: center;
       position: relative;
+      overflow: hidden;
     }
     .hero::before {
       content: '';
@@ -465,9 +470,15 @@
       padding-top: 8px;
       border-top: 1px solid var(--border);
     }
-    .fuel-bonus {
-      color: var(--gold);
+    .savings-badge, .fuel-bonus {
+      font-size: 11px;
       font-weight: 700;
+      color: #059669;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      padding: 2px 7px;
+      border-radius: 6px;
+      white-space: nowrap;
     }
     .deal-booked-badge {
       font-size: 11px;
@@ -726,8 +737,8 @@
       color: var(--text);
       margin-bottom: 10px;
     }
-    .push-fuel {
-      color: var(--gold);
+    .push-savings, .push-fuel {
+      color: #34d399;
       font-weight: 700;
       font-size: 11px;
     }
@@ -995,9 +1006,125 @@
       .hero p { font-size: 19px; }
       body { padding-bottom: 0; }
     }
+
     @media (max-width: 860px) {
-      .calc-card { grid-template-columns: 1fr; padding: 24px; }
+      #btnNavDesktopApp { display: none !important; }
+      .navbar-inner { height: 60px; }
+      .brand { font-size: 17px; }
+      .brand-badge { display: none; }
+      .how-it-works-wrapper {
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+      .calc-card {
+        grid-template-columns: 1fr;
+        padding: 24px;
+      }
       .mobile-sticky-bar { display: block; }
+    }
+
+    @media (max-width: 600px) {
+      section { padding: 40px 0; }
+      .container { padding: 0 12px; }
+      .navbar-inner { height: 54px; gap: 6px; }
+      .brand { font-size: 16px; gap: 6px; }
+      .brand-icon { font-size: 20px; }
+      .nav-actions { gap: 6px; }
+      .lang-select { padding: 4px 6px; font-size: 11.5px; }
+      .navbar .btn { padding: 6px 10px; font-size: 11.5px; }
+
+      .hero { padding: 36px 0 28px; }
+      .hero::before { width: 340px; height: 260px; }
+      .hero h1 { font-size: 26px; line-height: 1.22; letter-spacing: -0.4px; }
+      .hero p { font-size: 14.5px; line-height: 1.5; margin-bottom: 22px; }
+      .live-pill {
+        font-size: 11px;
+        padding: 6px 12px;
+        white-space: normal;
+        text-align: center;
+        line-height: 1.35;
+      }
+      .hero-ctas {
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+      }
+      .hero-ctas .btn { width: 100%; }
+      .hero-badges {
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+      }
+
+      .deals-grid {
+        grid-template-columns: 1fr;
+      }
+      .deal-card {
+        padding: 14px;
+      }
+
+      .table-card {
+        margin: 0;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      th, td {
+        padding: 10px 8px;
+        font-size: 12px;
+      }
+      table {
+        min-width: 440px;
+      }
+
+      .calc-card {
+        padding: 18px 14px;
+        border-radius: 16px;
+      }
+      .calc-savings {
+        font-size: 34px;
+      }
+
+      .pricing-card {
+        padding: 26px 14px;
+        border-radius: 16px;
+      }
+      .pricing-price {
+        font-size: 38px;
+      }
+      .pricing-fuel-callout {
+        font-size: 12.5px;
+        padding: 10px 12px;
+      }
+      .pricing-features {
+        font-size: 13px;
+        gap: 10px;
+      }
+
+      .phone-mockup-placeholder {
+        padding: 14px;
+        max-width: 320px;
+      }
+      .phone-frame {
+        padding: 10px 8px 16px;
+      }
+      .phone-screen {
+        padding: 12px 10px 14px;
+      }
+      .telegram-push-mockup {
+        padding: 10px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .container { padding: 0 10px; }
+      .brand { font-size: 14.5px; gap: 4px; }
+      .brand-icon { font-size: 18px; }
+      .lang-select { padding: 3px 5px; font-size: 11px; }
+      .navbar .btn { padding: 5px 8px; font-size: 11px; }
+      .hero h1 { font-size: 23px; }
     }
   </style>
 </head>
@@ -1056,7 +1183,7 @@
       <div class="hero-badges">
         <span>⭐️ 4.9/5 Rating (340+ Travelers)</span>
         <span>⏱️ 0-Second Telegram Alerts</span>
-        <span>⛽️ Up to €300 Fuel Bonus Included</span>
+        <span>💶 Save €800+ vs Standard Rentals</span>
       </div>
     </div>
   </header>
@@ -1093,7 +1220,7 @@
           <div>
             <div class="deal-meta">
               <span>📅 Oct 12 - Oct 16</span>
-              <span class="fuel-bonus">⛽️ €150 Fuel Allowance</span>
+              <span class="savings-badge">💰 Save €840</span>
             </div>
             <div class="deal-footer-row">
               <span class="deal-price">€1.00 / day</span>
@@ -1115,7 +1242,7 @@
           <div>
             <div class="deal-meta">
               <span>📅 Oct 14 - Oct 19</span>
-              <span class="fuel-bonus">⛽️ €100 Fuel Allowance</span>
+              <span class="savings-badge">💰 Save €790</span>
             </div>
             <div class="deal-footer-row">
               <span class="deal-price">€1.00 / day</span>
@@ -1137,7 +1264,7 @@
           <div>
             <div class="deal-meta">
               <span>📅 Oct 18 - Oct 25</span>
-              <span class="fuel-bonus">⛽️ €250 Fuel Allowance</span>
+              <span class="savings-badge">💰 Save €1,150</span>
             </div>
             <div class="deal-footer-row">
               <span class="deal-price">€1.00 / day</span>
@@ -1252,7 +1379,7 @@
                   <div class="push-body">
                     <strong>Munich 🇩🇪 ➔ Rome 🇮🇹</strong><br>
                     <span>Movacar • Oct 12 - Oct 16</span><br>
-                    <span class="push-fuel">⛽️ €150 Fuel Allowance included</span><br>
+                    <span class="push-savings">💰 Save €850 vs regular rentals</span><br>
                     <span class="push-price">€1.00 / day</span>
                   </div>
                   <div class="push-btn">⚡️ Book on Movacar (1 Click) ➔</div>
@@ -1334,9 +1461,9 @@
         <div class="pricing-price">€4.99</div>
         <div class="pricing-period" data-i18n="pricing_period">per month (30 days access)</div>
 
-        <!-- Fuel bonus pays for itself callout -->
+        <!-- Vacation savings pays for itself callout -->
         <div class="pricing-fuel-callout" data-i18n="pricing_fuel_callout">
-          🔥 <strong>Pays for itself:</strong> Claim just one camper with a fuel bonus (up to €300) and this subscription pays off 60x over!
+          🔥 <strong>Pays for itself:</strong> Book just one camper trip for 1€ and you save €800+ compared to commercial rental rates!
         </div>
 
         <ul class="pricing-features">
@@ -1384,7 +1511,7 @@
 
         <div class="review-card">
           <div class="review-stars">★★★★★</div>
-          <div class="review-text" data-i18n="rev_2_text">"I was refreshing Movacar for weeks without luck. After setting up OneCoinCamp alerts, I caught a camper from Munich to Rome with a €150 fuel allowance. They literally paid for our fuel!"</div>
+          <div class="review-text" data-i18n="rev_2_text">"I was refreshing Movacar for weeks without luck. After setting up OneCoinCamp alerts, I caught a camper from Munich to Rome for 5€ total. We saved over €850 on rental fees alone!"</div>
           <div class="review-author">— Marco T.</div>
           <div class="review-route">Munich 🇩🇪 ➔ Rome 🇮🇹 · Movacar</div>
         </div>
@@ -1425,7 +1552,7 @@
             <span class="faq-toggle">+</span>
           </div>
           <div class="faq-answer" data-i18n="a2">
-            Many relocation deals include generous fuel subsidies (usually between €100 and €300). You submit your gas receipts upon returning the vehicle, and the rental company refunds you directly. Highway tolls are paid by the driver.
+            Fuel and highway tolls are paid by the driver, just like any standard road trip. However, because your base vehicle rental is only 1€/day instead of €180–€240/day, you still save hundreds of euros on your total vacation budget.
           </div>
         </div>
 
@@ -1507,7 +1634,7 @@
         pickup_date: 'Oct 12',
         return_date: 'Oct 16',
         price: 1.0,
-        fuel_bonus: '€150 Fuel Allowance',
+        savings: 'Save €840',
         booked_badge: '🔥 Booked in 4 mins'
       },
       {
@@ -1520,7 +1647,7 @@
         pickup_date: 'Oct 14',
         return_date: 'Oct 19',
         price: 1.0,
-        fuel_bonus: '€100 Fuel Allowance',
+        savings: 'Save €790',
         booked_badge: '🔥 Booked in 3 mins'
       },
       {
@@ -1533,7 +1660,7 @@
         pickup_date: 'Oct 18',
         return_date: 'Oct 25',
         price: 1.0,
-        fuel_bonus: '€250 Fuel Allowance',
+        savings: 'Save €1,150',
         booked_badge: '🔥 Booked in 6 mins'
       }
     ];
@@ -1590,8 +1717,8 @@
       filtered.slice(0, 9).forEach(function(o) {
         var providerClass = (o.source || 'roadsurfer').toLowerCase().replace(/[^a-z]/g, '');
         var providerLabel = o.source ? o.source.toUpperCase() : 'PROVIDER';
-        var fuelBonusVal = o.fuel_bonus || (o.fuel_allowance ? o.fuel_allowance : null);
-        var fuelBadge = fuelBonusVal ? '<span class="fuel-bonus">⛽️ ' + fuelBonusVal.replace(/^⛽️?\s*/, '') + '</span>' : '';
+        var savingsVal = o.savings || o.est_savings || null;
+        var savingsBadge = savingsVal ? '<span class="savings-badge">💰 ' + savingsVal.replace(/^💰?\s*/, '') + '</span>' : '';
         var bookedBadge = o.booked_badge ? '<span class="deal-booked-badge">' + o.booked_badge + '</span>' : '<span class="deal-booked-badge">🔥 Fast Booking</span>';
         var dateStr = (o.pickup_date && o.return_date) ? (o.pickup_date + ' - ' + o.return_date) : (o.pickup_date || 'Oct 2026');
         html += '<div class="deal-card">' +
@@ -1606,7 +1733,7 @@
           '<div>' +
             '<div class="deal-meta">' +
               '<span>📅 ' + dateStr + '</span>' +
-              fuelBadge +
+              savingsBadge +
             '</div>' +
             '<div class="deal-footer-row">' +
               '<span class="deal-price">€' + (o.price || 1).toFixed(2) + ' / day</span>' +
@@ -1714,16 +1841,31 @@
         pricing_desc: 'A single road trip saves you €800+. Premium pays for itself on your very first vacation.',
         pricing_badge: 'All Features Included',
         pricing_period: 'per month (30 days access)',
-        pricing_fuel_callout: '🔥 <strong>Pays for itself:</strong> Claim just one camper with a fuel bonus (up to €300) and this subscription pays off 60x over!',
+        pricing_fuel_callout: '🔥 <strong>Pays for itself:</strong> Book just one camper trip for 1€ and you save €800+ compared to commercial rental rates!',
         pricing_cta: 'Get Premium Access ➔',
         pricing_cta_free: 'Start Free Version (Delayed Alerts)',
         pricing_cancel: 'Cancel anytime with 1 click · No hidden commitments',
         reviews_tag: 'Verified Travelers',
         reviews_title: 'Loved by Camper Roadtrippers',
         reviews_desc: 'See what travelers who booked 1€ campervans across Europe have to say.',
+        rev_1_text: '"We booked a Roadsurfer Volkswagen California from Berlin to Barcelona for 5€ total! Saved €920 on our honeymoon. The notification arrived while I was having coffee — booked in 2 minutes."',
+        rev_2_text: '"I was refreshing Movacar for weeks without luck. After setting up OneCoinCamp alerts, I caught a camper from Munich to Rome for 5€ total. We saved over €850 on rental fees alone!"',
+        rev_3_text: '"The desktop dashboard is super comfortable to check routes on my laptop, and alerts come straight to Telegram on my phone. Best 4.99€ I spent this year."',
         faq_tag: 'Got Questions?',
         faq_title: 'Frequently Asked Questions',
         faq_desc: 'Everything you need to know about 1€ camper rentals and automated alerts.',
+        q1: 'Is it really 1€? Are there any hidden catches?',
+        a1: 'Yes! The base rental price is exactly 1€ per day. Rental companies charge this nominal amount to enter a binding rental contract. You receive a fully insured, brand-new campervan or motorhome. The only condition is following the designated route and dates.',
+        q2: 'Who pays for fuel and highway tolls?',
+        a2: 'Fuel and highway tolls are paid by the driver, just like any standard road trip. However, because your base vehicle rental is only 1€/day instead of €180–€240/day, you still save hundreds of euros on your total vacation budget.',
+        q3: 'What driver\'s license do I need?',
+        a3: '98% of campervans and motorhomes in Europe are under 3,500 kg, meaning a standard passenger car license (Category B in Europe, or regular US/UK driver\'s license) held for at least 1–2 years is completely sufficient.',
+        q4: 'How fast do I need to book when an alert arrives?',
+        a4: 'Popular routes between major European cities usually sell out within 5 to 20 minutes. Because OneCoinCamp pings you via Telegram within seconds of the provider posting the offer, you get the direct booking link before general web users spot it.',
+        q5: 'How do I access the desktop management vs mobile app?',
+        a5: 'On desktop computers and laptops, click "Dashboard" in the navigation bar to access the full-screen desktop dashboard with route tables, station maps, and run history. On mobile devices, OneCoinCamp functions as a sleek Telegram Mini App.',
+        q6: 'Can I cancel my subscription anytime?',
+        a6: 'Absolutely. You can cancel your subscription at any time with 1 click in your account or via the Telegram bot. You retain access until the end of your 30-day period with no future billing.',
         sticky_cta: '🚀 Start in Telegram Free'
       },
       de: {
@@ -1786,16 +1928,31 @@
         pricing_desc: 'Eine einzige Reise spart über 800€. Premium rentiert sich bereits ab dem ersten Tag um das 160-fache.',
         pricing_badge: 'Alle Funktionen inklusive',
         pricing_period: 'pro Monat (30 Tage Zugang)',
-        pricing_fuel_callout: '🔥 <strong>Rentiert sich sofort:</strong> Sichern Sie sich nur ein Wohnmobil mit Tankzuschuss (bis zu 300€) und das Abo zahlt sich 60-fach aus!',
+        pricing_fuel_callout: '🔥 <strong>Rentiert sich sofort:</strong> Buchen Sie nur eine einzige Reise für 1€ und sparen Sie über 800€ gegenüber regulären Mietpreisen!',
         pricing_cta: 'Premium Zugang aktivieren ➔',
         pricing_cta_free: 'Kostenlose Version starten (Verzögerte Alarme)',
         pricing_cancel: 'Jederzeit mit 1 Klick kündbar · Keine versteckten Kosten',
         reviews_tag: 'Verifizierte Camper',
         reviews_title: 'Begeisterte Reisende',
         reviews_desc: 'Erfahrungsberichte von Reisenden, die mit 1€-Wohnmobilen durch Europa gereist sind.',
+        rev_1_text: '"Wir haben einen Roadsurfer VW California von Berlin nach Barcelona für insgesamt 5€ gebucht! Bei unseren Flitterwochen haben wir 920€ gespart. Die Benachrichtigung kam beim Frühstück – in 2 Minuten gebucht."',
+        rev_2_text: '"Ich habe wochenlang manuell auf Movacar gesucht. Mit den OneCoinCamp-Alarmen habe ich sofort einen Camper von München nach Rom für insgesamt 5€ gebucht und über 850€ gespart!"',
+        rev_3_text: '"Das Desktop-Dashboard ist super komfortabel auf dem Laptop, und die Push-Nachrichten kommen direkt aufs Handy in Telegram. Die besten 4,99€ dieses Jahr."',
         faq_tag: 'Häufige Fragen',
         faq_title: 'Fragen & Antworten',
         faq_desc: 'Alles, was Sie über 1€ Wohnmobil-Überführungen wissen müssen.',
+        q1: 'Kostet es wirklich nur 1€? Gibt es versteckte Kosten?',
+        a1: 'Ja! Der Basis-Mietpreis beträgt exakt 1€ pro Tag. Vermieter erheben diesen symbolischen Betrag für einen rechtsgültigen Mietvertrag. Sie erhalten ein voll versichertes, neuwertiges Wohnmobil. Die einzige Bedingung ist die Einhaltung von Route und Zeitraum.',
+        q2: 'Wer zahlt Treibstoff und Autobahnmaut?',
+        a2: 'Treibstoff und Autobahnmaut werden wie gewohnt vom Fahrer getragen. Da die Fahrzeugmiete jedoch nur 1€/Tag statt 180€–240€/Tag beträgt, sparen Sie trotzdem viele hundert Euro bei Ihrer Reise.',
+        q3: 'Welchen Führerschein brauche ich?',
+        a3: 'Über 98% der Campervans und Wohnmobile in Europa wiegen unter 3.500 kg. Der normale Pkw-Führerschein (Klasse B), der seit mindestens 1–2 Jahren besteht, reicht vollkommen aus.',
+        q4: 'Wie schnell muss ich buchen, wenn ein Alarm kommt?',
+        a4: 'Beliebte Routen zwischen europäischen Großstädten sind meist innerhalb von 5 bis 20 Minuten vergeben. Dank der Echtzeit-Meldungen von OneCoinCamp erhalten Sie den Direktlink sofort und buchen vor allen anderen.',
+        q5: 'Wie nutze ich das Desktop-Dashboard vs. Mobile App?',
+        a5: 'Auf PC und Laptop klicken Sie einfach auf „Dashboard“ in der Navigation für die Vollbildansicht mit Kartendarstellung und Routentabellen. Auf Smartphones läuft OneCoinCamp als nahtlose Telegram Mini App.',
+        q6: 'Kann ich das Abonnement jederzeit kündigen?',
+        a6: 'Selbstverständlich. Sie können das Abo jederzeit mit einem einzigen Klick im Profil oder direkt im Telegram-Bot kündigen. Sie behalten den Zugriff bis zum Ende des bezahlten 30-Tage-Zeitraums.',
         sticky_cta: '🚀 Kostenlos in Telegram starten'
       },
       ru: {
@@ -1858,16 +2015,31 @@
         pricing_desc: 'Одна поездка экономит от 800€. Подписка окупается в 160 раз в первый же отпуск.',
         pricing_badge: 'Всё включено',
         pricing_period: 'в месяц (30 дней доступа)',
-        pricing_fuel_callout: '🔥 <strong>Окупается сразу:</strong> Поймайте всего один кемпер с бонусом на топливо (до 300€), и эта подписка окупится в 60 раз!',
+        pricing_fuel_callout: '🔥 <strong>Окупается сразу:</strong> Забронируйте всего одну поездку за 1€ и сэкономьте от 800€ по сравнению с обычной арендой!',
         pricing_cta: 'Получить Premium доступ ➔',
         pricing_cta_free: 'Запустить бесплатную версию (С задержкой)',
         pricing_cancel: 'Отмена в 1 клик в любой момент · Никаких скрытых списаний',
         reviews_tag: 'Отзывы путешественников',
         reviews_title: 'Путешествия за 1€ — это реальность',
         reviews_desc: 'Истории людей, которые уже съездили в путешествие мечты на кемпере за 1 евро.',
+        rev_1_text: '"Мы забронировали Volkswagen California от Roadsurfer из Берлина в Барселону всего за 5€! Сэкономили 920€ на медовом месяце. Уведомление пришло за утренним кофе — забронировали за 2 минуты."',
+        rev_2_text: '"Я неделями проверял сайты вручную. После настройки алертов OneCoinCamp сразу поймал кемпер из Мюнхена в Рим всего за 5€ и сэкономил более 850€ на аренде!"',
+        rev_3_text: '"Дашбордом на ноутбуке невероятно удобно пользоваться для выбора направлений, а алерты моментально приходят в Telegram на телефон. Лучшие 4.99€ в этом году."',
         faq_tag: 'Частые вопросы',
         faq_title: 'Вопросы и ответы',
         faq_desc: 'Всё, что нужно знать об аренде кемперов за 1€ и работе сервиса.',
+        q1: 'Это правда стоит 1€? Есть ли скрытые платежи?',
+        a1: 'Да! Базовая аренда стоит ровно 1€ в день. Прокатные компании взимают эту символическую сумму для оформления официального договора аренды. Вы получаете полностью застрахованный новый кемпер. Единственное условие — придерживаться маршрута и дат.',
+        q2: 'Кто оплачивает топливо и платные дороги?',
+        a2: 'Топливо и дорожные сборы оплачивает водитель, как и в любой обычной поездке. Но поскольку аренда самого кемпера стоит всего 1€ в день вместо 180–240€, вы экономите более 800€ на бюджете отпуска.',
+        q3: 'Какие водительские права нужны?',
+        a3: 'Более 98% кемперов и автодомов в Европе имеют массу до 3,5 тонн, поэтому обычных легковых прав категории B (со стажем от 1–2 лет) абсолютно достаточно.',
+        q4: 'Как быстро нужно бронировать при получении алерта?',
+        a4: 'Популярные маршруты между европейскими городами разбирают за 5–20 минут. OneCoinCamp отправляет пуш в Telegram в течение секунд после появления оффера, давая вам прямую ссылку раньше всех.',
+        q5: 'Как устроен доступ с компьютера и телефона?',
+        a5: 'На компьютерах и ноутбуках нажмите кнопку «Дашборд» в шапке сайта для перехода в полноэкранную панель с таблицами маршрутов и фильтрами. На смартфонах OneCoinCamp работает как удобное Telegram Mini App.',
+        q6: 'Можно ли отменить подписку в любой момент?',
+        a6: 'Конечно. Вы можете отменить подписку в любой момент в 1 клик в личном кабинете или прямо через Telegram-бота. Доступ сохранится до конца оплаченного 30-дневного периода.',
         sticky_cta: '🚀 Запустить в Telegram бесплатно'
       }
     };
