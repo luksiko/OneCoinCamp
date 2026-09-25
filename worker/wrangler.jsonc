@@ -37,7 +37,7 @@
     "WORKER_PUBLIC_URL": "https://camper-monitor.luksiko90.workers.dev",
     "GAS_PROXY_URL": "https://camper-proxy.vercel.app",
     "PADDLE_ENVIRONMENT": "production",
-    "PADDLE_PRICE_ID": "pri_01m3br6snnqgrj0qx9eea5khee"
+    "PADDLE_PRICE_ID": "pri_01m3br2s170bctkys59bhfk1ee"
   },
   "secrets": {
     "required": ["TELEGRAM_BOT_TOKEN_SECRET", "TELEGRAM_WEBHOOK_SECRET",
