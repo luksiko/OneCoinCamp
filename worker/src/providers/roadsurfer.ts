@@ -244,7 +244,7 @@ export async function fetchRoadsurferOffers(
         (allowedOrigins.length === 0 || allowedOrigins.includes(s.country))
     );
     // Limit origins to prevent subrequest exhaustion and rotate cursor across runs
-    const limit = Math.min(filters?.roadsurfer_origins_per_run || 4, 6);
+    const limit = Math.min(filters?.roadsurfer_origins_per_run || 2, 2);
     if (originsToCheck.length > limit && db) {
       const cursorKey = `roadsurfer_cursor_${route.origin_country || 'ALL'}`;
       const rawCursor = await db.getSetting(cursorKey);

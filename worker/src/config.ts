@@ -30,7 +30,7 @@ export const DEFAULT_FILTERS = {
   silent_hours_end: '07:00',
   window_days: 14,
   window_start_rule: 'today',
-  roadsurfer_origins_per_run: 20,
+  roadsurfer_origins_per_run: 2,
 };
 
 export const WEBAPP_COUNTRIES: [string, string][] = [

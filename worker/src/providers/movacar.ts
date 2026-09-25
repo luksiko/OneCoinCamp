@@ -4,6 +4,19 @@ import countryMap from './movacar-countries.json';
 
 export const MOVACAR_COUNTRIES: Record<string, string> = countryMap;
 
+export function lookupMovacarCountry(cityName?: string): string {
+  if (!cityName) return '';
+  const trimmed = cityName.trim();
+  if (MOVACAR_COUNTRIES[trimmed]) return MOVACAR_COUNTRIES[trimmed];
+  const stripped = trimmed.replace(/\s*\([^)]*\)/g, '').trim();
+  if (MOVACAR_COUNTRIES[stripped]) return MOVACAR_COUNTRIES[stripped];
+  for (const [key, country] of Object.entries(MOVACAR_COUNTRIES)) {
+    const keyStripped = key.replace(/\s*\([^)]*\)/g, '').trim();
+    if (keyStripped.toLowerCase() === stripped.toLowerCase()) return country;
+  }
+  return '';
+}
+
 export async function getMovacarAllStations(): Promise<{ id: string; name: string; country: string }[]> {
   const payload = await fetchJson<any>('https://crowd-api-production-615013621295.europe-west1.run.app/v1/locations/offers?locale=de', {
     headers: { Accept: 'application/vnd.api+json', Origin: 'https://movacar.com', Referer: 'https://movacar.com/' },
@@ -57,24 +70,26 @@ export async function fetchMovacarOffers(
     const rels = item.relationships || {};
 
     const originData = rels.origin?.data || {};
+
     const originStation = stations[originData.id] || {};
     const originCity = originStation.city || originStation.alternative_city || origin.name || 'Unknown';
     const originCountry =
-      MOVACAR_COUNTRIES[originCity] ||
-      (originStation.city && MOVACAR_COUNTRIES[originStation.city]) ||
-      (originStation.alternative_city && MOVACAR_COUNTRIES[originStation.alternative_city]) ||
+      lookupMovacarCountry(originCity) ||
+      lookupMovacarCountry(originStation.city) ||
+      lookupMovacarCountry(originStation.alternative_city) ||
+      lookupMovacarCountry(originStation.name) ||
       origin.country ||
-      route.origin_country ||
       '';
 
     const destData = rels.destination?.data || {};
     const destStation = stations[destData.id] || {};
     const destCity = destStation.city || destStation.alternative_city || route.destination_name || 'Unknown';
     const destCountry =
-      MOVACAR_COUNTRIES[destCity] ||
-      (destStation.city && MOVACAR_COUNTRIES[destStation.city]) ||
-      (destStation.alternative_city && MOVACAR_COUNTRIES[destStation.alternative_city]) ||
-      route.destination_country ||
+      lookupMovacarCountry(destCity) ||
+      lookupMovacarCountry(destStation.city) ||
+      lookupMovacarCountry(destStation.alternative_city) ||
+      lookupMovacarCountry(destStation.name) ||
+      destStation.country ||
       '';
 
     // Country filters

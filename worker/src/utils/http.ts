@@ -6,7 +6,7 @@ export interface FetchOptions extends RequestInit {
 }
 
 let globalGasProxyUrl: string | undefined = undefined;
-const KNOWN_PROXY_DOMAINS = new Set<string>();
+const KNOWN_PROXY_DOMAINS = new Set<string>(['booking.roadsurfer.com']);
 
 export function setGasProxyUrl(url?: string): void {
   globalGasProxyUrl = url ? url.trim() : undefined;
@@ -37,7 +37,6 @@ export async function fetchJson<T = any>(url: string, options: FetchOptions = {}
   const isExcludedFromProxy =
     !proxyUrl ||
     host === 'api.telegram.org' ||
-    host === 'booking.roadsurfer.com' ||
     host.endsWith('movacar.de') ||
     host.endsWith('run.app') ||
     url.includes('/macros/s/') ||
@@ -149,6 +148,7 @@ export async function fetchViaGasProxy<T = any>(
       headers: {
         'Content-Type': 'application/json',
       },
+      redirect: 'follow',
       body: JSON.stringify({
         url: targetUrl,
         method,

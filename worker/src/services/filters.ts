@@ -125,7 +125,8 @@ export function offerMatchesUserFilters(
   if (pickup && filters.window_days && !matchedRoute?.pickup_date) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const end = addDays(today, filters.window_days);
+    const effectiveDays = offer.source === 'roadsurfer' ? Math.max(filters.window_days, 45) : filters.window_days;
+    const end = addDays(today, effectiveDays);
     if (pickup < today || pickup > end) {
       return false;
     }

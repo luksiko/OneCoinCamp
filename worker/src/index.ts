@@ -2,7 +2,7 @@ import { DbClient } from './db/client';
 import { TelegramService } from './services/telegram';
 import { runMonitorCycle } from './services/monitor';
 import { handleRpcRequest } from './api/rpc';
-import { setGasProxyUrl } from './utils/http';
+import { setGasProxyUrl, fetchJson } from './utils/http';
 
 export interface Env {
   DB: D1Database;
@@ -133,6 +133,14 @@ export default {
         return new Response(response.body, { status: response.status, headers });
       }
       return response;
+    }
+
+    // Manual run trigger
+    if (url.pathname === '/run') {
+      ctx.waitUntil(triggerMonitorFn());
+      return new Response(JSON.stringify({ ok: true, message: 'Monitor cycle triggered via background worker' }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Health check

@@ -323,6 +323,20 @@ async function getOffersForUi(ctx: RpcContext, userId: string, filter: any = {})
     if (criteria.dateTo && offer.pickupDate > criteria.dateTo) return false;
     return true;
   });
+
+  if (criteria.sortBy === 'trip_date') {
+    matched.sort((a, b) => {
+      const dateA = a.pickupDate || '9999-99-99';
+      const dateB = b.pickupDate || '9999-99-99';
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
+      return (b.timestamp || '').localeCompare(a.timestamp || '');
+    });
+  } else if (criteria.sentStatus === 'sent') {
+    matched.sort((a, b) => (b.telegramSentAt || '').localeCompare(a.telegramSentAt || ''));
+  } else {
+    matched.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+  }
+
   const page = Math.max(1, Math.floor(Number(criteria.page) || 1));
   const limit = Math.min(100, Math.max(1, Math.floor(Number(criteria.limit) || 50)));
   return { offers: matched.slice((page - 1) * limit, page * limit), total: matched.length, page, totalPages: Math.ceil(matched.length / limit), availableSources, availableOperators };

@@ -52,11 +52,11 @@ export async function runMonitorCycle(
       allRoutes.push(...enabledRoutes);
     }
 
-    // Default window dates (fallback looking ahead at least 35 days for roadsurfer rally timeframes)
+    // Default window dates (fallback looking ahead at least 60 days for roadsurfer rally timeframes)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const windowStart = formatIsoDate(today);
-    const defaultWindowEnd = formatIsoDate(addDays(today, Math.max(settings.window_days || 14, 35)));
+    const defaultWindowEnd = formatIsoDate(addDays(today, Math.max(settings.window_days || 14, 60)));
 
     // Deduplicate routes to avoid redundant HTTP requests
     const uniqueRouteKey = (r: UserRoute) =>
