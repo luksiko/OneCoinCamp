@@ -487,9 +487,8 @@ function stalenessLabel(staleness: Staleness): string {
               <span class="vehicle-name">{{ offer.vehicle || '—' }}</span>
             </div>
           </div>
-          <div class="meta-right">
+          <div class="meta-right" v-if="offer.imageUrl">
             <img 
-              v-if="offer.imageUrl" 
               :src="offer.imageUrl" 
               class="vehicle-image-large" 
               :alt="offer.vehicle || 'Vehicle'" 
@@ -975,37 +974,36 @@ function stalenessLabel(staleness: Staleness): string {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  align-items: stretch;
   font-size: 12px;
   color: var(--text-muted);
   background: var(--bg-surface);
-  padding: 8px 10px;
   border-radius: var(--radius-sm);
+  overflow: hidden;
+  min-height: 60px;
 }
 
 .meta-left {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 6px;
   flex: 1;
   min-width: 0;
+  padding: 8px 10px;
 }
 
 .meta-right {
   flex-shrink: 0;
+  width: 100px;
   display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .vehicle-image-large {
-  width: 90px;
-  height: 60px;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border-radius: 4px;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .meta-item {
