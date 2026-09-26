@@ -244,6 +244,36 @@ export class TelegramService {
     });
   }
 
+  async sendPhoto(
+    chatId: string | number,
+    photoUrl: string,
+    options: {
+      caption?: string;
+      reply_markup?: any;
+      disable_notification?: boolean;
+      parse_mode?: string;
+      retries?: number;
+    } = {}
+  ): Promise<any> {
+    if (!this.secrets.botToken) {
+      console.warn('Telegram Bot Token not configured!');
+      return null;
+    }
+    return fetchJson(this.apiUrl('sendPhoto'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: String(chatId),
+        photo: photoUrl,
+        caption: options.caption || '',
+        parse_mode: options.parse_mode || 'HTML',
+        disable_notification: Boolean(options.disable_notification),
+        reply_markup: options.reply_markup,
+      }),
+      retries: options.retries ?? 2,
+    });
+  }
+
   async answerCallbackQuery(callbackQueryId: string, text?: string): Promise<any> {
     return fetchJson(this.apiUrl('answerCallbackQuery'), {
       method: 'POST',
@@ -414,11 +444,29 @@ export class TelegramService {
       ]);
     }
 
-    const result = await this.sendMessage(chatId, text, {
-      reply_markup: inlineKeyboard.length > 0 ? { inline_keyboard: inlineKeyboard } : undefined,
-      disable_notification: disableNotification,
-      retries: 0,
-    });
+    let result;
+    if (offer.image_url) {
+      result = await this.sendPhoto(chatId, offer.image_url, {
+        caption: text,
+        reply_markup: inlineKeyboard.length > 0 ? { inline_keyboard: inlineKeyboard } : undefined,
+        disable_notification: disableNotification,
+        retries: 0,
+      });
+      // Fallback to text message if photo fails (e.g. invalid url)
+      if (!result?.ok) {
+        result = await this.sendMessage(chatId, text, {
+          reply_markup: inlineKeyboard.length > 0 ? { inline_keyboard: inlineKeyboard } : undefined,
+          disable_notification: disableNotification,
+          retries: 0,
+        });
+      }
+    } else {
+      result = await this.sendMessage(chatId, text, {
+        reply_markup: inlineKeyboard.length > 0 ? { inline_keyboard: inlineKeyboard } : undefined,
+        disable_notification: disableNotification,
+        retries: 0,
+      });
+    }
     if (!result?.ok) {
       throw new Error(`Telegram rejected alert: ${result?.description || 'unknown error'}${result?.parameters?.retry_after ? ` retry_after=${result.parameters.retry_after}` : ''}`);
     }
