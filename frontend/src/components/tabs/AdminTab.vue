@@ -166,7 +166,7 @@ async function revokeSub(userId: string) {
   if (!confirm('Отозвать подписку у пользователя?')) return;
   try {
     await api.adminRevokeSubscription(userId);
-    showToast('Подписка отозвана');
+    showToast(t('toast_sub_revoked') || 'Подписка отозвана');
     loadUsers();
     loadStats();
   } catch (err: any) {
@@ -204,7 +204,7 @@ async function handleCreatePromo() {
       maxUses: newPromoMaxUses.value,
       expiresAt: null,
     });
-    showToast('Промокод создан');
+    showToast(t('toast_promo_created') || 'Промокод создан');
     newPromoCode.value = '';
     loadPromoCodes();
   } catch (err: any) {
@@ -218,7 +218,7 @@ async function handleDeletePromo(code: string) {
   if (!confirm(`Удалить промокод ${code}?`)) return;
   try {
     await api.adminDeletePromoCode(code);
-    showToast('Промокод удалён');
+    showToast(t('toast_promo_deleted') || 'Промокод удалён');
     loadPromoCodes();
   } catch (err: any) {
     showToast(err.message, true);
@@ -245,7 +245,7 @@ async function handleRunScanNow() {
   try {
     showToast(t('status_checking') || 'Запуск проверки...');
     await api.triggerMonitor();
-    showToast('Проверка запущена');
+    showToast(t('toast_scan_success') || 'Проверка запущена');
     setTimeout(() => {
       loadRuns();
       loadStats();
@@ -269,7 +269,7 @@ async function handleReconnectWebhook() {
   try {
     showToast(t('loading') || 'Подключение...');
     await api.registerWebhook();
-    showToast('Webhook успешно перепривязан');
+    showToast(t('toast_webhook_success') || 'Webhook успешно перепривязан');
     loadAppData();
   } catch (err: any) {
     showToast(err.message, true);

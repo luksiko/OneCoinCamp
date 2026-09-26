@@ -23,7 +23,7 @@ async function payWithStars() {
     if (window.Telegram?.WebApp?.openInvoice) {
       window.Telegram.WebApp.openInvoice(invoiceLink, (status) => {
         if (status === 'paid') {
-          showToast('🎉 Подписка активирована!');
+          showToast(t('toast_sub_activated') || '🎉 Подписка активирована!');
           closeModal();
           loadAppData();
         }
@@ -47,7 +47,7 @@ async function payWithCrypto() {
     } else {
       window.open(payUrl, '_blank');
     }
-    showToast('Счёт CryptoBot открыт');
+    showToast(t('toast_crypto_opened') || 'Счёт CryptoBot открыт');
   } catch (err: any) {
     showToast(err.message || 'Ошибка генерации крипто-счёта', true);
   } finally {

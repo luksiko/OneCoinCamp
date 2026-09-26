@@ -318,6 +318,9 @@ function stalenessLabel(staleness: Staleness): string {
       <!-- Date Presets & Check Avail Button -->
       <div class="filter-actions-row">
         <div class="date-presets">
+          <div class="preset-label" :title="t('offers_sort_trip')">
+            <Calendar :size="14" />
+          </div>
           <button class="preset-btn" @click="setDatePreset('7days')">{{ t('date_preset_7d') }}</button>
           <button class="preset-btn" @click="setDatePreset('14days')">{{ t('date_preset_14d') }}</button>
           <button class="preset-btn" @click="setDatePreset('month')">{{ t('date_preset_month') }}</button>
@@ -566,14 +569,14 @@ function stalenessLabel(staleness: Staleness): string {
 }
 
 .filter-card {
-  padding: 16px;
+  padding: 12px 14px;
 }
 
 .filter-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .filter-title {
@@ -599,11 +602,19 @@ function stalenessLabel(staleness: Staleness): string {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 6px;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-subtle) transparent;
 }
 
 .chips-scroll::-webkit-scrollbar {
-  display: none;
+  height: 4px;
+}
+.chips-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chips-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--border-subtle);
+  border-radius: 4px;
 }
 
 .chip {
@@ -642,8 +653,8 @@ function stalenessLabel(staleness: Staleness): string {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid var(--border-subtle);
 }
 
@@ -668,6 +679,13 @@ function stalenessLabel(staleness: Staleness): string {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.preset-label {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  padding-right: 2px;
 }
 
 .preset-btn {

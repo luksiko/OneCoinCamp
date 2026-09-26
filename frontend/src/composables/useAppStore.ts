@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue';
 import { api } from '../api/rpc';
+import { useI18n } from './useI18n';
 import type { AppStateData, Route, ProvidersHealth, UserSettings, UserFilters } from '../api/types';
 
 const appState = ref<AppStateData | null>(null);
@@ -21,6 +22,7 @@ const editingRouteIndex = ref<number | null>(null);
 let saveAbortController: AbortController | null = null;
 
 export function useAppStore() {
+  const { t } = useI18n();
   function showToast(message: string, isError = false) {
     if (toastTimer) clearTimeout(toastTimer);
     toastMessage.value = message;
@@ -91,7 +93,7 @@ export function useAppStore() {
       appState.value.filters = currentFilters;
       appState.value.settings = currentSettings;
       appState.value.routes = currentRoutes;
-      showToast('Настройки сохранены');
+      showToast(t('toast_settings_saved') || 'Настройки сохранены');
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         showToast(err.message || 'Ошибка сохранения', true);
@@ -117,9 +119,9 @@ export function useAppStore() {
 
   async function triggerManualCheck() {
     try {
-      showToast('Запуск проверки...');
+      showToast(t('toast_scan_started') || 'Запуск проверки...');
       await api.triggerMonitor();
-      showToast('Проверка успешно запущена');
+      showToast(t('toast_scan_success') || 'Проверка успешно запущена');
       setTimeout(loadAppData, 2000);
     } catch (err: any) {
       showToast(err.message || 'Ошибка запуска проверки', true);
@@ -167,7 +169,7 @@ export function useAppStore() {
     if (!appState.value) return;
     const currentRoutes = appState.value.routes.filter((_, i) => i !== index);
     saveAppData(undefined, currentRoutes);
-    showToast('Маршрут удалён');
+    showToast(t('toast_route_deleted') || 'Маршрут удалён');
   }
 
   function toggleRoute(index: number) {

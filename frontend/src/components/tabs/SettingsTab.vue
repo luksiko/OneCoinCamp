@@ -114,7 +114,7 @@ async function handleReconnectWebhook() {
   try {
     showToast(t('loading') || 'Подключение...');
     await api.registerWebhook();
-    showToast('Webhook успешно перепривязан');
+    showToast(t('toast_webhook_success') || 'Webhook успешно перепривязан');
     loadAppData();
   } catch (err: any) {
     showToast(err.message || 'Ошибка привязки вебхука', true);
