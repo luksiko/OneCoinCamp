@@ -1,5 +1,6 @@
 import { NormalizedOffer, UserRoute } from '../types';
 import { fetchJson } from '../utils/http';
+import { DbClient } from '../db/client';
 
 export const IMOOVA_COUNTRIES: Record<string, string> = {
   'Berlin': 'DE', 'Munich': 'DE', 'Hamburg': 'DE', 'Frankfurt': 'DE',
@@ -15,9 +16,35 @@ export const IMOOVA_COUNTRIES: Record<string, string> = {
   'Zagreb': 'HR', 'Split': 'HR', 'Dubrovnik': 'HR',
 };
 
+async function getExchangeRates(db?: DbClient): Promise<Record<string, number> | null> {
+  const CACHE_KEY = 'exchange_rates_eur';
+  if (db) {
+    const cached = await db.getCache<Record<string, number>>(CACHE_KEY);
+    if (cached) return cached;
+  }
+
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/EUR');
+    if (res.ok) {
+      const data = await res.json() as any;
+      if (data && data.rates) {
+        if (db) {
+          // Cache for 24 hours
+          await db.setCache(CACHE_KEY, data.rates, 24 * 60 * 60);
+        }
+        return data.rates;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to fetch exchange rates:', err);
+  }
+  return null;
+}
+
 export async function fetchImoovaOffers(
   route: UserRoute,
-  windowDates: { start: string; end: string }
+  windowDates: { start: string; end: string },
+  db?: DbClient
 ): Promise<NormalizedOffer[]> {
   const isWildOrigin = !route.origin_id || route.origin_id === '*';
   let gqlFilter = '';
@@ -46,6 +73,7 @@ export async function fetchImoovaOffers(
 
   const items = res?.data?.relocations?.data || [];
   const offers: NormalizedOffer[] = [];
+  const rates = await getExchangeRates(db);
 
   for (const item of items) {
     const dep = item.departureCity || {};
@@ -68,14 +96,21 @@ export async function fetchImoovaOffers(
     const pickupDate = item.available_from_date || windowDates.start;
     const returnDate = item.available_to_date || windowDates.end;
 
-    // Approximate conversion to EUR
     const curr = (item.currency || 'EUR').toUpperCase();
-    if (curr === 'NZD') price *= 0.55;
-    else if (curr === 'AUD') price *= 0.60;
-    else if (curr === 'USD') price *= 0.92;
-    else if (curr === 'GBP') price *= 1.17;
-    else if (curr === 'CAD') price *= 0.68;
-    else if (curr === 'CHF') price *= 1.05;
+    if (curr !== 'EUR') {
+      if (rates && rates[curr]) {
+        price = price / rates[curr];
+      } else {
+        // Fallback approximate conversion
+        if (curr === 'NZD') price *= 0.55;
+        else if (curr === 'AUD') price *= 0.60;
+        else if (curr === 'USD') price *= 0.92;
+        else if (curr === 'GBP') price *= 1.17;
+        else if (curr === 'CAD') price *= 0.68;
+        else if (curr === 'CHF') price *= 1.05;
+        else console.warn(`Unknown currency without API fallback: ${curr}`);
+      }
+    }
 
     // Round to 2 decimals
     price = Math.round(price * 100) / 100;

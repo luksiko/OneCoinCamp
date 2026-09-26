@@ -20,7 +20,7 @@ export async function fetchOffersForRoute(
     case 'indiecampers':
       return fetchIndieCampersOffers(route, windowDates);
     case 'imoova':
-      return fetchImoovaOffers(route, windowDates);
+      return fetchImoovaOffers(route, windowDates, db);
     default:
       console.warn(`Unknown provider source: ${source}`);
       return [];
