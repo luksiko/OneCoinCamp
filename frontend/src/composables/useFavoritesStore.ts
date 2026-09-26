@@ -1,4 +1,4 @@
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import type { Offer } from '../api/types';
 import { api } from '../api/rpc';
 import { useAuth } from './useAuth';
@@ -51,7 +51,6 @@ export function useFavoritesStore() {
   };
 
   // Initial load if not loaded
-    import { watch } from 'vue';
   watch(isAuthenticated, (authed) => {
     if (authed && !isLoaded.value) {
       loadFavorites();

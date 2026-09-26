@@ -64,7 +64,7 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
         break;
       case 'getFavorites':
         result = await ctx.db.getFavorites(identity.id);
-        # Convert NormalizedOffer to Offer
+        // Convert NormalizedOffer to Offer
         result = result.map(o => ({
           offerId: o.offer_id,
           source: o.source,
