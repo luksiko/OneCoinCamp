@@ -63,10 +63,22 @@ export async function fetchImoovaOffers(
       if (!dcs.includes(delivCountry.toUpperCase())) continue;
     }
 
-    const price = item.hire_unit_rate || item.retail_rate || 1;
+    let price = Number(item.hire_unit_rate || item.retail_rate || 1);
     const vehicleName = item.vehicle?.name || item.name || 'Imoova Camper';
     const pickupDate = item.available_from_date || windowDates.start;
     const returnDate = item.available_to_date || windowDates.end;
+
+    // Approximate conversion to EUR
+    const curr = (item.currency || 'EUR').toUpperCase();
+    if (curr === 'NZD') price *= 0.55;
+    else if (curr === 'AUD') price *= 0.60;
+    else if (curr === 'USD') price *= 0.92;
+    else if (curr === 'GBP') price *= 1.17;
+    else if (curr === 'CAD') price *= 0.68;
+    else if (curr === 'CHF') price *= 1.05;
+
+    // Round to 2 decimals
+    price = Math.round(price * 100) / 100;
 
     offers.push({
       source: 'imoova',
@@ -77,8 +89,8 @@ export async function fetchImoovaOffers(
       destination_country: delivCountry || route.destination_country || '',
       pickup_date: pickupDate,
       return_date: returnDate,
-      price: Number(price),
-      currency: item.currency || 'EUR',
+      price: price,
+      currency: 'EUR',
       vehicle: vehicleName,
       vehicle_type: 'camper',
       booking_url: `https://www.imoova.com/relocations/${item.id}`,

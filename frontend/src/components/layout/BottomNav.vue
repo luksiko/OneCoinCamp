@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { useRouter, type AppTab } from '../../composables/useRouter';
 import { useI18n } from '../../composables/useI18n';
 import { useAppStore } from '../../composables/useAppStore';
-import { Home, Compass, Activity, Settings, ShieldCheck } from 'lucide-vue-next';
+import { Home, Compass, Activity, Settings, User, ShieldCheck } from 'lucide-vue-next';
 
 const { currentTab, switchTab } = useRouter();
 const { t } = useI18n();
@@ -14,7 +14,7 @@ const tabs = computed<Array<{ id: AppTab; label: string; icon: any }>>(() => {
     { id: 'main' as AppTab, label: t('tab_main'), icon: Home },
     { id: 'offers' as AppTab, label: t('tab_offers'), icon: Compass },
     { id: 'trackings' as AppTab, label: t('tab_trackings'), icon: Activity },
-    { id: 'settings' as AppTab, label: t('tab_settings'), icon: Settings },
+    { id: 'settings' as AppTab, label: t('tab_settings'), icon: User },
   ];
   if (isAdmin.value) {
     base.push({ id: 'admin' as AppTab, label: t('tab_admin') || 'Admin', icon: ShieldCheck });

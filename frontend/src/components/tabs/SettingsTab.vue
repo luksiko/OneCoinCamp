@@ -18,8 +18,15 @@ import {
   ExternalLink
 } from 'lucide-vue-next';
 
-const { appState, saveAppData, isSaving, showToast, loadAppData } = useAppStore();
-const { t, currentLang, setLanguage } = useI18n();
+const { appState, saveAppData, isSaving, showToast, loadAppData, isPremium, isPaymentModalOpen } = useAppStore();
+const { t, currentLang, setLanguage, pluralizeDays } = useI18n();
+
+const daysLeft = computed(() => {
+  const expiresAt = appState.value?.user?.subscriptionExpiresAt;
+  if (!expiresAt) return 0;
+  return Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+});
+
 
 const formFilters = ref({
   silent_hours_enabled: false,
@@ -145,6 +152,33 @@ function onSave() {
 
 <template>
   <div class="settings-tab">
+
+    <!-- Subscription Banner (Free Users) -->
+    <div v-if="!isPremium" class="sub-banner glass-card" @click="isPaymentModalOpen = true">
+      <div class="banner-content">
+        <div class="banner-badge">{{ t('sub_free_plan') }}</div>
+        <div class="banner-title">{{ t('sub_banner_title') }}</div>
+        <div class="banner-sub">{{ t('sub_banner_desc') }}</div>
+      </div>
+      <button class="btn btn-primary banner-btn">
+        <Sparkles :size="15" />
+        <span>{{ t('subscribe_pro_btn') }}</span>
+      </button>
+    </div>
+
+    <!-- Active Subscription Status (Premium Users) -->
+    <div v-else class="premium-active-card glass-card">
+      <div class="active-info">
+        <div class="active-badge">{{ t('sub_pro_active') }}</div>
+        <div class="active-text">
+          {{ t('sub_days_left', { days: `${daysLeft} ${pluralizeDays(daysLeft)}` }) }}
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-sm" @click="isPaymentModalOpen = true">
+        <span>{{ t('extend_btn') }}</span>
+      </button>
+    </div>
+
     <!-- 1. NOTIFICATIONS & ALERTS -->
     <div class="glass-card settings-card">
       <div class="section-title">
@@ -700,4 +734,72 @@ input:checked + .toggle-slider:before {
 .version-link:hover {
   color: var(--accent-primary);
 }
+
+.sub-banner {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.25) 0%, rgba(147, 51, 234, 0.25) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  cursor: pointer;
+  padding: 18px 20px;
+}
+
+@media (min-width: 640px) {
+  .sub-banner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.banner-badge {
+  font-size: 11px;
+  font-weight: 800;
+  color: #60a5fa;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.banner-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.3;
+}
+
+.banner-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.banner-btn {
+  flex-shrink: 0;
+}
+
+/* Premium active card */
+.premium-active-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.15) 100%);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.active-badge {
+  font-size: 12px;
+  font-weight: 800;
+  color: #34d399;
+  letter-spacing: 0.06em;
+}
+
+.active-text {
+  font-size: 14px;
+  color: var(--text-main);
+  margin-top: 2px;
+}
+
 </style>

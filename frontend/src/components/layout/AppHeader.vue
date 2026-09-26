@@ -8,7 +8,7 @@ import {
   Home, 
   Compass, 
   Activity, 
-  Settings, 
+  Settings, User, 
   ShieldCheck, 
   Crown, 
   Globe, 
@@ -33,7 +33,7 @@ const tabs = computed<Array<{ id: AppTab; label: string; icon: any }>>(() => {
     { id: 'main' as AppTab, label: t('tab_main'), icon: Home },
     { id: 'offers' as AppTab, label: t('tab_offers'), icon: Compass },
     { id: 'trackings' as AppTab, label: t('tab_trackings'), icon: Activity },
-    { id: 'settings' as AppTab, label: t('tab_settings'), icon: Settings },
+    { id: 'settings' as AppTab, label: t('tab_settings'), icon: User },
   ];
   if (isAdmin.value) {
     base.push({ id: 'admin' as AppTab, label: t('tab_admin') || 'Admin', icon: ShieldCheck });
