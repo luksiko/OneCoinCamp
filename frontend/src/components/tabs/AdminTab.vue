@@ -46,6 +46,13 @@ const adminStats = ref<{
 const userRoleFilter = ref<'all' | 'free' | 'premium' | 'admin'>('all');
 const userSearch = ref('');
 
+/** Which user card has the actions dropdown open (telegram_id or null) */
+const openActionsFor = ref<string | null>(null);
+
+function toggleActions(userId: string) {
+  openActionsFor.value = openActionsFor.value === userId ? null : userId;
+}
+
 // Promo code creation form
 const newPromoCode = ref('');
 const newPromoDays = ref(30);
@@ -470,21 +477,23 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Subscription Management Compact Grid -->
-          <div class="user-sub-actions">
-            <div class="user-sub-label">{{ t('admin_sub_manage') }}:</div>
-            <div class="user-sub-grid">
-              <button class="btn btn-secondary btn-xs btn-green" @click="adjustSub(u.telegram_id, 30)">+30д</button>
-              <button class="btn btn-secondary btn-xs btn-green" @click="adjustSub(u.telegram_id, 7)">+7д</button>
-              <button class="btn btn-secondary btn-xs btn-orange" @click="adjustSub(u.telegram_id, -7)">-7д</button>
-              <button class="btn btn-secondary btn-xs btn-orange" @click="adjustSub(u.telegram_id, -30)">-30д</button>
-              <button class="btn btn-secondary btn-xs" @click="promptCustomDays(u.telegram_id, u.first_name || u.username)">{{ t('admin_custom_days') }}</button>
+          <!-- Subscription Actions Dropdown -->
+          <div class="user-actions-row">
+            <button class="btn btn-secondary btn-xs actions-toggle" @click="toggleActions(u.telegram_id)">
+              ⋮ {{ t('admin_sub_manage') }}
+            </button>
+            <div v-if="openActionsFor === u.telegram_id" class="actions-dropdown">
+              <button class="action-item action-green" @click="adjustSub(u.telegram_id, 30); openActionsFor = null">+30 {{ t('days_short') || 'days' }}</button>
+              <button class="action-item action-green" @click="adjustSub(u.telegram_id, 7); openActionsFor = null">+7 {{ t('days_short') || 'days' }}</button>
+              <button class="action-item action-orange" @click="adjustSub(u.telegram_id, -7); openActionsFor = null">−7 {{ t('days_short') || 'days' }}</button>
+              <button class="action-item action-orange" @click="adjustSub(u.telegram_id, -30); openActionsFor = null">−30 {{ t('days_short') || 'days' }}</button>
+              <button class="action-item" @click="promptCustomDays(u.telegram_id, u.first_name || u.username); openActionsFor = null">✏️ {{ t('admin_custom_days') }}</button>
               <button
                 v-if="String(u.telegram_id) !== String(appState?.user?.id) && (u.role === 'premium' || u.subscription_status === 'active')"
-                class="btn btn-danger btn-xs"
-                @click="revokeSub(u.telegram_id)"
+                class="action-item action-danger"
+                @click="revokeSub(u.telegram_id); openActionsFor = null"
               >
-                {{ t('admin_reset_sub') }}
+                🗑 {{ t('admin_reset_sub') }}
               </button>
             </div>
           </div>
@@ -1029,11 +1038,69 @@ onMounted(() => {
   letter-spacing: 0.05em;
 }
 
-.user-sub-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(55px, 1fr));
+/* Replaced button soup with dropdown */
+.user-actions-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   gap: 4px;
-  width: 100%;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-subtle);
+}
+
+.actions-toggle {
+  align-self: flex-start;
+  font-size: 11px;
+  padding: 5px 12px;
+}
+
+.actions-dropdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  animation: fade-in 0.12s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.action-item {
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s ease;
+}
+
+.action-item:hover {
+  color: var(--text-main);
+  background: var(--bg-surface-elevated);
+}
+
+.action-item.action-green {
+  color: var(--success, #10b981);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.action-item.action-orange {
+  color: var(--warning, #f59e0b);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.action-item.action-danger {
+  color: var(--danger, #ef4444);
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .btn-xs {
@@ -1042,16 +1109,6 @@ onMounted(() => {
   font-weight: 600;
   border-radius: var(--radius-sm);
   white-space: nowrap;
-}
-
-.btn-green {
-  color: var(--success);
-  border-color: rgba(16, 185, 129, 0.3);
-}
-
-.btn-orange {
-  color: var(--warning);
-  border-color: rgba(245, 158, 11, 0.3);
 }
 
 /* Tables */

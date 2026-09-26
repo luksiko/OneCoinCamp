@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { api } from '../../api/rpc';
 import { useI18n } from '../../composables/useI18n';
 import { useAppStore } from '../../composables/useAppStore';
+import { highlightedOfferId } from '../../composables/useRouter';
 import type { Offer, OffersFilterPayload } from '../../api/types';
 import { 
   Filter, 
@@ -13,7 +14,9 @@ import {
   ChevronRight, 
   RefreshCw, 
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  Clock,
+  CalendarPlus
 } from 'lucide-vue-next';
 
 const { t, getCountryName } = useI18n();
@@ -41,6 +44,43 @@ const providers = [
   { id: 'imoova', label: '🌐 Imoova' },
 ];
 
+// Desktop detection for table/card switch
+const isDesktop = ref(window.matchMedia('(min-width: 768px)').matches);
+onMounted(() => {
+  const mq = window.matchMedia('(min-width: 768px)');
+  const handler = (e: MediaQueryListEvent) => { isDesktop.value = e.matches; };
+  mq.addEventListener('change', handler);
+});
+
+// Desktop table column sorting (client-side secondary sort)
+const sortCol = ref<string>('');
+const sortAsc = ref(true);
+
+function toggleSort(col: string) {
+  if (sortCol.value === col) {
+    sortAsc.value = !sortAsc.value;
+  } else {
+    sortCol.value = col;
+    sortAsc.value = true;
+  }
+}
+
+const sortedOffers = computed(() => {
+  if (!sortCol.value) return offers.value;
+  return [...offers.value].sort((a, b) => {
+    let av: any, bv: any;
+    if (sortCol.value === 'route') av = `${a.origin}→${a.destination}`, bv = `${b.origin}→${b.destination}`;
+    else if (sortCol.value === 'price') av = a.price, bv = b.price;
+    else if (sortCol.value === 'pickup') av = a.pickupDate, bv = b.pickupDate;
+    else if (sortCol.value === 'days') av = calculateDays(a.pickupDate, a.returnDate), bv = calculateDays(b.pickupDate, b.returnDate);
+    else if (sortCol.value === 'staleness') av = getOfferStaleness(a), bv = getOfferStaleness(b);
+    else av = (a as any)[sortCol.value], bv = (b as any)[sortCol.value];
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortAsc.value ? cmp : -cmp;
+  });
+});
+
 async function loadOffers() {
   isLoading.value = true;
   try {
@@ -59,10 +99,29 @@ async function loadOffers() {
     totalOffers.value = res.total || 0;
     currentPage.value = res.page || 1;
     totalPages.value = res.totalPages || 1;
+    // Scroll to deep-linked offer if present
+    if (highlightedOfferId.value) {
+      await nextTick();
+      scrollToHighlighted();
+    }
   } catch (err) {
     offers.value = [];
   } finally {
     isLoading.value = false;
+  }
+}
+
+function scrollToHighlighted() {
+  const id = highlightedOfferId.value;
+  if (!id) return;
+  const el = document.querySelector(`[data-offer-id="${id}"]`) as HTMLElement | null;
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('offer-highlighted');
+    setTimeout(() => {
+      el.classList.remove('offer-highlighted');
+      highlightedOfferId.value = null;
+    }, 3000);
   }
 }
 
@@ -81,11 +140,31 @@ async function checkAvailability() {
 
 function calculateDays(pickup: string, dropoff: string): number {
   if (!pickup || !dropoff) return 1;
-  const p = new Date(pickup);
-  const d = new Date(dropoff);
-  const diffTime = Math.abs(d.getTime() - p.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return Math.max(1, diffDays);
+  const t1 = new Date(pickup).getTime();
+  const t2 = new Date(dropoff).getTime();
+  return Math.max(1, Math.round((t2 - t1) / (1000 * 3600 * 24)));
+}
+
+function getCalendarUrl(offer: Offer): string {
+  const text = encodeURIComponent(`Camper Relocation: ${offer.origin} → ${offer.destination}`);
+  const details = encodeURIComponent(
+    `Provider: ${offer.operator || offer.source}\n` +
+    `Vehicle: ${offer.vehicle || 'Any'}\n` +
+    `Price: ${offer.price} ${offer.currency || '€'}\n\n` +
+    `Book here: ${offer.bookingUrl}`
+  );
+  
+  if (!offer.pickupDate || !offer.returnDate) return offer.bookingUrl;
+  
+  const format = (d: string) => d.replace(/-/g, '');
+  const start = format(offer.pickupDate);
+  
+  // Google Calendar all-day events require the end date to be exclusive (+1 day)
+  const endDate = new Date(offer.returnDate);
+  endDate.setDate(endDate.getDate() + 1);
+  const end = endDate.toISOString().split('T')[0].replace(/-/g, '');
+  
+  return `https://www.google.com/calendar/render?action=TEMPLATE&text=${text}&details=${details}&dates=${start}/${end}`;
 }
 
 function setDatePreset(type: '7days' | '14days' | 'month') {
@@ -122,6 +201,33 @@ watch([filterSource, filterVehicleType, filterSortBy, filterMatched], () => {
 onMounted(() => {
   loadOffers();
 });
+
+// Per-provider staleness thresholds (minutes)
+const STALENESS_THRESHOLDS: Record<string, { hurry: number; gone: number }> = {
+  roadsurfer:   { hurry: 5,  gone: 15 },
+  movacar:      { hurry: 10, gone: 30 },
+  indiecampers: { hurry: 15, gone: 45 },
+  imoova:       { hurry: 30, gone: 60 },
+};
+
+type Staleness = 'live' | 'hurry' | 'gone';
+
+function getOfferStaleness(offer: Offer): Staleness {
+  const ts = offer.timestamp || offer.lastSeenAt;
+  if (!ts) return 'live'; // no timestamp = freshly inserted, assume live
+  const ageMinutes = (Date.now() - new Date(ts).getTime()) / 60000;
+  const key = (offer.source || '').toLowerCase();
+  const thresholds = STALENESS_THRESHOLDS[key] || { hurry: 15, gone: 45 };
+  if (ageMinutes >= thresholds.gone) return 'gone';
+  if (ageMinutes >= thresholds.hurry) return 'hurry';
+  return 'live';
+}
+
+function stalenessLabel(staleness: Staleness): string {
+  if (staleness === 'gone') return '🔴 ' + (t('staleness_gone') || 'Likely Gone');
+  if (staleness === 'hurry') return '🟡 ' + (t('staleness_hurry') || 'Book Fast');
+  return '🟢 ' + (t('staleness_live') || 'LIVE');
+}
 </script>
 
 <template>
@@ -199,11 +305,97 @@ onMounted(() => {
       <div class="empty-sub">{{ t('offers_empty_desc') }}</div>
     </div>
 
+    <!-- ── DESKTOP TABLE VIEW (≥768px) ── -->
+    <div v-else-if="isDesktop" class="glass-card offers-table-wrap">
+      <table class="offers-table">
+        <thead>
+          <tr>
+            <th class="th-sort" @click="toggleSort('staleness')">
+              Status {{ sortCol === 'staleness' ? (sortAsc ? '↑' : '↓') : '' }}
+            </th>
+            <th class="th-sort" @click="toggleSort('route')">
+              Route {{ sortCol === 'route' ? (sortAsc ? '↑' : '↓') : '' }}
+            </th>
+            <th class="th-sort" @click="toggleSort('source')">
+              Provider {{ sortCol === 'source' ? (sortAsc ? '↑' : '↓') : '' }}
+            </th>
+            <th class="th-sort" @click="toggleSort('pickup')">
+              Pickup {{ sortCol === 'pickup' ? (sortAsc ? '↑' : '↓') : '' }}
+            </th>
+            <th class="th-sort" @click="toggleSort('days')">
+              Days {{ sortCol === 'days' ? (sortAsc ? '↑' : '↓') : '' }}
+            </th>
+            <th class="th-sort" @click="toggleSort('price')">
+              Price {{ sortCol === 'price' ? (sortAsc ? '↑' : '↓') : '' }}
+            </th>
+            <th>Vehicle</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="offer in sortedOffers"
+            :key="offer.offerId"
+            :data-offer-id="offer.offerId"
+            :class="`tr-staleness-${getOfferStaleness(offer)}`"
+          >
+            <td>
+              <span class="staleness-badge" :class="`staleness-badge--${getOfferStaleness(offer)}`">
+                {{ stalenessLabel(getOfferStaleness(offer)) }}
+              </span>
+            </td>
+            <td class="td-route">
+              <span class="td-city">{{ offer.origin }}</span>
+              <span class="td-arrow">➔</span>
+              <span class="td-city">{{ offer.destination }}</span>
+            </td>
+            <td>
+              <span class="provider-tag">{{ offer.operator || offer.source }}</span>
+            </td>
+            <td class="td-muted">{{ offer.pickupDate }}</td>
+            <td class="td-muted">{{ calculateDays(offer.pickupDate, offer.returnDate) }}d</td>
+            <td class="td-price">{{ offer.price }} {{ offer.currency || '€' }}</td>
+            <td class="td-muted td-vehicle">{{ offer.vehicle || '—' }}</td>
+            <td>
+              <div class="table-actions">
+                <a
+                  v-if="getOfferStaleness(offer) !== 'gone'"
+                  :href="offer.bookingUrl"
+                  target="_blank"
+                  rel="noopener"
+                  class="btn btn-primary btn-xs-table"
+                  :class="{ 'btn-hurry': getOfferStaleness(offer) === 'hurry' }"
+                >
+                  {{ t('btn_book') }} ↗
+                </a>
+                <span v-else class="gone-tag">Gone</span>
+                <a :href="getCalendarUrl(offer)" target="_blank" class="btn btn-secondary btn-xs-table cal-btn-table" title="Add to Google Calendar">
+                  <CalendarPlus :size="14" />
+                </a>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── MOBILE CARD GRID ── -->
     <div v-else class="offers-grid">
-      <div v-for="offer in offers" :key="offer.offerId" class="offer-card glass-card">
+      <div
+        v-for="offer in offers"
+        :key="offer.offerId"
+        class="offer-card glass-card"
+        :class="`staleness-${getOfferStaleness(offer)}`"
+        :data-offer-id="offer.offerId"
+      >
         <div class="offer-header">
           <span class="provider-tag">{{ offer.operator || offer.source }}</span>
-          <span class="price-badge">{{ offer.price }} {{ offer.currency || '€' }}</span>
+          <div class="header-right">
+            <span class="staleness-badge" :class="`staleness-badge--${getOfferStaleness(offer)}`">
+              {{ stalenessLabel(getOfferStaleness(offer)) }}
+            </span>
+            <span class="price-badge">{{ offer.price }} {{ offer.currency || '€' }}</span>
+          </div>
         </div>
 
         <div class="route-display">
@@ -229,15 +421,26 @@ onMounted(() => {
           </div>
         </div>
 
-        <a
-          :href="offer.bookingUrl"
-          target="_blank"
-          rel="noopener"
-          class="btn btn-primary book-btn"
-        >
-          <span>{{ t('btn_book') }}</span>
-          <ExternalLink :size="14" />
-        </a>
+        <div class="mobile-offer-actions">
+          <div v-if="getOfferStaleness(offer) === 'gone'" class="gone-notice">
+            {{ t('staleness_gone_hint') || '⚠️ Offer may no longer be available' }}
+          </div>
+          <a
+            v-else
+            :href="offer.bookingUrl"
+            target="_blank"
+            rel="noopener"
+            class="btn btn-primary book-btn"
+            :class="{ 'btn-hurry': getOfferStaleness(offer) === 'hurry' }"
+          >
+            <span>{{ t('btn_book') }}</span>
+            <ExternalLink :size="14" />
+          </a>
+          
+          <a :href="getCalendarUrl(offer)" target="_blank" class="btn btn-secondary cal-btn-mobile" title="Add to Google Calendar">
+            <CalendarPlus :size="16" />
+          </a>
+        </div>
       </div>
     </div>
 
@@ -399,6 +602,110 @@ onMounted(() => {
   align-self: flex-start;
 }
 
+/* ── Desktop Table ─────────────────────────────────────── */
+.offers-table-wrap {
+  padding: 0;
+  overflow: hidden;
+}
+
+.offers-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.offers-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-surface);
+}
+
+.offers-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.th-sort {
+  cursor: pointer;
+  user-select: none;
+}
+
+.th-sort:hover {
+  color: var(--text-main);
+}
+
+.offers-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  vertical-align: middle;
+}
+
+.offers-table tbody tr:hover {
+  background: var(--bg-surface-elevated, rgba(255,255,255,0.03));
+}
+
+/* Row staleness tints */
+.tr-staleness-gone {
+  opacity: 0.6;
+}
+
+.tr-staleness-hurry td:first-child {
+  border-left: 2px solid rgba(245, 158, 11, 0.5);
+}
+
+.td-route {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.td-city {
+  color: var(--text-main);
+}
+
+.td-arrow {
+  color: var(--text-subtle);
+  margin: 0 6px;
+  font-size: 11px;
+}
+
+.td-muted {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.td-price {
+  font-weight: 800;
+  color: #10b981;
+  white-space: nowrap;
+}
+
+.td-vehicle {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-xs-table {
+  padding: 5px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.gone-tag {
+  font-size: 11px;
+  color: var(--danger, #ef4444);
+  font-weight: 600;
+}
+
 /* Offers Grid */
 .offers-grid {
   display: grid;
@@ -423,6 +730,77 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Staleness traffic-light badges */
+.staleness-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.staleness-badge--live {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.staleness-badge--hurry {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.staleness-badge--gone {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Card tint by staleness */
+.offer-card.staleness-gone {
+  opacity: 0.65;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+.offer-card.staleness-hurry {
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+/* Book button variant for hurry state */
+.btn-hurry {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  border-color: transparent !important;
+}
+
+.gone-notice {
+  font-size: 12px;
+  color: var(--danger, #ef4444);
+  text-align: center;
+  padding: 8px 10px;
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Deep-link highlight: pulsing glow for 3s on the targeted card */
+@keyframes offer-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(46, 166, 255, 0.4); }
+  50%       { box-shadow: 0 0 0 6px rgba(46, 166, 255, 0.15); }
+}
+
+.offer-highlighted {
+  border-color: var(--accent-primary, #2ea6ff) !important;
+  animation: offer-pulse 1s ease-in-out 3;
 }
 
 .provider-tag {
@@ -544,5 +922,38 @@ onMounted(() => {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cal-btn-table {
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-offer-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+.mobile-offer-actions .btn {
+  flex: 1;
+}
+.mobile-offer-actions .cal-btn-mobile {
+  flex: 0 0 auto;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mobile-offer-actions .gone-notice {
+  flex: 1;
 }
 </style>

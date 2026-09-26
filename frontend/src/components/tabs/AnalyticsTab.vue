@@ -2,10 +2,12 @@
 import { ref, onMounted, computed } from 'vue';
 import { api } from '../../api/rpc';
 import { useI18n } from '../../composables/useI18n';
+import { useAppStore } from '../../composables/useAppStore';
 import type { AnalyticsData } from '../../api/types';
 import { BarChart3, Clock, TrendingUp, RefreshCw } from 'lucide-vue-next';
 
 const { t } = useI18n();
+const { appState } = useAppStore();
 
 const analytics = ref<AnalyticsData | null>(null);
 const isLoading = ref(false);
@@ -36,6 +38,27 @@ const maxRouteCount = computed(() => {
   if (!analytics.value?.topRoutes?.length) return 1;
   return Math.max(...analytics.value.topRoutes.map((r) => r.count), 1);
 });
+
+function isSilentHour(utcHour: number) {
+  if (!appState.value?.filters?.silent_hours_enabled) return false;
+  const startStr = appState.value?.filters?.silent_hours_start;
+  const endStr = appState.value?.filters?.silent_hours_end;
+  if (!startStr || !endStr) return false;
+  
+  // Heatmap hours are returned in UTC, so we shift them to local browser time to match user expectation
+  const offsetHours = -(new Date().getTimezoneOffset() / 60);
+  const localHour = (utcHour + offsetHours + 24) % 24;
+  
+  const startH = parseInt(startStr.split(':')[0], 10);
+  const endH = parseInt(endStr.split(':')[0], 10);
+  
+  if (startH < endH) {
+    return localHour >= startH && localHour < endH;
+  } else {
+    // cross midnight
+    return localHour >= startH || localHour < endH;
+  }
+}
 
 onMounted(() => {
   loadAnalytics();
@@ -108,14 +131,19 @@ onMounted(() => {
             v-for="h in analytics.hourlyPattern"
             :key="h.hour"
             class="hour-cell"
+            :class="{ 'is-silent': isSilentHour(h.hour) }"
             :style="{
               background: `rgba(59, 130, 246, ${Math.max(0.12, (h.count / maxHourlyCount) * 0.9)})`,
             }"
-            :title="`${h.hour}:00 — ${h.count}`"
+            :title="`${h.hour}:00 — ${h.count}${isSilentHour(h.hour) ? ' (Silent Hour)' : ''}`"
           >
             <div class="hour-time">{{ h.hour }}:00</div>
             <div class="hour-count">{{ h.count }}</div>
           </div>
+        </div>
+        <div class="silent-hours-legend" v-if="appState?.filters?.silent_hours_enabled">
+          <span class="legend-box silent"></span>
+          <span>Your silent hours ({{ appState?.filters?.silent_hours_start }} - {{ appState?.filters?.silent_hours_end }})</span>
         </div>
       </div>
 
@@ -321,6 +349,20 @@ onMounted(() => {
   text-align: center;
   border: 1px solid var(--border-subtle);
   transition: transform 0.15s ease;
+  position: relative;
+}
+
+.hour-cell.is-silent {
+  opacity: 0.4;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+.hour-cell.is-silent::after {
+  content: '🌙';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 8px;
+  opacity: 0.7;
 }
 
 .hour-cell:hover {
@@ -338,6 +380,26 @@ onMounted(() => {
   font-weight: 700;
   color: var(--text-main);
   margin-top: 2px;
+}
+
+.silent-hours-legend {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.legend-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.legend-box.silent {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px dashed rgba(255, 255, 255, 0.3);
 }
 
 /* Grid 2 */

@@ -394,7 +394,20 @@ export class TelegramService {
         { text: t('btn_book', lang), url: offer.booking_url },
       ]);
     }
-    if (route?.id) {
+
+    // Deep-link to Mini App at the specific offer card
+    const miniAppUrl = this.getMiniAppUrl(`?offer=${encodeURIComponent(offer.offer_id)}`);
+    if (miniAppUrl) {
+      const viewInAppBtn = { text: lang === 'ru' ? '📱 Открыть в приложении' : '📱 View in App', web_app: { url: miniAppUrl } };
+      if (route?.id) {
+        inlineKeyboard.push([
+          viewInAppBtn,
+          { text: t('btn_disable_route', lang), callback_data: `disable_route:${route.id}` },
+        ]);
+      } else {
+        inlineKeyboard.push([viewInAppBtn]);
+      }
+    } else if (route?.id) {
       inlineKeyboard.push([
         { text: t('btn_disable_route', lang), callback_data: `disable_route:${route.id}` },
       ]);

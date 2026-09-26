@@ -11,6 +11,25 @@ function getTabFromHash(): AppTab {
 
 const currentTab = ref<AppTab>(getTabFromHash());
 
+/** offerId to highlight after navigation from a Telegram alert deep-link */
+export const highlightedOfferId = ref<string | null>(null);
+
+/** Parse ?offer=ID from the URL and switch to offers tab */
+function parseDeepLink() {
+  const params = new URLSearchParams(window.location.search);
+  const offerId = params.get('offer');
+  if (offerId) {
+    highlightedOfferId.value = offerId;
+    currentTab.value = 'offers';
+    window.location.hash = '#offers';
+    // Strip the ?offer= param from the URL without reloading
+    const clean = window.location.pathname + window.location.hash;
+    window.history.replaceState(null, '', clean);
+  }
+}
+
+parseDeepLink();
+
 export function useRouter() {
   function switchTab(tab: AppTab) {
     if (!VALID_TABS.includes(tab)) return;

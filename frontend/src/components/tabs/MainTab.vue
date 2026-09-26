@@ -62,6 +62,22 @@ function handleAddRoute() {
 function handleSaveMain() {
   saveAppData();
 }
+
+const routesGrouped = computed(() => {
+  const groups: Record<string, { label: string; items: { route: any; index: number }[] }> = {};
+  routes.value.forEach((r, idx) => {
+    const orig = getCountryName(r.originCountry);
+    const dest = r.destinationCountry ? getCountryName(r.destinationCountry) : 'Anywhere';
+    const key = `${r.originCountry}-${r.destinationCountry || 'ALL'}`;
+    const label = `${orig} → ${dest}`;
+    
+    if (!groups[key]) {
+      groups[key] = { label, items: [] };
+    }
+    groups[key].items.push({ route: r, index: idx });
+  });
+  return Object.values(groups);
+});
 </script>
 
 <template>
@@ -149,46 +165,55 @@ function handleSaveMain() {
         </button>
       </div>
 
-      <!-- Routes Grid/List -->
-      <div v-else class="routes-grid">
-        <div 
-          v-for="(route, idx) in routes" 
-          :key="idx" 
-          class="route-card glass-card"
-          :class="{ disabled: !route.enabled }"
-        >
-          <div class="route-top">
-            <span class="provider-pill">{{ getProviderName(route.source) }}</span>
-            <label class="toggle-switch">
-              <input type="checkbox" :checked="route.enabled" @change="toggleRoute(idx)" />
-              <span class="toggle-slider"></span>
-            </label>
+      <!-- Routes Workspaces -->
+      <div v-else class="routes-workspaces">
+        <div v-for="group in routesGrouped" :key="group.label" class="route-workspace">
+          <div class="workspace-header">
+            <span class="workspace-title">{{ group.label }}</span>
+            <span class="workspace-badge">{{ group.items.length }}</span>
           </div>
+          
+          <div class="routes-grid">
+            <div 
+              v-for="item in group.items" 
+              :key="item.index" 
+              class="route-card glass-card"
+              :class="{ disabled: !item.route.enabled }"
+            >
+              <div class="route-top">
+                <span class="provider-pill">{{ getProviderName(item.route.source) }}</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" :checked="item.route.enabled" @change="toggleRoute(item.index)" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
 
-          <div class="route-path">
-            <div class="point point-origin">
-              <span class="point-label">{{ t('origin_countries') }}</span>
-              <span class="point-val">{{ route.originName || getCountryName(route.originCountry) }}</span>
+              <div class="route-path">
+                <div class="point point-origin">
+                  <span class="point-label">{{ t('origin_countries') }}</span>
+                  <span class="point-val">{{ item.route.originName || getCountryName(item.route.originCountry) }}</span>
+                </div>
+                <div class="route-arrow">➔</div>
+                <div class="point point-dest">
+                  <span class="point-label">{{ t('dest_countries') }}</span>
+                  <span class="point-val">{{ item.route.destinationName || (item.route.destinationCountry ? getCountryName(item.route.destinationCountry) : 'Anywhere') }}</span>
+                </div>
+              </div>
+
+              <div v-if="item.route.pickupDate || item.route.returnDate" class="route-dates">
+                <Calendar :size="12" />
+                <span>{{ item.route.pickupDate || '...' }} — {{ item.route.returnDate || '...' }}</span>
+              </div>
+
+              <div class="route-actions">
+                <button class="action-btn" :title="t('edit_route')" @click="openRouteModal(item.index)">
+                  <Edit3 :size="14" />
+                </button>
+                <button class="action-btn delete-btn" :title="t('delete_btn')" @click="deleteRoute(item.index)">
+                  <Trash2 :size="14" />
+                </button>
+              </div>
             </div>
-            <div class="route-arrow">➔</div>
-            <div class="point point-dest">
-              <span class="point-label">{{ t('dest_countries') }}</span>
-              <span class="point-val">{{ route.destinationName || getCountryName(route.destinationCountry) }}</span>
-            </div>
-          </div>
-
-          <div v-if="route.pickupDate || route.returnDate" class="route-dates">
-            <Calendar :size="12" />
-            <span>{{ route.pickupDate || '...' }} — {{ route.returnDate || '...' }}</span>
-          </div>
-
-          <div class="route-actions">
-            <button class="action-btn" :title="t('edit_route')" @click="openRouteModal(idx)">
-              <Edit3 :size="14" />
-            </button>
-            <button class="action-btn delete-btn" :title="t('delete_btn')" @click="deleteRoute(idx)">
-              <Trash2 :size="14" />
-            </button>
           </div>
         </div>
       </div>
@@ -400,6 +425,36 @@ function handleSaveMain() {
 .empty-title {
   font-size: 15px;
   font-weight: 700;
+}
+
+.routes-workspaces {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.workspace-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.workspace-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.workspace-badge {
+  background: var(--bg-surface-elevated);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 .routes-grid {

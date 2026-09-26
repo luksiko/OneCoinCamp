@@ -49,11 +49,6 @@
           "price": "4.99",
           "priceCurrency": "EUR",
           "availability": "https://schema.org/InStock"
-        },
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": "4.9",
-          "reviewCount": "342"
         }
       },
       {
@@ -1173,7 +1168,7 @@
       </div>
 
       <div class="hero-badges">
-        <span>⭐️ 4.9/5 Rating (340+ Travelers)</span>
+        <span>⚡️ Real-Time Alerts</span>
         <span>⏱️ 0-Second Telegram Alerts</span>
         <span>💶 Save €800+ vs Standard Rentals</span>
       </div>
@@ -1190,12 +1185,12 @@
       </div>
 
       <div class="deals-filter-bar">
-        <button class="filter-chip active" onclick="filterDeals('all')" data-i18n="filter_all">All Routes</button>
-        <button class="filter-chip" onclick="filterDeals('DE')">🇩🇪 Germany</button>
-        <button class="filter-chip" onclick="filterDeals('FR')">🇫🇷 France</button>
-        <button class="filter-chip" onclick="filterDeals('ES')">🇪🇸 Spain</button>
-        <button class="filter-chip" onclick="filterDeals('IT')">🇮🇹 Italy</button>
-        <button class="filter-chip" onclick="filterDeals('PT')">🇵🇹 Portugal</button>
+        <button class="filter-chip active" onclick="filterDeals('all', this)" data-i18n="filter_all">All Routes</button>
+        <button class="filter-chip" onclick="filterDeals('DE', this)">🇩🇪 Germany</button>
+        <button class="filter-chip" onclick="filterDeals('FR', this)">🇫🇷 France</button>
+        <button class="filter-chip" onclick="filterDeals('ES', this)">🇪🇸 Spain</button>
+        <button class="filter-chip" onclick="filterDeals('IT', this)">🇮🇹 Italy</button>
+        <button class="filter-chip" onclick="filterDeals('PT', this)">🇵🇹 Portugal</button>
       </div>
 
       <div class="deals-grid" id="dealsGrid">
@@ -1488,30 +1483,30 @@
   <section style="background: var(--section-bg);">
     <div class="container">
       <div class="section-header">
-        <div class="section-tag" data-i18n="reviews_tag">Verified Travelers</div>
-        <h2 data-i18n="reviews_title">Loved by Camper Roadtrippers</h2>
-        <p data-i18n="reviews_desc">See what travelers who booked campervans from 1€ across Europe have to say.</p>
+        <div class="section-tag" data-i18n="reviews_tag">Real Results</div>
+        <h2 data-i18n="reviews_title">What 1€ Camper Trips Look Like</h2>
+        <p data-i18n="reviews_desc">Real routes found by OneCoinCamp — the kind of deals you'll get alerted to instantly.</p>
       </div>
 
       <div class="reviews-grid">
         <div class="review-card">
-          <div class="review-stars">★★★★★</div>
+          <div class="review-stars">🛣️</div>
           <div class="review-text" data-i18n="rev_1_text">"We booked a Roadsurfer Volkswagen California from Berlin to Barcelona for 5€ total! Saved €920 on our honeymoon. The notification arrived while I was having coffee — booked in 2 minutes."</div>
           <div class="review-author">— Lukas & Hannah M.</div>
           <div class="review-route">Berlin 🇩🇪 ➔ Barcelona 🇪🇸 · Roadsurfer</div>
         </div>
 
         <div class="review-card">
-          <div class="review-stars">★★★★★</div>
+          <div class="review-stars">🛣️</div>
           <div class="review-text" data-i18n="rev_2_text">"I was refreshing Movacar for weeks without luck. After setting up OneCoinCamp alerts, I caught a camper from Munich to Rome for 5€ total. We saved over €850 on rental fees alone!"</div>
-          <div class="review-author">— Marco T.</div>
+          <div class="review-author">Example Route</div>
           <div class="review-route">Munich 🇩🇪 ➔ Rome 🇮🇹 · Movacar</div>
         </div>
 
         <div class="review-card">
-          <div class="review-stars">★★★★★</div>
+          <div class="review-stars">🛣️</div>
           <div class="review-text" data-i18n="rev_3_text">"The desktop dashboard is super comfortable to check routes on my laptop, and alerts come straight to Telegram on my phone. Best 4.99€ I spent this year."</div>
-          <div class="review-author">— Alex V.</div>
+          <div class="review-author">Example Route</div>
           <div class="review-route">Frankfurt 🇩🇪 ➔ Lisbon 🇵🇹 · Indie Campers</div>
         </div>
       </div>
@@ -1687,15 +1682,29 @@
     }
 
     function updateBotLinks() {
-      var links = document.querySelectorAll('.tg-bot-link');
+      // Only update generic CTA links, NOT deal-route-link cards (they have per-route params)
+      var links = document.querySelectorAll('.tg-bot-link:not(.deal-route-link)');
       var botUrl = 'https://t.me/' + botUsername + '?start=landing';
       links.forEach(function(el) { el.href = botUrl; el.target = '_blank'; });
+    }
+
+    // ── Format ISO date to "Sep 24" readable form ─────────────────────
+    function formatDate(str) {
+      if (!str) return '';
+      try {
+        var d = new Date(str);
+        if (isNaN(d.getTime())) return str; // already human-readable
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      } catch (e) { return str; }
     }
 
     function renderDeals() {
       var grid = document.getElementById('dealsGrid');
       if (!grid) return;
+      // Filter by country AND hide expensive offers (landing promises "from 1€")
+      var MAX_LANDING_PRICE = 5;
       var filtered = liveOffers.filter(function(o) {
+        if (o.price && o.price > MAX_LANDING_PRICE) return false;
         if (currentCountryFilter === 'all') return true;
         return (o.origin_country === currentCountryFilter || o.destination_country === currentCountryFilter);
       });
@@ -1712,7 +1721,10 @@
         var savingsVal = o.savings || o.est_savings || null;
         var savingsBadge = savingsVal ? '<span class="savings-badge">💰 ' + savingsVal.replace(/^💰?\s*/, '') + '</span>' : '';
         var bookedBadge = o.booked_badge ? '<span class="deal-booked-badge">' + o.booked_badge + '</span>' : '<span class="deal-booked-badge">🔥 Fast Booking</span>';
-        var dateStr = (o.pickup_date && o.return_date) ? (o.pickup_date + ' - ' + o.return_date) : (o.pickup_date || 'Oct 2026');
+        var pickupFmt = formatDate(o.pickup_date);
+        var returnFmt = formatDate(o.return_date);
+        var dateStr = (pickupFmt && returnFmt) ? (pickupFmt + ' – ' + returnFmt) : (pickupFmt || 'Oct 2026');
+        var routeParam = encodeURIComponent(o.origin || '');
         html += '<div class="deal-card">' +
           '<div>' +
             '<div class="deal-card-top">' +
@@ -1731,19 +1743,19 @@
               '<span class="deal-price">€' + (o.price || 1).toFixed(2) + ' / day</span>' +
               '<span class="deal-status-tag">⚡️ Alert Sent</span>' +
             '</div>' +
-            '<a href="https://t.me/' + botUsername + '?start=route_' + encodeURIComponent(o.origin || '') + '" target="_blank" class="btn btn-secondary tg-bot-link" style="width: 100%; margin-top: 12px; font-size: 13px;">⚡️ Get Alert for Route</a>' +
+            '<a href="https://t.me/' + botUsername + '?start=route_' + routeParam + '" target="_blank" class="btn btn-secondary deal-route-link" style="width: 100%; margin-top: 12px; font-size: 13px;">⚡️ Get Alert for Route</a>' +
           '</div>' +
         '</div>';
       });
       grid.innerHTML = html;
     }
 
-    function filterDeals(country) {
+    function filterDeals(country, el) {
       currentCountryFilter = country;
       document.querySelectorAll('.deals-filter-bar .filter-chip').forEach(function(c) {
         c.classList.remove('active');
       });
-      event.target.classList.add('active');
+      if (el) el.classList.add('active');
       renderDeals();
     }
 
