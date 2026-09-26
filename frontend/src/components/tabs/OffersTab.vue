@@ -359,16 +359,17 @@ function stalenessLabel(staleness: Staleness): string {
             <td>
               <div class="table-actions">
                 <a
-                  v-if="getOfferStaleness(offer) !== 'gone'"
                   :href="offer.bookingUrl"
                   target="_blank"
                   rel="noopener"
                   class="btn btn-primary btn-xs-table"
-                  :class="{ 'btn-hurry': getOfferStaleness(offer) === 'hurry' }"
+                  :class="{ 
+                    'btn-hurry': getOfferStaleness(offer) === 'hurry',
+                    'btn-gone': getOfferStaleness(offer) === 'gone'
+                  }"
                 >
                   {{ t('btn_book') }} ↗
                 </a>
-                <span v-else class="gone-tag">Gone</span>
                 <a :href="getCalendarUrl(offer)" target="_blank" class="btn btn-secondary btn-xs-table cal-btn-table" title="Add to Google Calendar">
                   <CalendarPlus :size="14" />
                 </a>
@@ -426,12 +427,14 @@ function stalenessLabel(staleness: Staleness): string {
             {{ t('staleness_gone_hint') || '⚠️ Offer may no longer be available' }}
           </div>
           <a
-            v-else
             :href="offer.bookingUrl"
             target="_blank"
             rel="noopener"
             class="btn btn-primary book-btn"
-            :class="{ 'btn-hurry': getOfferStaleness(offer) === 'hurry' }"
+            :class="{ 
+              'btn-hurry': getOfferStaleness(offer) === 'hurry',
+              'btn-gone': getOfferStaleness(offer) === 'gone'
+            }"
           >
             <span>{{ t('btn_book') }}</span>
             <ExternalLink :size="14" />
@@ -780,6 +783,12 @@ function stalenessLabel(staleness: Staleness): string {
 .btn-hurry {
   background: linear-gradient(135deg, #f59e0b, #d97706) !important;
   border-color: transparent !important;
+}
+
+.btn-gone {
+  background: var(--bg-surface-elevated) !important;
+  color: var(--text-muted) !important;
+  border-color: var(--border-subtle) !important;
 }
 
 .gone-notice {
