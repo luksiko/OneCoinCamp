@@ -1,6 +1,7 @@
 import { DbClient } from '../db/client';
 import { NormalizedOffer, UserRoute } from '../types';
 import { t, pluralizeDays, resolveLanguage } from './i18n';
+import { formatDateRange } from '../utils/date';
 import { fetchJson } from '../utils/http';
 import { routeMatchesOffer, offerMatchesUserFilters, parseIsoDate } from './filters';
 import { browserLoginCode } from '../utils/telegram-login';
@@ -379,7 +380,7 @@ export class TelegramService {
     let text = `${pIcon} <b>${capitalize(offer.source)} — ${vehicleTypeName} ${foundLabel}</b>\n\n`;
     text += `📍 ${fromLabel}: <b>${escapeHtml(offer.origin)}</b> ${originFlag}\n`;
     text += `🏁 ${toLabel}: <b>${escapeHtml(offer.destination)}</b> ${destFlag}\n`;
-    text += `📅 ${datesLabel}: <code>${offer.pickup_date}</code> ➔ <code>${offer.return_date}</code>${durationText}\n`;
+    text += `📅 ${datesLabel}: <b>${formatDateRange(offer.pickup_date, offer.return_date, lang)}</b>${durationText}\n`;
     text += `💶 ${priceLabel}: ${priceText}\n`;
     if (offer.vehicle) {
       text += `🚘 ${modelLabel}: <b>${escapeHtml(offer.vehicle)}</b>\n`;
@@ -537,7 +538,7 @@ export class TelegramService {
 
     const lines = [t('digest_header', l, { count: recent.length })];
     for (const offer of recent.slice(0, 10)) {
-      lines.push(`• <b>${escapeHtml(offer.origin)}</b> ➔ <b>${escapeHtml(offer.destination)}</b> · ${offer.price} € · <code>${escapeHtml(offer.pickup_date)}</code>`);
+      lines.push(`• <b>${escapeHtml(offer.origin)}</b> ➔ <b>${escapeHtml(offer.destination)}</b> · ${offer.price} € · <b>${formatDateRange(offer.pickup_date, offer.return_date, lang)}</b>`);
     }
     if (recent.length > 10) lines.push(t('digest_more', l, { count: recent.length - 10 }));
 
@@ -557,6 +558,22 @@ export class TelegramService {
     const isActive = this.db.isSubscriptionActive(user);
 
     if (isActive && user?.subscription_status !== 'trial') {
+      if (user?.role === 'admin') {
+        await this.sendMessage(
+          chatId,
+          "👑 <b>Admin Access</b>\n\nYou have unlimited access and no expiration date.",
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: t('btn_account', l), callback_data: 'menu_account' }],
+                [{ text: t('btn_main_menu', l), callback_data: 'menu_main' }],
+              ],
+            },
+          }
+        );
+        return;
+      }
+
       const expiry = user?.subscription_expires_at
         ? new Date(user.subscription_expires_at).toLocaleDateString(l === 'ru' ? 'ru-RU' : 'en-GB')
         : '?';

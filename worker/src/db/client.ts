@@ -708,6 +708,7 @@ export class DbClient {
     const { results } = await this.db.prepare(
       `SELECT * FROM users
        WHERE subscription_status IN ('active', 'trial')
+       AND role != 'admin'
        AND subscription_expires_at IS NOT NULL
        AND datetime(subscription_expires_at) < datetime('now')`
     ).all<any>();

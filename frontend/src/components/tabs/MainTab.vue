@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useAppStore } from '../../composables/useAppStore';
 import { useI18n } from '../../composables/useI18n';
+import { formatDateRange } from '../../utils/date';
 import { 
   Sparkles, 
   Plus, 
@@ -29,7 +30,7 @@ const {
   isSaving
 } = useAppStore();
 
-const { t, getCountryName, pluralizeDays } = useI18n();
+const { t, getCountryName, pluralizeDays, currentLang } = useI18n();
 
 const routes = computed(() => appState.value?.routes || []);
 const maxRoutes = computed(() => appState.value?.user?.maxRoutes ?? 1);
@@ -202,7 +203,7 @@ const routesGrouped = computed(() => {
 
               <div v-if="item.route.pickupDate || item.route.returnDate" class="route-dates">
                 <Calendar :size="12" />
-                <span>{{ item.route.pickupDate || '...' }} — {{ item.route.returnDate || '...' }}</span>
+                <span>{{ formatDateRange(item.route.pickupDate, item.route.returnDate, currentLang) }}</span>
               </div>
 
               <div class="route-actions">

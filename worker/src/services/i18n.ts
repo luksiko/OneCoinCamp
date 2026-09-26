@@ -293,24 +293,24 @@ export function pluralizeDays(days: number, lang = DEFAULT_LANGUAGE): string {
   const l = (lang || DEFAULT_LANGUAGE).toLowerCase().slice(0, 2);
 
   if (l === 'de') {
-    return days === 1 ? ' (1 Tag)' : ` (${days} Tage)`;
+    return days === 1 ? ' · 1 Tag' : ` · ${days} Tage`;
   }
   if (l === 'it') {
-    return days === 1 ? ' (1 giorno)' : ` (${days} giorni)`;
+    return days === 1 ? ' · 1 giorno' : ` · ${days} giorni`;
   }
   if (l === 'en') {
-    return days === 1 ? ' (1 day)' : ` (${days} days)`;
+    return days === 1 ? ' · 1 day' : ` · ${days} days`;
   }
   if (l === 'uk') {
     const mod10 = days % 10;
     const mod100 = days % 100;
     const isTeen = mod100 >= 11 && mod100 <= 19;
     if (!isTeen && mod10 === 1) {
-      return ` (${days} день)`;
+      return ` · ${days} день`;
     } else if (!isTeen && mod10 >= 2 && mod10 <= 4) {
-      return ` (${days} дні)`;
+      return ` · ${days} дні`;
     } else {
-      return ` (${days} днів)`;
+      return ` · ${days} днів`;
     }
   }
 
@@ -320,10 +320,10 @@ export function pluralizeDays(days: number, lang = DEFAULT_LANGUAGE): string {
   const isTeen = mod100 >= 11 && mod100 <= 19;
 
   if (!isTeen && mod10 === 1) {
-    return ` (${days} день)`;
+    return ` · ${days} день`;
   } else if (!isTeen && mod10 >= 2 && mod10 <= 4) {
-    return ` (${days} дня)`;
+    return ` · ${days} дня`;
   } else {
-    return ` (${days} дней)`;
+    return ` · ${days} дней`;
   }
 }

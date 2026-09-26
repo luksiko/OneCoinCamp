@@ -5,6 +5,7 @@ import { useI18n } from '../../composables/useI18n';
 import { useAppStore } from '../../composables/useAppStore';
 import { highlightedOfferId } from '../../composables/useRouter';
 import type { Offer, OffersFilterPayload } from '../../api/types';
+import { formatDateRange } from '../../utils/date';
 import { 
   Filter, 
   ExternalLink, 
@@ -19,7 +20,7 @@ import {
   CalendarPlus
 } from 'lucide-vue-next';
 
-const { t, getCountryName } = useI18n();
+const { t, getCountryName, currentLang, pluralizeDays } = useI18n();
 const { showToast } = useAppStore();
 
 const offers = ref<Offer[]>([]);
@@ -352,7 +353,7 @@ function stalenessLabel(staleness: Staleness): string {
             <td>
               <span class="provider-tag">{{ offer.operator || offer.source }}</span>
             </td>
-            <td class="td-muted">{{ offer.pickupDate }}</td>
+            <td class="td-muted">{{ formatDateRange(offer.pickupDate, offer.returnDate, currentLang) }}</td>
             <td class="td-muted">{{ calculateDays(offer.pickupDate, offer.returnDate) }}d</td>
             <td class="td-price">{{ offer.price }} {{ offer.currency || '€' }}</td>
             <td class="td-muted td-vehicle">{{ offer.vehicle || '—' }}</td>
@@ -414,8 +415,7 @@ function stalenessLabel(staleness: Staleness): string {
         <div class="offer-meta">
           <div class="meta-item">
             <Calendar :size="13" />
-            <span>{{ offer.pickupDate }} — {{ offer.returnDate }}</span>
-            <span class="days-badge">({{ t('offers_days_trip', { days: calculateDays(offer.pickupDate, offer.returnDate) }) }})</span>
+            <span>{{ formatDateRange(offer.pickupDate, offer.returnDate, currentLang) }} · {{ calculateDays(offer.pickupDate, offer.returnDate) }} {{ pluralizeDays(calculateDays(offer.pickupDate, offer.returnDate)) }}</span>
           </div>
           <div v-if="offer.vehicle" class="vehicle-title">
             🚐 {{ offer.vehicle }}
