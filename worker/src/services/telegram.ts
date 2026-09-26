@@ -75,26 +75,7 @@ export function getMainMenuKeyboard(webAppUrl?: string, lang: string = 'en') {
 
   return {
     inline_keyboard: [
-      [
-        miniAppBtn,
-        { text: t('btn_actual', l), callback_data: 'menu_actual' },
-      ],
-      [
-        { text: t('btn_routes', l), callback_data: 'menu_routes' },
-        { text: t('btn_check', l), callback_data: 'menu_check' },
-      ],
-      [
-        { text: t('btn_digest', l), callback_data: 'menu_digest' },
-        { text: t('btn_subscribe', l), callback_data: 'menu_subscribe' },
-      ],
-      [
-        { text: t('btn_account', l), callback_data: 'menu_account' },
-        { text: t('btn_silent', l), callback_data: 'menu_silent' },
-      ],
-      [
-        { text: t('btn_status', l), callback_data: 'menu_status' },
-        { text: t('btn_help', l), callback_data: 'menu_help' },
-      ],
+      [miniAppBtn]
     ],
   };
 }
@@ -116,40 +97,24 @@ export class TelegramService {
     }
   }
 
-  async setMyCommands(): Promise<any> {
+  async deleteMyCommands(): Promise<any> {
     if (!this.secrets.botToken) return null;
 
-    // Set default / English commands
-    await fetchJson(this.apiUrl('setMyCommands'), {
+    await fetchJson(this.apiUrl('deleteMyCommands'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ commands: BOT_COMMANDS_EN }),
+      body: JSON.stringify({}),
       retries: 1,
     });
-
-    // Set Russian commands
-    await fetchJson(this.apiUrl('setMyCommands'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ commands: BOT_COMMANDS_RU, language_code: 'ru' }),
-      retries: 1,
-    });
-
-    // Set German commands
-    await fetchJson(this.apiUrl('setMyCommands'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ commands: BOT_COMMANDS_DE, language_code: 'de' }),
-      retries: 1,
-    });
-
-    // Set Italian commands
-    return fetchJson(this.apiUrl('setMyCommands'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ commands: BOT_COMMANDS_IT, language_code: 'it' }),
-      retries: 1,
-    });
+    
+    for (const lang of ['ru', 'de', 'it']) {
+      await fetchJson(this.apiUrl('deleteMyCommands'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language_code: lang }),
+        retries: 1,
+      });
+    }
   }
 
   getMiniAppUrl(pathOrQuery: string = ''): string {
@@ -206,8 +171,8 @@ export class TelegramService {
       retries: 1,
     });
     if (!response?.ok) throw new Error(response?.description || 'Telegram rejected webhook');
-    await this.setMyCommands();
-    await this.setChatMenuButton(undefined, 'commands');
+    await this.deleteMyCommands();
+    await this.setChatMenuButton(undefined, 'web_app');
   }
 
   private apiUrl(method: string): string {
@@ -478,7 +443,7 @@ export class TelegramService {
     const welcomeText = t('menu_welcome', l);
 
     // Ensure user has commands button (≡) available in their chat bar
-    await this.setChatMenuButton(chatId, 'commands');
+    await this.setChatMenuButton(chatId, 'web_app', webAppUrl);
 
     await this.sendMessage(chatId, welcomeText, {
       reply_markup: getMainMenuKeyboard(webAppUrl, l),

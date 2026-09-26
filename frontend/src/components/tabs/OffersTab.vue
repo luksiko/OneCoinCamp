@@ -222,26 +222,6 @@ onMounted(() => {
   loadOffers();
 });
 
-// Per-provider staleness thresholds (minutes)
-const STALENESS_THRESHOLDS: Record<string, { hurry: number; gone: number }> = {
-  roadsurfer:   { hurry: 5,  gone: 15 },
-  movacar:      { hurry: 10, gone: 30 },
-  indiecampers: { hurry: 15, gone: 45 },
-  imoova:       { hurry: 30, gone: 60 },
-};
-
-type Staleness = 'live' | 'hurry' | 'gone';
-
-function getOfferStaleness(offer: Offer): Staleness {
-  const ts = offer.timestamp || offer.lastSeenAt;
-  if (!ts) return 'live'; // no timestamp = freshly inserted, assume live
-  const ageMinutes = (Date.now() - new Date(ts).getTime()) / 60000;
-  const key = (offer.source || '').toLowerCase();
-  const thresholds = STALENESS_THRESHOLDS[key] || { hurry: 15, gone: 45 };
-  if (ageMinutes >= thresholds.gone) return 'gone';
-  if (ageMinutes >= thresholds.hurry) return 'hurry';
-  return 'live';
-}
 
 function formatAddedAt(ts?: string): string {
   if (!ts) return t('added_at', { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
@@ -254,12 +234,6 @@ function formatAddedAt(ts?: string): string {
     return t('added_at', { time: timeStr });
   }
   return date.toLocaleDateString() + ' ' + timeStr;
-}
-
-function stalenessLabel(staleness: Staleness): string {
-  if (staleness === 'gone') return '🔴 ' + (t('staleness_gone') || 'Likely Gone');
-  if (staleness === 'hurry') return '🟡 ' + (t('staleness_hurry') || 'Book Fast');
-  return '🟢 ' + (t('staleness_live') || 'LIVE');
 }
 </script>
 
@@ -357,8 +331,8 @@ function stalenessLabel(staleness: Staleness): string {
       <table class="offers-table">
         <thead>
           <tr>
-            <th class="th-sort" @click="toggleSort('staleness')">
-              Status {{ sortCol === 'staleness' ? (sortAsc ? '↑' : '↓') : '' }}
+            <th class="th-sort" @click="toggleSort('timestamp')">
+              Added {{ sortCol === 'timestamp' ? (sortAsc ? '↑' : '↓') : '' }}
             </th>
             <th class="th-sort" @click="toggleSort('route')">
               Route {{ sortCol === 'route' ? (sortAsc ? '↑' : '↓') : '' }}
@@ -384,13 +358,9 @@ function stalenessLabel(staleness: Staleness): string {
             v-for="offer in sortedOffers"
             :key="offer.fingerprint || offer.offerId"
             :data-offer-id="offer.offerId"
-            :class="`tr-staleness-${getOfferStaleness(offer)}`"
           >
             <td>
               <div class="status-col">
-                <span class="staleness-badge" :class="`staleness-badge--${getOfferStaleness(offer)}`">
-                  {{ stalenessLabel(getOfferStaleness(offer)) }}
-                </span>
                 <span class="time-ago">{{ formatAddedAt(offer.timestamp || offer.lastSeenAt) }}</span>
               </div>
             </td>
@@ -427,10 +397,6 @@ function stalenessLabel(staleness: Staleness): string {
                   target="_blank"
                   rel="noopener"
                   class="btn btn-primary btn-xs-table"
-                  :class="{ 
-                    'btn-hurry': getOfferStaleness(offer) === 'hurry',
-                    'btn-gone': getOfferStaleness(offer) === 'gone'
-                  }"
                 >
                   {{ t('btn_book') }} ↗
                 </a>
@@ -450,15 +416,11 @@ function stalenessLabel(staleness: Staleness): string {
         v-for="offer in offers"
         :key="offer.fingerprint || offer.offerId"
         class="offer-card glass-card"
-        :class="`staleness-${getOfferStaleness(offer)}`"
         :data-offer-id="offer.offerId"
       >
         <div class="offer-header">
           <span class="provider-tag">{{ offer.operator || offer.source }}</span>
           <div class="header-right">
-            <span class="staleness-badge" :class="`staleness-badge--${getOfferStaleness(offer)}`">
-              {{ stalenessLabel(getOfferStaleness(offer)) }}
-            </span>
             <span class="price-badge">{{ offer.price }} €</span>
           </div>
         </div>
@@ -507,10 +469,6 @@ function stalenessLabel(staleness: Staleness): string {
             target="_blank"
             rel="noopener"
             class="btn btn-primary book-btn"
-            :class="{ 
-              'btn-hurry': getOfferStaleness(offer) === 'hurry',
-              'btn-gone': getOfferStaleness(offer) === 'gone'
-            }"
           >
             <span>{{ t('btn_book') }}</span>
             <ExternalLink :size="14" />
@@ -764,168 +722,6 @@ function stalenessLabel(staleness: Staleness): string {
   background: var(--bg-surface-elevated, rgba(255,255,255,0.03));
 }
 
-/* Row staleness tints */
-.tr-staleness-gone {
-  opacity: 0.6;
-}
-
-.tr-staleness-hurry td:first-child {
-  border-left: 2px solid rgba(245, 158, 11, 0.5);
-}
-
-.td-route {
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.td-city {
-  color: var(--text-main);
-}
-
-.td-arrow {
-  color: var(--text-subtle);
-  margin: 0 6px;
-  font-size: 11px;
-}
-
-.td-muted {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.td-price {
-  font-weight: 800;
-  color: #10b981;
-  white-space: nowrap;
-}
-
-.td-vehicle {
-  max-width: 140px;
-}
-.vehicle-cell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.vehicle-thumb {
-  width: 40px;
-  height: 28px;
-  object-fit: cover;
-  border-radius: 4px;
-}
-.vehicle-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.btn-xs-table {
-  padding: 5px 12px;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.gone-tag {
-  font-size: 11px;
-  color: var(--danger, #ef4444);
-  font-weight: 600;
-}
-
-/* Offers Grid */
-.offers-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-@media (min-width: 640px) {
-  .offers-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.offer-card {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.offer-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-col {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-start;
-}
-.time-ago {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-/* Staleness traffic-light badges */
-.staleness-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 7px;
-  border-radius: 999px;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-}
-
-.staleness-badge--live {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.35);
-}
-
-.staleness-badge--hurry {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.35);
-}
-
-.staleness-badge--gone {
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-/* Card tint by staleness */
-.offer-card.staleness-gone {
-  opacity: 0.65;
-  border-color: rgba(239, 68, 68, 0.25) !important;
-}
-
-.offer-card.staleness-hurry {
-  border-color: rgba(245, 158, 11, 0.3) !important;
-}
-
-/* Book button variant for hurry state */
-.btn-hurry {
-  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
-  border-color: transparent !important;
-}
-
-.btn-gone {
-  background: var(--bg-surface-elevated) !important;
-  color: var(--text-muted) !important;
-  border-color: var(--border-subtle) !important;
-}
 
 /* Deep-link highlight: pulsing glow for 3s on the targeted card */
 @keyframes offer-pulse {

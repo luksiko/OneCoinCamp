@@ -52,10 +52,10 @@ export default {
           const settings = await db.getSettings();
           if (settings.webhook_cutover_complete !== true) {
             await telegram.registerWebhook(`${env.WORKER_PUBLIC_URL}/webhook/telegram`);
-            await telegram.setMyCommands();
-            await telegram.setChatMenuButton(undefined, 'commands');
+            await telegram.deleteMyCommands();
+            await telegram.setChatMenuButton(undefined, 'web_app');
             if (env.TELEGRAM_CHAT_ID) {
-              await telegram.setChatMenuButton(env.TELEGRAM_CHAT_ID, 'commands');
+              await telegram.setChatMenuButton(env.TELEGRAM_CHAT_ID, 'web_app');
             }
             await db.setSetting('webhook_cutover_complete', true);
             console.log('Telegram webhook, commands and menu button configured on Cloudflare Worker.');
@@ -210,10 +210,10 @@ export default {
       try {
         const targetWorkerUrl = env.WORKER_PUBLIC_URL || `${url.protocol}//${url.host}`;
         await telegram.registerWebhook(`${targetWorkerUrl}/webhook/telegram`);
-        await telegram.setMyCommands();
-        await telegram.setChatMenuButton(undefined, 'commands');
+        await telegram.deleteMyCommands();
+        await telegram.setChatMenuButton(undefined, 'web_app');
         if (env.TELEGRAM_CHAT_ID) {
-          await telegram.setChatMenuButton(env.TELEGRAM_CHAT_ID, 'commands');
+          await telegram.setChatMenuButton(env.TELEGRAM_CHAT_ID, 'web_app');
         }
         return new Response(JSON.stringify({ ok: true, message: 'Webhook, commands and menu button registered successfully' }), {
           headers: { 'Content-Type': 'application/json' },
@@ -228,10 +228,10 @@ export default {
 
     if (url.pathname === '/telegram/setup-menu') {
       try {
-        await telegram.setMyCommands();
-        await telegram.setChatMenuButton(undefined, 'commands');
+        await telegram.deleteMyCommands();
+        await telegram.setChatMenuButton(undefined, 'web_app');
         if (env.TELEGRAM_CHAT_ID) {
-          await telegram.setChatMenuButton(env.TELEGRAM_CHAT_ID, 'commands');
+          await telegram.setChatMenuButton(env.TELEGRAM_CHAT_ID, 'web_app');
         }
         return new Response(JSON.stringify({ ok: true, message: 'Commands and menu button configured successfully' }), {
           headers: { 'Content-Type': 'application/json' },

@@ -533,24 +533,7 @@ async function getOffersForUi(ctx: RpcContext, userId: string, filter: any = {})
     return true;
   });
 
-  if (criteria.sortCol) {
-    const STALENESS_THRESHOLDS: Record<string, { hurry: number; gone: number }> = {
-      roadsurfer:   { hurry: 5,  gone: 15 },
-      movacar:      { hurry: 10, gone: 30 },
-      indiecampers: { hurry: 15, gone: 45 },
-      imoova:       { hurry: 30, gone: 60 },
-    };
-    const getStalenessVal = (offer: any) => {
-      const ts = offer.timestamp || offer.lastSeenAt;
-      if (!ts) return 0;
-      const ageMins = (Date.now() - new Date(ts).getTime()) / 60000;
-      const key = (offer.source || '').toLowerCase();
-      const th = STALENESS_THRESHOLDS[key] || { hurry: 15, gone: 45 };
-      if (ageMins >= th.gone) return 2;
-      if (ageMins >= th.hurry) return 1;
-      return 0;
-    };
-    const getDays = (p: string, r: string) => {
+  if (criteria.sortCol) {    const getDays = (p: string, r: string) => {
       if (!p || !r) return 1;
       return Math.max(1, Math.round((new Date(r).getTime() - new Date(p).getTime()) / 86400000));
     };
@@ -569,9 +552,6 @@ async function getOffersForUi(ctx: RpcContext, userId: string, filter: any = {})
       } else if (criteria.sortCol === 'days') {
         av = getDays(a.pickupDate, a.returnDate);
         bv = getDays(b.pickupDate, b.returnDate);
-      } else if (criteria.sortCol === 'staleness') {
-        av = getStalenessVal(a);
-        bv = getStalenessVal(b);
       } else {
         av = (a as any)[criteria.sortCol];
         bv = (b as any)[criteria.sortCol];
@@ -780,10 +760,10 @@ async function registerTelegramWebhook(ctx: RpcContext): Promise<any> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url: webhookUrl, secret_token: ctx.telegram.getWebhookSecret() }),
   });
-  await ctx.telegram.setMyCommands();
-  await ctx.telegram.setChatMenuButton(undefined, 'commands');
+  await ctx.telegram.deleteMyCommands();
+  await ctx.telegram.setChatMenuButton(undefined, 'web_app');
   if (ctx.chatId) {
-    await ctx.telegram.setChatMenuButton(ctx.chatId, 'commands');
+    await ctx.telegram.setChatMenuButton(ctx.chatId, 'web_app');
   }
   return result;
 }
