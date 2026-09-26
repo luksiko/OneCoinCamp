@@ -423,9 +423,6 @@ function stalenessLabel(staleness: Staleness): string {
         </div>
 
         <div class="mobile-offer-actions">
-          <div v-if="getOfferStaleness(offer) === 'gone'" class="gone-notice">
-            {{ t('staleness_gone_hint') || '⚠️ Offer may no longer be available' }}
-          </div>
           <a
             :href="offer.bookingUrl"
             target="_blank"
@@ -791,16 +788,6 @@ function stalenessLabel(staleness: Staleness): string {
   border-color: var(--border-subtle) !important;
 }
 
-.gone-notice {
-  font-size: 12px;
-  color: var(--danger, #ef4444);
-  text-align: center;
-  padding: 8px 10px;
-  background: rgba(239, 68, 68, 0.08);
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-}
-
 /* Deep-link highlight: pulsing glow for 3s on the targeted card */
 @keyframes offer-pulse {
   0%, 100% { box-shadow: 0 0 0 2px rgba(46, 166, 255, 0.4); }
@@ -961,8 +948,5 @@ function stalenessLabel(staleness: Staleness): string {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.mobile-offer-actions .gone-notice {
-  flex: 1;
 }
 </style>
