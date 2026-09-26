@@ -6,7 +6,7 @@ import { useAppStore } from '../../composables/useAppStore';
 import { useSearchStore } from '../../composables/useSearchStore';
 import { api } from '../../api/rpc';
 import type { Offer } from '../../api/types';
-import { Compass, Calendar, MapPin, Search, BellPlus } from 'lucide-vue-next';
+import { Compass, Calendar, MapPin, Search, BellPlus, Bell, ChevronRight } from 'lucide-vue-next';
 
 const { t } = useI18n();
 const { switchTab } = useRouter();
@@ -60,6 +60,15 @@ function trackRoute(offer: Offer) {
     destinationCountry: offer.destinationCountry,
     originName: offer.origin,
     destinationName: offer.destination,
+  });
+  switchTab('trackings');
+}
+
+function handleCreateTracking() {
+  openRouteModal(null, {
+    source: 'roadsurfer',
+    originCountry: originCountry.value || 'DE',
+    destinationCountry: destinationCountry.value || 'DE',
   });
   switchTab('trackings');
 }
@@ -133,6 +142,21 @@ function getProviderName(src: string) {
       <button class="btn btn-primary btn-lg search-btn" @click="handleSearch">
         <Search :size="16" />
         <span>Показать предложения <template v-if="totalOffers">({{ totalOffers }})</template></span>
+      </button>
+
+      <div class="search-divider">
+        <span>или</span>
+      </div>
+
+      <button class="btn btn-secondary tracking-promo-btn" @click="handleCreateTracking">
+        <div class="tracking-icon-wrapper">
+          <Bell :size="20" fill="currentColor" />
+        </div>
+        <div class="tracking-promo-content">
+          <span class="tracking-promo-title">Создать отслеживание</span>
+          <span class="tracking-promo-subtitle">Получайте новые подходящие офферы в Telegram</span>
+        </div>
+        <ChevronRight :size="16" class="tracking-promo-arrow" />
       </button>
     </div>
 
@@ -343,6 +367,76 @@ function getProviderName(src: string) {
   padding: 14px;
   font-size: 15px;
   justify-content: center;
+}
+
+.search-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--text-subtle);
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+.search-divider::before,
+.search-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.search-divider::before {
+  margin-right: 12px;
+}
+
+.search-divider::after {
+  margin-left: 12px;
+}
+
+.tracking-promo-btn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  text-align: left;
+  transition: all 0.2s ease;
+  gap: 16px;
+}
+.tracking-promo-btn:hover {
+  border-color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.tracking-icon-wrapper {
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tracking-promo-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tracking-promo-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.tracking-promo-subtitle {
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.tracking-promo-arrow {
+  color: var(--text-muted);
 }
 
 .best-offers-section {
