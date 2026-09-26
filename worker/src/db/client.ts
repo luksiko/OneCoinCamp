@@ -522,7 +522,7 @@ export class DbClient {
       `SELECT o.*, COALESCE(a.sent_at, o.archived_telegram_sent_at) AS telegram_sent_at
        FROM offers o LEFT JOIN sent_alerts a
          ON a.fingerprint = o.fingerprint AND a.telegram_id = ?
-       WHERE o.is_active = 1 ORDER BY o.found_at DESC LIMIT 2000`
+       WHERE o.is_active = 1 ORDER BY telegram_sent_at DESC, o.found_at DESC LIMIT 2000`
     ).bind(telegramId).all<any>();
     return results || [];
   }

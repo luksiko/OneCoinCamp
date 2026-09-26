@@ -493,7 +493,7 @@ async function getOffersForUi(ctx: RpcContext, userId: string, filter: any = {})
     const route = routes.find((candidate) => routeMatchesOffer(candidate, row));
     const matches = Boolean(route && offerMatchesUserFilters(row, filters, route));
     return {
-      timestamp: row.found_at,
+      timestamp: row.telegram_sent_at || row.found_at,
       lastSeenAt: String(row.last_seen_at || row.found_at || '').replace(/^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d)$/, '$1T$2Z'),
       source: row.source,
       operator: row.source,
