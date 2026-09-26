@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { api } from '../../api/rpc';
 import { useI18n } from '../../composables/useI18n';
 import { useAppStore } from '../../composables/useAppStore';
-import { highlightedOfferId } from '../../composables/useRouter';
+import { highlightedOfferId, useRouter } from '../../composables/useRouter';
 import type { Offer, OffersFilterPayload } from '../../api/types';
 import { formatDateRange } from '../../utils/date';
 import { 
@@ -18,14 +18,16 @@ import {
   CheckCircle2,
   Clock,
   CalendarPlus,
-  Heart
+  Heart,
+  BellPlus
 } from 'lucide-vue-next';
 
 import { useFavoritesStore } from '../../composables/useFavoritesStore';
 import { useSearchStore } from '../../composables/useSearchStore';
 
 const { t, getCountryName, currentLang, pluralizeDays } = useI18n();
-const { showToast } = useAppStore();
+const { showToast, openRouteModal } = useAppStore();
+const { switchTab } = useRouter();
 const { globalSearchFilters, resetSearch } = useSearchStore();
 const { toggleFavorite, isFavorite } = useFavoritesStore();
 
@@ -244,6 +246,16 @@ function getCountryFlag(code?: string): string {
   if (!code || code.length !== 2) return '';
   return String.fromCodePoint(code.toUpperCase().charCodeAt(0) + 127397, code.toUpperCase().charCodeAt(1) + 127397) + ' ';
 }
+function trackRoute(offer: Offer) {
+  openRouteModal(null, {
+    source: offer.source,
+    originCountry: offer.originCountry,
+    destinationCountry: offer.destinationCountry,
+    originName: offer.origin,
+    destinationName: offer.destination,
+  });
+  switchTab('trackings');
+}
 </script>
 
 <template>
@@ -434,6 +446,9 @@ function getCountryFlag(code?: string): string {
           <span class="provider-tag">{{ offer.operator || offer.source }}</span>
           <div class="header-right">
             <span class="price-badge">{{ offer.price }} €</span>
+            <button class="icon-btn track-btn" @click.stop="trackRoute(offer)" title="Отслеживать маршрут">
+              <BellPlus :size="16" />
+            </button>
           </div>
         </div>
 
@@ -809,10 +824,10 @@ function getCountryFlag(code?: string): string {
 }
 
 .offer-card {
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .offer-header {
@@ -824,7 +839,22 @@ function getCountryFlag(code?: string): string {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+}
+
+.track-btn {
+  color: var(--text-subtle);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.track-btn:hover {
+  color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.1);
 }
 
 .status-col {

@@ -128,18 +128,18 @@ export function useAppStore() {
     }
   }
 
-  function openRouteModal(index: number | null = null) {
+  function openRouteModal(index: number | null = null, initialData?: any) {
     editingRouteIndex.value = index;
     if (index !== null && appState.value?.routes[index]) {
       editingRoute.value = JSON.parse(JSON.stringify(appState.value.routes[index]));
     } else {
       editingRoute.value = {
-        source: 'roadsurfer',
+        source: initialData?.source || 'roadsurfer',
         enabled: true,
-        originCountry: 'DE',
-        destinationCountry: 'DE',
-        originName: '',
-        destinationName: '',
+        originCountry: initialData?.originCountry || 'DE',
+        destinationCountry: initialData?.destinationCountry || 'DE',
+        originName: initialData?.originName || '',
+        destinationName: initialData?.destinationName || '',
         pickupDate: '',
         returnDate: '',
       };

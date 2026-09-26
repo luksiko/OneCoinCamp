@@ -659,7 +659,7 @@ input:checked + .toggle-slider:before {
 
 @media (min-width: 480px) {
   .grid-2 {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 

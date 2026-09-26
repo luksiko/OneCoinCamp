@@ -6,11 +6,11 @@ import { useAppStore } from '../../composables/useAppStore';
 import { useSearchStore } from '../../composables/useSearchStore';
 import { api } from '../../api/rpc';
 import type { Offer } from '../../api/types';
-import { Compass, Calendar, MapPin, Search } from 'lucide-vue-next';
+import { Compass, Calendar, MapPin, Search, BellPlus } from 'lucide-vue-next';
 
 const { t } = useI18n();
 const { switchTab } = useRouter();
-const { appState } = useAppStore();
+const { appState, openRouteModal } = useAppStore();
 const { applySearch } = useSearchStore();
 
 const originCountry = ref('');
@@ -51,6 +51,17 @@ function handleSearch() {
     vehicleType: vehicleType.value,
   });
   switchTab('offers');
+}
+
+function trackRoute(offer: Offer) {
+  openRouteModal(null, {
+    source: offer.source,
+    originCountry: offer.originCountry,
+    destinationCountry: offer.destinationCountry,
+    originName: offer.origin,
+    destinationName: offer.destination,
+  });
+  switchTab('trackings');
 }
 
 function getProviderName(src: string) {
@@ -131,7 +142,12 @@ function getProviderName(src: string) {
         <div v-for="offer in bestOffers" :key="offer.offerId" class="offer-card glass-card">
           <div class="offer-header">
             <span class="provider-tag">{{ getProviderName(offer.source) }}</span>
-            <span class="price-badge">{{ offer.price }} €</span>
+            <div class="header-actions">
+              <span class="price-badge">{{ offer.price }} €</span>
+              <button class="icon-btn track-btn" @click.stop="trackRoute(offer)" title="Отслеживать маршрут">
+                <BellPlus :size="16" />
+              </button>
+            </div>
           </div>
           <div class="route-display">
             <div class="route-node">
@@ -261,14 +277,16 @@ function getProviderName(src: string) {
 
 .search-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
+  width: 100%;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
 }
 
 .form-group label {
@@ -352,16 +370,37 @@ function getProviderName(src: string) {
 }
 
 .offer-card {
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .offer-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.track-btn {
+  color: var(--text-subtle);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.track-btn:hover {
+  color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.1);
 }
 
 .provider-tag {
@@ -413,7 +452,7 @@ function getProviderName(src: string) {
   font-size: 12px;
   color: var(--text-muted);
   background: var(--bg-surface);
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: var(--radius-sm);
 }
 
