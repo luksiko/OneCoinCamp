@@ -31,6 +31,14 @@ const totalOffers = ref(0);
 const currentPage = ref(1);
 const totalPages = ref(1);
 const isLoading = ref(false);
+
+const zoomedImage = ref<string | null>(null);
+const zoomedTitle = ref<string>('');
+
+function openImageModal(imageUrl: string, title?: string) {
+  zoomedImage.value = imageUrl;
+  zoomedTitle.value = title || '';
+}
 const isCheckingAvail = ref(false);
 
 const filterSource = ref('');
@@ -396,7 +404,15 @@ function stalenessLabel(staleness: Staleness): string {
             <td class="td-price">{{ offer.price }} €</td>
             <td class="td-muted td-vehicle">
               <div class="vehicle-cell">
-                <img v-if="offer.imageUrl" :src="offer.imageUrl" class="vehicle-thumb" :alt="offer.vehicle || 'Vehicle'" @error="offer.imageUrl = ''" />
+                <img 
+                  v-if="offer.imageUrl" 
+                  :src="offer.imageUrl" 
+                  class="vehicle-thumb" 
+                  :alt="offer.vehicle || 'Vehicle'" 
+                  @error="offer.imageUrl = ''" 
+                  @click="openImageModal(offer.imageUrl, offer.vehicle)"
+                  style="cursor: pointer;"
+                />
                 <span v-else>🚐</span>
                 <span class="vehicle-name">{{ offer.vehicle || '—' }}</span>
               </div>
@@ -457,18 +473,29 @@ function stalenessLabel(staleness: Staleness): string {
         </div>
 
         <div class="offer-meta">
-          <div class="meta-item">
-            <Clock :size="13" />
-            <span>{{ formatAddedAt(offer.timestamp || offer.lastSeenAt) }}</span>
+          <div class="meta-left">
+            <div class="meta-item">
+              <Clock :size="13" />
+              <span>{{ formatAddedAt(offer.timestamp || offer.lastSeenAt) }}</span>
+            </div>
+            <div class="meta-item">
+              <Calendar :size="13" />
+              <span>{{ formatDateRange(offer.pickupDate, offer.returnDate, currentLang) }} · {{ calculateDays(offer.pickupDate, offer.returnDate) }} {{ pluralizeDays(calculateDays(offer.pickupDate, offer.returnDate)) }}</span>
+            </div>
+            <div class="meta-item vehicle-info">
+              <span>🚐</span>
+              <span class="vehicle-name">{{ offer.vehicle || '—' }}</span>
+            </div>
           </div>
-          <div class="meta-item">
-            <Calendar :size="13" />
-            <span>{{ formatDateRange(offer.pickupDate, offer.returnDate, currentLang) }} · {{ calculateDays(offer.pickupDate, offer.returnDate) }} {{ pluralizeDays(calculateDays(offer.pickupDate, offer.returnDate)) }}</span>
-          </div>
-          <div class="meta-item vehicle-info">
-            <img v-if="offer.imageUrl" :src="offer.imageUrl" class="vehicle-thumb" :alt="offer.vehicle || 'Vehicle'" @error="offer.imageUrl = ''" />
-            <span v-else>🚐</span>
-            <span class="vehicle-name">{{ offer.vehicle || '—' }}</span>
+          <div class="meta-right">
+            <img 
+              v-if="offer.imageUrl" 
+              :src="offer.imageUrl" 
+              class="vehicle-image-large" 
+              :alt="offer.vehicle || 'Vehicle'" 
+              @error="offer.imageUrl = ''"
+              @click="openImageModal(offer.imageUrl, offer.vehicle)"
+            />
           </div>
         </div>
 
@@ -515,6 +542,15 @@ function stalenessLabel(staleness: Staleness): string {
         <span>{{ t('page_next') }}</span>
         <ChevronRight :size="14" />
       </button>
+    </div>
+
+    <!-- Image Modal -->
+    <div v-if="zoomedImage" class="image-modal-overlay" @click="zoomedImage = null">
+      <div class="image-modal-content" @click.stop>
+        <button class="image-modal-close" @click="zoomedImage = null">✕</button>
+        <img :src="zoomedImage" class="image-modal-img" />
+        <div v-if="zoomedTitle" class="image-modal-title">{{ zoomedTitle }}</div>
+      </div>
     </div>
   </div>
 </template>
@@ -937,13 +973,39 @@ function stalenessLabel(staleness: Staleness): string {
 
 .offer-meta {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   font-size: 12px;
   color: var(--text-muted);
   background: var(--bg-surface);
   padding: 8px 10px;
   border-radius: var(--radius-sm);
+}
+
+.meta-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.meta-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vehicle-image-large {
+  width: 90px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .meta-item {
@@ -1037,5 +1099,62 @@ function stalenessLabel(staleness: Staleness): string {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Image Modal */
+.image-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.image-modal-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  background: var(--bg-main);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.image-modal-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  line-height: 1;
+}
+
+.image-modal-img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+}
+
+.image-modal-title {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  word-wrap: break-word;
 }
 </style>
