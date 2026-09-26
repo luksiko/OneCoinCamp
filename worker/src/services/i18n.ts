@@ -3,7 +3,23 @@ export const DEFAULT_LANGUAGE = 'ru';
 
 export const I18N_STRINGS: Record<string, Record<string, string>> = {
   ru: {
-    menu_welcome: '🚐 <b>Camper Monitor — перегоны кемперов за 1€</b>\n\nАвтоматический мониторинг кемперов и автомобилей за 1 евро (Roadsurfer, Movacar, Indie Campers, Imoova).\n\nИспользуйте меню ниже для быстрого доступа ко всем функциям или откройте Mini App для интерактивной карты:',
+    menu_welcome: `🚐 <b>Camper Monitor — перегоны кемперов за 1€</b>
+
+Автоматический мониторинг кемперов и автомобилей за 1 евро (Roadsurfer, Movacar, Indie Campers, Imoova).
+
+Команды бота:
+/start — Главное меню
+/actual — Актуальные офферы за 1€
+/routes — Мои маршруты
+/check — Проверить сейчас
+/digest — Дайджест за 24 часа
+/subscribe — Премиум подписка
+/account — Мой аккаунт
+/silent — Тихие часы
+/status — Статус мониторинга
+/help — Справка и инструкции
+
+Откройте Mini App для управления и просмотра интерактивной карты:`,
     btn_miniapp: '🚐 Mini App ▫️',
     btn_actual: '🎯 Офферы 1€',
     btn_routes: '🚗 Мои маршруты',
@@ -69,7 +85,23 @@ export const I18N_STRINGS: Record<string, Record<string, string>> = {
     promo_err_used: '⚠️ Вы уже активировали этот промокод ранее.',
   },
   en: {
-    menu_welcome: '🚐 <b>Camper Monitor — 1€ campervan relocations</b>\n\nAutomated monitoring of 1€ camper and car relocations (Roadsurfer, Movacar, Indie Campers, Imoova).\n\nUse the menu below to access features or open the Mini App for an interactive map:',
+    menu_welcome: `🚐 <b>Camper Monitor — 1€ campervan relocations</b>
+
+Automated monitoring of 1€ camper and car relocations (Roadsurfer, Movacar, Indie Campers, Imoova).
+
+Bot commands:
+/start — Main menu
+/actual — Active 1€ offers
+/routes — My tracked routes
+/check — Check offers now
+/digest — 24-hour offers digest
+/subscribe — Premium subscription
+/account — My account & status
+/silent — Silent hours settings
+/status — Monitoring system status
+/help — Help & instructions
+
+Open the Mini App to manage settings and view the interactive map:`,
     btn_miniapp: '🚐 Mini App ▫️',
     btn_actual: '🎯 1€ Offers',
     btn_routes: '🚗 My Routes',
@@ -135,7 +167,23 @@ export const I18N_STRINGS: Record<string, Record<string, string>> = {
     promo_err_used: '⚠️ You have already redeemed this promo code.',
   },
   de: {
-    menu_welcome: '🚐 <b>Camper Monitor — 1€ Camper-Überführungen</b>\n\nAutomatische Überwachung von Wohnmobilen und Autos für 1 Euro (Roadsurfer, Movacar, Indie Campers, Imoova).\n\nNutzen Sie das Menü unten oder öffnen Sie die Mini App für eine interaktive Karte:',
+    menu_welcome: `🚐 <b>Camper Monitor — 1€ Camper-Überführungen</b>
+
+Automatische Überwachung von Wohnmobilen und Autos für 1 Euro (Roadsurfer, Movacar, Indie Campers, Imoova).
+
+Bot-Befehle:
+/start — Hauptmenü
+/actual — Aktuelle 1€-Angebote
+/routes — Meine Routen
+/check — Jetzt prüfen
+/digest — 24-Stunden-Übersicht
+/subscribe — Premium-Abonnement
+/account — Mein Konto
+/silent — Ruhezeiten
+/status — Monitor-Status
+/help — Hilfe und Anleitung
+
+Öffnen Sie die Mini App, um Einstellungen zu verwalten und die interaktive Karte anzuzeigen:`,
     btn_miniapp: '🚐 Mini App ▫️',
     btn_actual: '🎯 1€ Angebote',
     btn_routes: '🚗 Meine Routen',
@@ -201,7 +249,23 @@ export const I18N_STRINGS: Record<string, Record<string, string>> = {
     promo_err_used: '⚠️ Sie haben diesen Gutschein bereits eingelöst.',
   },
   it: {
-    menu_welcome: '🚐 <b>Camper Monitor — Spostamenti camper a 1€</b>\n\nMonitoraggio automatico di camper e auto a 1 euro (Roadsurfer, Movacar, Indie Campers, Imoova).\n\nUsa il menu qui sotto o apri la Mini App per visualizzare la mappa interattiva:',
+    menu_welcome: `🚐 <b>Camper Monitor — Spostamenti camper a 1€</b>
+
+Monitoraggio automatico di camper e auto a 1 euro (Roadsurfer, Movacar, Indie Campers, Imoova).
+
+Comandi del bot:
+/start — Menu principale
+/actual — Offerte attive a 1€
+/routes — I miei percorsi
+/check — Controlla ora
+/digest — Riepilogo 24 ore
+/subscribe — Abbonamento Premium
+/account — Il mio account
+/silent — Ore silenziose
+/status — Stato del monitor
+/help — Aiuto e istruzioni
+
+Apri la Mini App per gestire le impostazioni e visualizzare la mappa interattiva:`,
     btn_miniapp: '🚐 Mini App ▫️',
     btn_actual: '🎯 Offerte 1€',
     btn_routes: '🚗 I miei percorsi',
