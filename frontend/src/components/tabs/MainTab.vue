@@ -213,9 +213,9 @@ function getProviderName(src: string) {
   text-align: left;
   padding: 32px 20px 48px;
   margin: -16px -16px 0 -16px;
-  background-image: linear-gradient(to bottom, rgba(11, 15, 23, 0.2) 0%, rgba(11, 15, 23, 1) 100%), url('/hero-bg.jpg');
+  background-image: linear-gradient(to bottom, rgba(11, 15, 23, 0) 60%, rgba(11, 15, 23, 1) 100%), url('/hero-bg.jpg');
   background-size: cover;
-  background-position: center;
+  background-position: right center;
   position: relative;
 }
 
