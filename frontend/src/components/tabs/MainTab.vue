@@ -72,20 +72,22 @@ function getProviderName(src: string) {
     </div>
 
     <div class="search-card glass-card">
-      <div class="form-group">
-        <label><MapPin :size="14" /> Откуда</label>
-        <select v-model="originCountry" class="select select-lg">
-          <option value="">Любая страна</option>
-          <option v-for="[code, name] in countries" :key="code" :value="code">{{ name }}</option>
-        </select>
-      </div>
+      <div class="search-row">
+        <div class="form-group">
+          <label><MapPin :size="14" /> Откуда</label>
+          <select v-model="originCountry" class="select select-lg">
+            <option value="">Любая страна</option>
+            <option v-for="[code, name] in countries" :key="code" :value="code">{{ name }}</option>
+          </select>
+        </div>
 
-      <div class="form-group">
-        <label><MapPin :size="14" /> Куда</label>
-        <select v-model="destinationCountry" class="select select-lg">
-          <option value="">Любая страна</option>
-          <option v-for="[code, name] in countries" :key="code" :value="code">{{ name }}</option>
-        </select>
+        <div class="form-group">
+          <label><MapPin :size="14" /> Куда</label>
+          <select v-model="destinationCountry" class="select select-lg">
+            <option value="">Любая страна</option>
+            <option v-for="[code, name] in countries" :key="code" :value="code">{{ name }}</option>
+          </select>
+        </div>
       </div>
 
       <div class="form-group">
@@ -182,6 +184,12 @@ function getProviderName(src: string) {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .form-group {
