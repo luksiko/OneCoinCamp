@@ -519,6 +519,7 @@ export class DbClient {
     return (results || []).map((r) => ({
       source: r.source,
       offer_id: r.offer_id,
+      fingerprint: r.fingerprint,
       vehicle_id: r.vehicle_id,
       vehicle: r.vehicle,
       origin: r.origin,
@@ -547,6 +548,7 @@ export class DbClient {
     return (results || []).map((r) => ({
       source: r.source,
       offer_id: r.offer_id,
+      fingerprint: r.fingerprint,
       vehicle_id: r.vehicle_id,
       vehicle: r.vehicle,
       origin: r.origin,
