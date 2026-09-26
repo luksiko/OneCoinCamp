@@ -164,7 +164,7 @@ function getCalendarUrl(offer: Offer): string {
   const details = encodeURIComponent(
     `Provider: ${offer.operator || offer.source}\n` +
     `Vehicle: ${offer.vehicle || 'Any'}\n` +
-    `Price: ${offer.price} ${offer.currency || '€'}\n\n` +
+    `Price: ${offer.price} €\n\n` +
     `Book here: ${offer.bookingUrl}`
   );
   
@@ -388,7 +388,7 @@ function stalenessLabel(staleness: Staleness): string {
             </td>
             <td class="td-muted">{{ formatDateRange(offer.pickupDate, offer.returnDate, currentLang) }}</td>
             <td class="td-muted">{{ calculateDays(offer.pickupDate, offer.returnDate) }}d</td>
-            <td class="td-price">{{ offer.price }} {{ offer.currency || '€' }}</td>
+            <td class="td-price">{{ offer.price }} €</td>
             <td class="td-muted td-vehicle">{{ offer.vehicle || '—' }}</td>
             <td>
               <div class="table-actions">
@@ -429,7 +429,7 @@ function stalenessLabel(staleness: Staleness): string {
             <span class="staleness-badge" :class="`staleness-badge--${getOfferStaleness(offer)}`">
               {{ stalenessLabel(getOfferStaleness(offer)) }}
             </span>
-            <span class="price-badge">{{ offer.price }} {{ offer.currency || '€' }}</span>
+            <span class="price-badge">{{ offer.price }} €</span>
           </div>
         </div>
 

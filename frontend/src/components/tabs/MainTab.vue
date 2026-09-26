@@ -128,7 +128,7 @@ function getProviderName(src: string) {
         <div v-for="offer in bestOffers" :key="offer.offerId" class="offer-card glass-card">
           <div class="offer-header">
             <span class="provider-tag">{{ getProviderName(offer.source) }}</span>
-            <span class="price-badge">{{ offer.price }} {{ offer.currency || '€' }}</span>
+            <span class="price-badge">{{ offer.price }} €</span>
           </div>
           <div class="route-display">
             <div class="route-node">
