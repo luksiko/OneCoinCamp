@@ -131,7 +131,7 @@ function onSubmit() {
           </button>
           <button type="submit" class="btn btn-primary" :disabled="activeProviders.length === 0">
             <Check :size="16" />
-            <span>{{ t('save') || 'Save' }}</span>
+            <span>{{ editingRoute ? (t('done') || 'Готово') : (t('add') || 'Добавить') }}</span>
           </button>
         </div>
       </form>

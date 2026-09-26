@@ -539,6 +539,13 @@ async function getOffersForUi(ctx: RpcContext, userId: string, filter: any = {})
       if (dateA !== dateB) return dateA.localeCompare(dateB);
       return (b.timestamp || '').localeCompare(a.timestamp || '');
     });
+  } else if (criteria.sortBy === 'price_asc') {
+    matched.sort((a, b) => {
+      const pa = Number(a.price) || 0;
+      const pb = Number(b.price) || 0;
+      if (pa !== pb) return pa - pb;
+      return (b.timestamp || '').localeCompare(a.timestamp || '');
+    });
   } else if (criteria.sentStatus === 'sent') {
     matched.sort((a, b) => (b.telegramSentAt || '').localeCompare(a.telegramSentAt || ''));
   } else {

@@ -78,6 +78,7 @@ export interface AppStateData {
 }
 
 export interface Offer {
+  fingerprint?: string;
   offerId: string;
   source: string;
   operator: string;

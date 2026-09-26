@@ -201,13 +201,6 @@ function handleSaveMain() {
         </div>
       </div>
 
-      <!-- Bottom Save Action Bar for Main Tab -->
-      <div v-if="routes.length > 0" class="main-save-row">
-        <button class="btn btn-primary" :disabled="isSaving" @click="handleSaveMain">
-          <Save :size="15" />
-          <span>{{ isSaving ? t('saving') : t('save_main') }}</span>
-        </button>
-      </div>
     </div>
   </div>
 </template>

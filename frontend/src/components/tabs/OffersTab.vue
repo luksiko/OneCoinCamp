@@ -82,7 +82,7 @@ const sortedOffers = computed(() => {
   return [...offers.value].sort((a, b) => {
     let av: any, bv: any;
     if (sortCol.value === 'route') av = `${a.origin}→${a.destination}`, bv = `${b.origin}→${b.destination}`;
-    else if (sortCol.value === 'price') av = a.price, bv = b.price;
+    else if (sortCol.value === 'price') av = Number(a.price) || 0, bv = Number(b.price) || 0;
     else if (sortCol.value === 'pickup') av = a.pickupDate, bv = b.pickupDate;
     else if (sortCol.value === 'days') av = calculateDays(a.pickupDate, a.returnDate), bv = calculateDays(b.pickupDate, b.returnDate);
     else if (sortCol.value === 'staleness') av = getOfferStaleness(a), bv = getOfferStaleness(b);
@@ -275,6 +275,7 @@ function stalenessLabel(staleness: Staleness): string {
           <select v-model="filterSortBy" class="select select-sm">
             <option value="added_desc">{{ t('offers_sort_added') }}</option>
             <option value="trip_date">{{ t('offers_sort_trip') }}</option>
+            <option value="price_asc">{{ t('offers_sort_price') }}</option>
           </select>
         </div>
       </div>
@@ -365,7 +366,7 @@ function stalenessLabel(staleness: Staleness): string {
         <tbody>
           <tr
             v-for="offer in sortedOffers"
-            :key="offer.offerId"
+            :key="offer.fingerprint || offer.offerId"
             :data-offer-id="offer.offerId"
             :class="`tr-staleness-${getOfferStaleness(offer)}`"
           >
@@ -417,7 +418,7 @@ function stalenessLabel(staleness: Staleness): string {
     <div v-else class="offers-grid">
       <div
         v-for="offer in offers"
-        :key="offer.offerId"
+        :key="offer.fingerprint || offer.offerId"
         class="offer-card glass-card"
         :class="`staleness-${getOfferStaleness(offer)}`"
         :data-offer-id="offer.offerId"

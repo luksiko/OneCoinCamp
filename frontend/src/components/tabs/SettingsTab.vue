@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, nextTick } from 'vue';
 import { useAppStore } from '../../composables/useAppStore';
 import { useI18n, type SupportedLang } from '../../composables/useI18n';
 import { api } from '../../api/rpc';
@@ -45,9 +45,12 @@ const formSettings = ref({
 
 const isReconnectingWebhook = ref(false);
 
+let isUpdatingFromState = false;
+
 watch(
   () => [appState.value?.settings, appState.value?.filters],
-  ([settings, filters]: any[]) => {
+  async ([settings, filters]: any[]) => {
+    isUpdatingFromState = true;
     if (settings) {
       formSettings.value = {
         poll_interval_minutes: Number(settings.poll_interval_minutes) || 5,
@@ -72,8 +75,24 @@ watch(
         vehicle_type: filters.only_campers === false || filters.vehicle_type === 'all' ? 'all' : 'camper',
       };
     }
+    // Allow reactivity to update before clearing flag
+    await nextTick();
+    isUpdatingFromState = false;
   },
-  { immediate: true }
+  { immediate: true, deep: true }
+);
+
+let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+watch(
+  () => [formSettings.value, formFilters.value],
+  () => {
+    if (isUpdatingFromState) return;
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      onSave();
+    }, 500);
+  },
+  { deep: true }
 );
 
 const intervals = [1, 5, 10, 15, 30, 60];
@@ -399,14 +418,6 @@ function onSave() {
       </div>
     </div>
 
-    <!-- Sticky Save Button -->
-    <div class="save-bar">
-      <button class="btn btn-primary save-btn" :disabled="isSaving" @click="onSave">
-        <Save :size="16" />
-        <span>{{ isSaving ? t('saving') : t('save_settings') }}</span>
-      </button>
-    </div>
-
     <!-- Version Footer -->
     <div class="version-footer">
       <span>{{ t('version_label') }}</span>
@@ -671,24 +682,7 @@ input:checked + .toggle-slider:before {
   color: var(--text-main);
 }
 
-.save-bar {
-  position: sticky;
-  bottom: 70px;
-  z-index: 50;
-  display: flex;
-  justify-content: flex-end;
-}
 
-@media (min-width: 768px) {
-  .save-bar {
-    bottom: 20px;
-  }
-}
-
-.save-btn {
-  box-shadow: var(--shadow-lg);
-  padding: 12px 28px;
-}
 
 .version-footer {
   text-align: center;

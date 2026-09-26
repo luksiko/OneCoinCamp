@@ -5,7 +5,8 @@ export const countriesData = {
         LU: 'Luxemburg', PL: 'Polen', CZ: 'Tschechien', HR: 'Kroatien', SI: 'Slowenien',
         HU: 'Ungarn', GB: 'Vereinigtes Königreich', UK: 'Vereinigtes Königreich',
         IE: 'Irland', SE: 'Schweden', NO: 'Norwegen', IS: 'Island', US: 'Vereinigte Staaten',
-        CA: 'Kanada', AU: 'Australien', NZ: 'Neuseeland', JP: 'Japan'
+        CA: 'Kanada', AU: 'Australien', NZ: 'Neuseeland', JP: 'Japan',
+        ALL: 'Alle Länder Europas, alle Städte'
       },
       it: {
         DE: 'Germania', AT: 'Austria', NL: 'Paesi Bassi', BE: 'Belgio', FR: 'Francia',
@@ -13,7 +14,8 @@ export const countriesData = {
         LU: 'Lussemburgo', PL: 'Polonia', CZ: 'Repubblica Ceca', HR: 'Croazia', SI: 'Slovenia',
         HU: 'Ungheria', GB: 'Regno Unito', UK: 'Regno Unito',
         IE: 'Irlanda', SE: 'Svezia', NO: 'Norvegia', IS: 'Islanda', US: 'Stati Uniti',
-        CA: 'Canada', AU: 'Australia', NZ: 'Nuova Zelanda', JP: 'Giappone'
+        CA: 'Canada', AU: 'Australia', NZ: 'Nuova Zelanda', JP: 'Giappone',
+        ALL: 'Tutti i paesi europei, tutte le città'
       },
       en: {
         DE: 'Germany', AT: 'Austria', NL: 'Netherlands', BE: 'Belgium', FR: 'France',
@@ -21,7 +23,8 @@ export const countriesData = {
         LU: 'Luxembourg', PL: 'Poland', CZ: 'Czech Republic', HR: 'Croatia', SI: 'Slovenia',
         HU: 'Hungary', GB: 'United Kingdom', UK: 'United Kingdom',
         IE: 'Ireland', SE: 'Sweden', NO: 'Norway', IS: 'Iceland', US: 'United States',
-        CA: 'Canada', AU: 'Australia', NZ: 'New Zealand', JP: 'Japan'
+        CA: 'Canada', AU: 'Australia', NZ: 'New Zealand', JP: 'Japan',
+        ALL: 'All countries of Europe, all cities'
       },
       uk: {
         DE: 'Німеччина', AT: 'Австрія', NL: 'Нідерланди', BE: 'Бельгія', FR: 'Франція',
@@ -29,7 +32,8 @@ export const countriesData = {
         LU: 'Люксембург', PL: 'Польща', CZ: 'Чехія', HR: 'Хорватія', SI: 'Словенія',
         HU: 'Угорщина', GB: 'Велика Британія', UK: 'Велика Британія',
         IE: 'Ірландія', SE: 'Швеція', NO: 'Норвегія', IS: 'Ісландія', US: 'США',
-        CA: 'Канада', AU: 'Австралія', NZ: 'Нова Зеландія', JP: 'Японія'
+        CA: 'Канада', AU: 'Австралия', NZ: 'Нова Зеландія', JP: 'Японія',
+        ALL: 'Всі країни Європи, всі міста'
       },
       ru: {
         DE: 'Германия', AT: 'Австрия', NL: 'Нидерланды', BE: 'Бельгия', FR: 'Франция',
@@ -37,6 +41,7 @@ export const countriesData = {
         LU: 'Люксембург', PL: 'Польша', CZ: 'Чехия', HR: 'Хорватия', SI: 'Словения',
         HU: 'Венгрия', GB: 'Великобритания', UK: 'Великобритания',
         IE: 'Ирландия', SE: 'Швеция', NO: 'Норвегия', IS: 'Исландия', US: 'США',
-        CA: 'Канада', AU: 'Австралия', NZ: 'Новая Зеландия', JP: 'Япония'
+        CA: 'Канада', AU: 'Австралия', NZ: 'Новая Зеландия', JP: 'Япония',
+        ALL: 'Все страны Европы, все города'
       }
     };
