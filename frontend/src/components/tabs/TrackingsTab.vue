@@ -64,21 +64,7 @@ function handleSaveMain() {
   saveAppData();
 }
 
-const routesGrouped = computed(() => {
-  const groups: Record<string, { label: string; items: { route: any; index: number }[] }> = {};
-  routes.value.forEach((r, idx) => {
-    const orig = getCountryName(r.originCountry);
-    const dest = r.destinationCountry ? getCountryName(r.destinationCountry) : 'Anywhere';
-    const key = `${r.originCountry}-${r.destinationCountry || 'ALL'}`;
-    const label = `${orig} → ${dest}`;
-    
-    if (!groups[key]) {
-      groups[key] = { label, items: [] };
-    }
-    groups[key].items.push({ route: r, index: idx });
-  });
-  return Object.values(groups);
-});
+
 </script>
 
 <template>
@@ -166,55 +152,53 @@ const routesGrouped = computed(() => {
         </button>
       </div>
 
-      <!-- Routes Workspaces -->
-      <div v-else class="routes-workspaces">
-        <div v-for="group in routesGrouped" :key="group.label" class="route-workspace">
-          <div class="workspace-header">
-            <span class="workspace-title">{{ group.label }}</span>
-            <span class="workspace-badge">{{ group.items.length }}</span>
-          </div>
-          
-          <div class="routes-grid">
-            <div 
-              v-for="item in group.items" 
-              :key="item.index" 
-              class="route-card glass-card"
-              :class="{ disabled: !item.route.enabled }"
-            >
-              <div class="route-top">
-                <span class="provider-pill">{{ getProviderName(item.route.source) }}</span>
-                <label class="toggle-switch">
-                  <input type="checkbox" :checked="item.route.enabled" @change="toggleRoute(item.index)" />
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-
-              <div class="route-path">
-                <div class="point point-origin">
-                  <span class="point-label">{{ t('origin_countries') }}</span>
-                  <span class="point-val">{{ item.route.originName || getCountryName(item.route.originCountry) }}</span>
-                </div>
-                <div class="route-arrow">➔</div>
-                <div class="point point-dest">
-                  <span class="point-label">{{ t('dest_countries') }}</span>
-                  <span class="point-val">{{ item.route.destinationName || (item.route.destinationCountry ? getCountryName(item.route.destinationCountry) : 'Anywhere') }}</span>
-                </div>
-              </div>
-
-              <div v-if="item.route.pickupDate || item.route.returnDate" class="route-dates">
-                <Calendar :size="12" />
-                <span>{{ formatDateRange(item.route.pickupDate, item.route.returnDate, currentLang) }}</span>
-              </div>
-
-              <div class="route-actions">
-                <button class="action-btn" :title="t('edit_route')" @click="openRouteModal(item.index)">
-                  <Edit3 :size="14" />
-                </button>
-                <button class="action-btn delete-btn" :title="t('delete_btn')" @click="deleteRoute(item.index)">
-                  <Trash2 :size="14" />
-                </button>
-              </div>
+      <!-- Routes List -->
+      <div v-else class="routes-grid">
+        <div 
+          v-for="(route, index) in routes" 
+          :key="index" 
+          class="offer-card glass-card"
+          :class="{ disabled: !route.enabled }"
+        >
+          <div class="offer-header">
+            <span class="provider-tag">{{ getProviderName(route.source) }}</span>
+            <div class="header-right">
+              <label class="toggle-switch">
+                <input type="checkbox" :checked="route.enabled" @change="toggleRoute(index)" />
+                <span class="toggle-slider"></span>
+              </label>
             </div>
+          </div>
+
+          <div class="route-display">
+            <div class="route-node">
+              <span class="node-city">{{ route.originName || getCountryName(route.originCountry) }}</span>
+              <span class="node-country">{{ getCountryName(route.originCountry) }}</span>
+            </div>
+            <div class="route-arrow">➔</div>
+            <div class="route-node">
+              <span class="node-city">{{ route.destinationName || (route.destinationCountry ? getCountryName(route.destinationCountry) : 'Anywhere') }}</span>
+              <span class="node-country" v-if="route.destinationCountry">{{ getCountryName(route.destinationCountry) }}</span>
+            </div>
+          </div>
+
+          <div class="offer-meta">
+            <div class="meta-item">
+              <Calendar :size="13" />
+              <span v-if="route.pickupDate || route.returnDate">
+                {{ formatDateRange(route.pickupDate || '', route.returnDate || '', currentLang) }}
+              </span>
+              <span v-else>{{ t('any_dates') || 'Любые даты' }}</span>
+            </div>
+          </div>
+
+          <div class="route-actions">
+            <button class="action-btn" :title="t('edit_route')" @click="openRouteModal(index)">
+              <Edit3 :size="14" />
+            </button>
+            <button class="action-btn delete-btn" :title="t('delete_btn')" @click="deleteRoute(index)">
+              <Trash2 :size="14" />
+            </button>
           </div>
         </div>
       </div>
@@ -428,36 +412,6 @@ const routesGrouped = computed(() => {
   font-weight: 700;
 }
 
-.routes-workspaces {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.workspace-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.workspace-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.workspace-badge {
-  background: var(--bg-surface-elevated);
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
 .routes-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -470,7 +424,7 @@ const routesGrouped = computed(() => {
   }
 }
 
-.route-card {
+.offer-card {
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -478,72 +432,84 @@ const routesGrouped = computed(() => {
   transition: opacity 0.2s;
 }
 
-.route-card.disabled {
+.offer-card.disabled {
   opacity: 0.6;
 }
 
-.route-top {
+.offer-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.provider-pill {
+.provider-tag {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--accent-primary);
   background: rgba(59, 130, 246, 0.12);
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: var(--radius-sm);
 }
 
-.route-path {
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.route-display {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
-.point {
+.route-node {
   display: flex;
   flex-direction: column;
   flex: 1;
 }
 
-.point-dest {
+.route-node:last-child {
   text-align: right;
 }
 
-.point-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  color: var(--text-subtle);
-  font-weight: 600;
+.node-city {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-main);
 }
 
-.point-val {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-main);
+.node-country {
+  font-size: 12px;
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
 .route-arrow {
   color: var(--text-subtle);
-  font-size: 14px;
+  font-size: 16px;
+  font-weight: 700;
 }
 
-.route-dates {
+.offer-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-top: 4px;
+}
+
+.meta-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 12px;
   color: var(--text-muted);
-  background: var(--bg-surface);
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
 }
 
 .route-actions {
