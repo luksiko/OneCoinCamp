@@ -211,9 +211,12 @@ function getProviderName(src: string) {
 
 .hero-section {
   text-align: left;
-  padding: 32px 20px 48px;
-  margin: -16px -16px 0 -16px;
-  background-image: linear-gradient(to bottom, rgba(11, 15, 23, 0) 60%, rgba(11, 15, 23, 1) 100%), url('/hero-bg.jpg');
+  padding: 100px 20px 48px;
+  margin: -80px -16px 0 -16px;
+  background-image: 
+    linear-gradient(to bottom, rgba(11, 15, 23, 0) 70%, rgba(11, 15, 23, 1) 100%),
+    linear-gradient(to right, rgba(11, 15, 23, 0.85) 0%, rgba(11, 15, 23, 0.3) 50%, rgba(11, 15, 23, 0) 80%),
+    url('/hero-bg.jpg');
   background-size: cover;
   background-position: right center;
   position: relative;
@@ -221,8 +224,8 @@ function getProviderName(src: string) {
 
 @media (min-width: 768px) {
   .hero-section {
-    margin: -28px -24px 0 -24px;
-    padding: 48px 40px 64px;
+    margin: -100px -24px 0 -24px;
+    padding: 120px 40px 64px;
     border-radius: 0 0 24px 24px;
   }
 }
