@@ -107,6 +107,8 @@ export interface OffersFilterPayload {
   page?: number;
   limit?: number;
   sortBy?: string;
+  sortCol?: string;
+  sortAsc?: boolean;
   dateFrom?: string;
   dateTo?: string;
   isMatched?: boolean;

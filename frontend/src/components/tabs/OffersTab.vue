@@ -75,22 +75,12 @@ function toggleSort(col: string) {
     sortCol.value = col;
     sortAsc.value = true;
   }
+  currentPage.value = 1;
+  loadOffers();
 }
 
 const sortedOffers = computed(() => {
-  if (!sortCol.value) return offers.value;
-  return [...offers.value].sort((a, b) => {
-    let av: any, bv: any;
-    if (sortCol.value === 'route') av = `${a.origin}→${a.destination}`, bv = `${b.origin}→${b.destination}`;
-    else if (sortCol.value === 'price') av = Number(a.price) || 0, bv = Number(b.price) || 0;
-    else if (sortCol.value === 'pickup') av = a.pickupDate, bv = b.pickupDate;
-    else if (sortCol.value === 'days') av = calculateDays(a.pickupDate, a.returnDate), bv = calculateDays(b.pickupDate, b.returnDate);
-    else if (sortCol.value === 'staleness') av = getOfferStaleness(a), bv = getOfferStaleness(b);
-    else av = (a as any)[sortCol.value], bv = (b as any)[sortCol.value];
-    if (av === bv) return 0;
-    const cmp = av < bv ? -1 : 1;
-    return sortAsc.value ? cmp : -cmp;
-  });
+  return offers.value; // Server now handles all sorting
 });
 
 async function loadOffers() {
@@ -100,6 +90,8 @@ async function loadOffers() {
       source: filterSource.value || undefined,
       vehicleType: filterVehicleType.value || undefined,
       sortBy: filterSortBy.value,
+      sortCol: sortCol.value || undefined,
+      sortAsc: sortAsc.value,
       isMatched: filterMatched.value || undefined,
       dateFrom: dateFrom.value || undefined,
       dateTo: dateTo.value || undefined,
@@ -207,7 +199,13 @@ function clearDates() {
   loadOffers();
 }
 
-watch([filterSource, filterVehicleType, filterSortBy, filterMatched, filterOriginCountry, filterDestinationCountry], () => {
+watch([filterSource, filterVehicleType, filterMatched, filterOriginCountry, filterDestinationCountry], () => {
+  currentPage.value = 1;
+  loadOffers();
+});
+
+watch(filterSortBy, () => {
+  sortCol.value = ''; // Reset table header sorting when dropdown changes
   currentPage.value = 1;
   loadOffers();
 });

@@ -532,7 +532,57 @@ async function getOffersForUi(ctx: RpcContext, userId: string, filter: any = {})
     return true;
   });
 
-  if (criteria.sortBy === 'trip_date') {
+  if (criteria.sortCol) {
+    const STALENESS_THRESHOLDS: Record<string, { hurry: number; gone: number }> = {
+      roadsurfer:   { hurry: 5,  gone: 15 },
+      movacar:      { hurry: 10, gone: 30 },
+      indiecampers: { hurry: 15, gone: 45 },
+      imoova:       { hurry: 30, gone: 60 },
+    };
+    const getStalenessVal = (offer: any) => {
+      const ts = offer.timestamp || offer.lastSeenAt;
+      if (!ts) return 0;
+      const ageMins = (Date.now() - new Date(ts).getTime()) / 60000;
+      const key = (offer.source || '').toLowerCase();
+      const th = STALENESS_THRESHOLDS[key] || { hurry: 15, gone: 45 };
+      if (ageMins >= th.gone) return 2;
+      if (ageMins >= th.hurry) return 1;
+      return 0;
+    };
+    const getDays = (p: string, r: string) => {
+      if (!p || !r) return 1;
+      return Math.max(1, Math.round((new Date(r).getTime() - new Date(p).getTime()) / 86400000));
+    };
+
+    matched.sort((a, b) => {
+      let av: any, bv: any;
+      if (criteria.sortCol === 'route') {
+        av = `${a.origin}→${a.destination}`;
+        bv = `${b.origin}→${b.destination}`;
+      } else if (criteria.sortCol === 'price') {
+        av = Number(a.price) || 0;
+        bv = Number(b.price) || 0;
+      } else if (criteria.sortCol === 'pickup') {
+        av = a.pickupDate || '9999-99-99';
+        bv = b.pickupDate || '9999-99-99';
+      } else if (criteria.sortCol === 'days') {
+        av = getDays(a.pickupDate, a.returnDate);
+        bv = getDays(b.pickupDate, b.returnDate);
+      } else if (criteria.sortCol === 'staleness') {
+        av = getStalenessVal(a);
+        bv = getStalenessVal(b);
+      } else {
+        av = (a as any)[criteria.sortCol];
+        bv = (b as any)[criteria.sortCol];
+      }
+
+      if (av !== bv) {
+        const cmp = av < bv ? -1 : 1;
+        return criteria.sortAsc ? cmp : -cmp;
+      }
+      return (b.timestamp || '').localeCompare(a.timestamp || '');
+    });
+  } else if (criteria.sortBy === 'trip_date') {
     matched.sort((a, b) => {
       const dateA = a.pickupDate || '9999-99-99';
       const dateB = b.pickupDate || '9999-99-99';
