@@ -54,22 +54,10 @@ export function useI18n() {
     return langCountries[code.toUpperCase()] || code;
   }
 
-  function pluralizeDays(days: number): string {
+function pluralizeDays(days: number): string {
     const lang = currentLang.value;
-    if (lang === 'ru') {
-      const mod10 = days % 10;
-      const mod100 = days % 100;
-      if (mod10 === 1 && mod100 !== 11) return 'день';
-      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'дня';
-      return 'дней';
-    }
-    if (lang === 'uk') {
-      const mod10 = days % 10;
-      const mod100 = days % 100;
-      if (mod10 === 1 && mod100 !== 11) return 'день';
-      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'дні';
-      return 'днів';
-    }
+    if (lang === 'ru') return 'дн.';
+    if (lang === 'uk') return 'дн.';
     if (lang === 'de') return days === 1 ? 'Tag' : 'Tage';
     if (lang === 'it') return days === 1 ? 'giorno' : 'giorni';
     return days === 1 ? 'day' : 'days';

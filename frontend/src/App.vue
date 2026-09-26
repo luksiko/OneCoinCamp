@@ -10,6 +10,7 @@ import BrowserLoginModal from './components/layout/BrowserLoginModal.vue';
 
 import MainTab from './components/tabs/MainTab.vue';
 import OffersTab from './components/tabs/OffersTab.vue';
+import FavoritesTab from './components/tabs/FavoritesTab.vue';
 import TrackingsTab from './components/tabs/TrackingsTab.vue';
 import SettingsTab from './components/tabs/SettingsTab.vue';
 import AdminTab from './components/tabs/AdminTab.vue';
@@ -51,6 +52,8 @@ watch(isAuthenticated, async (authed) => {
             :is="
               currentTab === 'offers'
                 ? OffersTab
+                : currentTab === 'favorites'
+                ? FavoritesTab
                 : currentTab === 'trackings'
                 ? TrackingsTab
                 : currentTab === 'settings'

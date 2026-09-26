@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { useRouter, type AppTab } from '../../composables/useRouter';
 import { useI18n } from '../../composables/useI18n';
 import { useAppStore } from '../../composables/useAppStore';
-import { Home, Compass, Activity, Settings, User, ShieldCheck } from 'lucide-vue-next';
+import { Home, Compass, Heart, Activity, Settings, User, ShieldCheck } from 'lucide-vue-next';
 
 const { currentTab, switchTab } = useRouter();
 const { t } = useI18n();
@@ -13,6 +13,7 @@ const tabs = computed<Array<{ id: AppTab; label: string; icon: any }>>(() => {
   const base = [
     { id: 'main' as AppTab, label: t('tab_main'), icon: Home },
     { id: 'offers' as AppTab, label: t('tab_offers'), icon: Compass },
+    { id: 'favorites' as AppTab, label: t('tab_favorites'), icon: Heart },
     { id: 'trackings' as AppTab, label: t('tab_trackings'), icon: Activity },
     { id: 'settings' as AppTab, label: t('tab_settings'), icon: User },
   ];

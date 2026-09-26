@@ -61,37 +61,7 @@ function handleSaveMain() {
 
 <template>
   <div class="trackings-tab">
-    <!-- Scanner Status Card -->
-    <div class="glass-card status-card">
-      <div class="status-header">
-        <div class="status-meta">
-          <span class="status-indicator-dot"></span>
-          <span class="status-title">{{ t('status_live_monitor') }}</span>
-        </div>
-        <div class="status-actions">
-          <button class="btn btn-secondary btn-sm" @click="triggerManualCheck">
-            <Play :size="13" />
-            <span>{{ t('check_btn') }}</span>
-          </button>
-        </div>
-      </div>
-      <div class="status-details">
-        <div class="status-item">
-          <div class="status-item-label">{{ t('status_last_run') }}</div>
-          <div class="status-item-value">
-            {{ appState?.status?.lastRun?.finished_at ? new Date(appState.status.lastRun.finished_at).toLocaleTimeString() : (appState?.status?.lastRun?.timestamp ? new Date(appState.status.lastRun.timestamp).toLocaleTimeString() : '—') }}
-          </div>
-        </div>
-        <div class="status-item">
-          <div class="status-item-label">{{ t('status_interval') }}</div>
-          <div class="status-item-value">{{ appState?.settings?.poll_interval_minutes || 5 }} {{ t('minutes') || 'мин' }}</div>
-        </div>
-        <div class="status-item">
-          <div class="status-item-label">{{ t('routes_title') }}</div>
-          <div class="status-item-value">{{ routes.filter(r => r.enabled).length }} / {{ routes.length }}</div>
-        </div>
-      </div>
-    </div>
+
 
     <!-- Routes Management Section -->
     <div class="routes-section">
@@ -182,58 +152,6 @@ function handleSaveMain() {
   flex-direction: column;
   gap: 16px;
   box-sizing: border-box;
-}
-
-/* Sub banner */
-
-/* Status card */
-.status-card {
-  padding: 18px 20px;
-}
-
-.status-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.status-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-indicator-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--success);
-  border-radius: 50%;
-  box-shadow: 0 0 10px var(--success);
-}
-
-.status-title {
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.status-details {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.status-item-label {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.status-item-value {
-  font-size: 14px;
-  font-weight: 700;
-  margin-top: 2px;
 }
 
 /* Routes section */

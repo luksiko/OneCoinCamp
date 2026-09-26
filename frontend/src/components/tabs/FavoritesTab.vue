@@ -27,7 +27,7 @@ import { useSearchStore } from '../../composables/useSearchStore';
 const { t, getCountryName, currentLang, pluralizeDays } = useI18n();
 const { showToast } = useAppStore();
 const { globalSearchFilters, resetSearch } = useSearchStore();
-const { toggleFavorite, isFavorite } = useFavoritesStore();
+const { favorites, toggleFavorite, isFavorite } = useFavoritesStore();
 
 
 const offers = ref<Offer[]>([]);
@@ -95,39 +95,40 @@ const sortedOffers = computed(() => {
   return offers.value; // Server now handles all sorting
 });
 
+
 async function loadOffers() {
   isLoading.value = true;
   try {
-    const payload: OffersFilterPayload = {
-      source: filterSource.value || undefined,
-      vehicleType: filterVehicleType.value || undefined,
-      sortBy: filterSortBy.value,
-      sortCol: sortCol.value || undefined,
-      sortAsc: sortAsc.value,
-      isMatched: filterMatched.value || undefined,
-      dateFrom: dateFrom.value || undefined,
-      dateTo: dateTo.value || undefined,
-      originCountry: filterOriginCountry.value || undefined,
-      destinationCountry: filterDestinationCountry.value || undefined,
-      page: currentPage.value,
-      limit: 15,
-    };
-    const res = await api.getOffers(payload);
-    offers.value = res.offers || [];
-    totalOffers.value = res.total || 0;
-    currentPage.value = res.page || 1;
-    totalPages.value = res.totalPages || 1;
-    // Scroll to deep-linked offer if present
-    if (highlightedOfferId.value) {
-      await nextTick();
-      scrollToHighlighted();
+    let list = [...favorites.value];
+    
+    // Sort
+    if (sortCol.value) {
+       list.sort((a, b) => {
+          let va = (a as any)[sortCol.value];
+          let vb = (b as any)[sortCol.value];
+          if (sortCol.value === 'days') {
+             va = calculateDays(a.pickupDate, a.returnDate);
+             vb = calculateDays(b.pickupDate, b.returnDate);
+          }
+          if (va < vb) return sortAsc.value ? -1 : 1;
+          if (va > vb) return sortAsc.value ? 1 : -1;
+          return 0;
+       });
     }
+
+    totalOffers.value = list.length;
+    totalPages.value = Math.ceil(list.length / 15) || 1;
+    
+    // Paginate
+    const start = (currentPage.value - 1) * 15;
+    offers.value = list.slice(start, start + 15);
   } catch (err) {
     offers.value = [];
   } finally {
     isLoading.value = false;
   }
 }
+
 
 function scrollToHighlighted() {
   const id = highlightedOfferId.value;
@@ -143,18 +144,7 @@ function scrollToHighlighted() {
   }
 }
 
-async function checkAvailability() {
-  isCheckingAvail.value = true;
-  try {
-    const removedCount = await api.checkOffersAvailability();
-    showToast(`Очищено ${removedCount} истекших офферов`);
-    loadOffers();
-  } catch (err: any) {
-    showToast(err.message || 'Ошибка проверки актуальности', true);
-  } finally {
-    isCheckingAvail.value = false;
-  }
-}
+async function checkAvailability() {}
 
 function calculateDays(pickup: string, dropoff: string): number {
   if (!pickup || !dropoff) return 1;
@@ -226,6 +216,11 @@ onMounted(() => {
   loadOffers();
 });
 
+watch(favorites, () => {
+  loadOffers();
+}, { deep: true });
+
+
 
 function formatAddedAt(ts?: string): string {
   if (!ts) return t('added_at', { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
@@ -247,7 +242,7 @@ function getCountryFlag(code?: string): string {
 </script>
 
 <template>
-  <div class="offers-tab">
+  <div class="favorites-tab">
     <!-- Filter Controls Bar -->
     <div class="glass-card filter-card">
       <div class="filter-top">
@@ -780,7 +775,7 @@ function getCountryFlag(code?: string): string {
 .vehicle-thumb {
   width: 40px;
   height: 28px;
-  object-fit: contain;
+  object-fit: cover;
   border-radius: 4px;
 }
 .vehicle-name {
@@ -933,7 +928,7 @@ function getCountryFlag(code?: string): string {
 .vehicle-image-large {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   cursor: pointer;
   border-radius: var(--radius-sm);
   -webkit-mask-image: none !important;

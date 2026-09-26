@@ -13,7 +13,7 @@ export function formatDateRange(pickup: string, returnDate: string, lang: string
   const sameMonth = sameYear && p.getMonth() === r.getMonth();
 
   if (sameMonth) {
-    const rStr = r.toLocaleString(locale, { day: 'numeric', month: 'long' });
+    const rStr = r.toLocaleString(locale, { day: 'numeric', month: 'short' });
     const match = rStr.match(/^(\d+)(\.?)\s*(.*)/);
     if (match) {
       const dot = match[2];
@@ -22,12 +22,12 @@ export function formatDateRange(pickup: string, returnDate: string, lang: string
     }
     return `${p.getDate()}–${rStr}`;
   } else if (sameYear) {
-    const pStr = p.toLocaleString(locale, { day: 'numeric', month: 'long' });
-    const rStr = r.toLocaleString(locale, { day: 'numeric', month: 'long' });
+    const pStr = p.toLocaleString(locale, { day: 'numeric', month: 'short' });
+    const rStr = r.toLocaleString(locale, { day: 'numeric', month: 'short' });
     return `${pStr} – ${rStr}`;
   } else {
-    const pStr = p.toLocaleString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
-    const rStr = r.toLocaleString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+    const pStr = p.toLocaleString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+    const rStr = r.toLocaleString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
     return `${pStr} – ${rStr}`;
   }
 }
