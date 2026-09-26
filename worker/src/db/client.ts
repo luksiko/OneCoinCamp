@@ -491,6 +491,52 @@ export class DbClient {
       .run();
   }
 
+  
+  async toggleFavorite(telegramId: string | number, offerId: string): Promise<boolean> {
+    const tid = String(telegramId);
+    const existing = await this.db.prepare('SELECT 1 FROM user_favorites WHERE telegram_id = ? AND offer_id = ?').bind(tid, offerId).first();
+    if (existing) {
+      await this.db.prepare('DELETE FROM user_favorites WHERE telegram_id = ? AND offer_id = ?').bind(tid, offerId).run();
+      return false; // Removed
+    } else {
+      await this.db.prepare('INSERT INTO user_favorites (telegram_id, offer_id) VALUES (?, ?)').bind(tid, offerId).run();
+      return true; // Added
+    }
+  }
+
+  async getFavorites(telegramId: string | number): Promise<NormalizedOffer[]> {
+    const tid = String(telegramId);
+    const { results } = await this.db
+      .prepare(`
+        SELECT o.* FROM offers o
+        JOIN user_favorites f ON o.offer_id = f.offer_id
+        WHERE f.telegram_id = ?
+        ORDER BY f.created_at DESC
+      `)
+      .bind(tid)
+      .all<any>();
+      
+    return (results || []).map((r) => ({
+      source: r.source,
+      offer_id: r.offer_id,
+      vehicle_id: r.vehicle_id,
+      vehicle: r.vehicle,
+      origin: r.origin,
+      origin_country: r.origin_country,
+      destination: r.destination,
+      destination_country: r.destination_country,
+      pickup_date: r.pickup_date,
+      return_date: r.return_date,
+      price: r.price,
+      currency: r.currency,
+      booking_url: r.booking_url,
+      image_url: r.image_url,
+      matches_filter: Boolean(r.matches_filter),
+      timestamp: r.found_at,
+      lastSeenAt: r.last_seen_at
+    }));
+  }
+
   async getOffers(limit = 100, offset = 0): Promise<NormalizedOffer[]> {
     const { results } = await this.db
       .prepare(

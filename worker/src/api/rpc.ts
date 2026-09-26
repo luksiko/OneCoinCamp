@@ -58,6 +58,32 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
     let result: any = null;
 
     switch (method) {
+      
+      case 'toggleFavorite':
+        result = await ctx.db.toggleFavorite(identity.id, args[0]);
+        break;
+      case 'getFavorites':
+        result = await ctx.db.getFavorites(identity.id);
+        # Convert NormalizedOffer to Offer
+        result = result.map(o => ({
+          offerId: o.offer_id,
+          source: o.source,
+          operator: o.source,
+          vehicle: o.vehicle,
+          origin: o.origin,
+          originCountry: o.origin_country,
+          destination: o.destination,
+          destinationCountry: o.destination_country,
+          pickupDate: o.pickup_date,
+          returnDate: o.return_date,
+          price: o.price,
+          currency: o.currency,
+          bookingUrl: o.booking_url,
+          imageUrl: o.image_url,
+          timestamp: o.timestamp,
+          lastSeenAt: o.lastSeenAt
+        }));
+        break;
       case 'getUiData':
         result = await handleGetUiData(ctx, identity);
         break;

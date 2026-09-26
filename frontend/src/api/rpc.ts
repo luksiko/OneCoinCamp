@@ -92,6 +92,10 @@ export const api = {
     ]),
 
   // Offers & Analytics
+  
+  getFavorites: () => callRpc<import("./types").Offer[]>('getFavorites'),
+  toggleFavorite: (offerId: string) => callRpc<boolean>('toggleFavorite', [offerId]),
+
   getOffers: (filters: OffersFilterPayload) => callRpc<OffersResponse>('getOffers', [filters]),
   deleteOffer: (offerId: string) => callRpc<{ success: boolean }>('deleteOffer', [offerId]),
   getAnalytics: () => callRpc<AnalyticsData>('getAnalytics'),

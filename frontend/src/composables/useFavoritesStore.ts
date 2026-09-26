@@ -1,33 +1,48 @@
-import { ref, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import type { Offer } from '../api/types';
+import { api } from '../api/rpc';
+import { useAuth } from './useAuth';
 
-const FAVORITES_KEY = 'onecoincamp_favorites_offers';
-
-const getInitialFavorites = (): Offer[] => {
-  try {
-    const item = localStorage.getItem(FAVORITES_KEY);
-    if (item) {
-      return JSON.parse(item);
-    }
-  } catch (e) {
-    console.error('Failed to parse favorites from localStorage', e);
-  }
-  return [];
-};
-
-const favorites = ref<Offer[]>(getInitialFavorites());
-
-watch(favorites, (newVal) => {
-  localStorage.setItem(FAVORITES_KEY, JSON.stringify(newVal));
-}, { deep: true });
+const favorites = ref<Offer[]>([]);
+const isLoaded = ref(false);
 
 export function useFavoritesStore() {
-  const toggleFavorite = (offer: Offer) => {
+  const { isAuthenticated } = useAuth();
+
+  const loadFavorites = async () => {
+    if (!isAuthenticated.value) return;
+    try {
+      const data = await api.getFavorites();
+      favorites.value = data || [];
+      isLoaded.value = true;
+    } catch (e) {
+      console.error('Failed to load favorites', e);
+    }
+  };
+
+  const toggleFavorite = async (offer: Offer) => {
+    if (!isAuthenticated.value) return;
+    
+    // Optimistic UI update
     const index = favorites.value.findIndex(f => f.offerId === offer.offerId);
+    let isAdding = false;
     if (index === -1) {
-      favorites.value.push(offer);
+      favorites.value.unshift(offer); // Add to top
+      isAdding = true;
     } else {
       favorites.value.splice(index, 1);
+    }
+
+    // Call API
+    try {
+      const added = await api.toggleFavorite(offer.offerId);
+      // Sync state if optimistic update was wrong
+      if (added !== isAdding) {
+        await loadFavorites();
+      }
+    } catch (e) {
+      console.error('Failed to toggle favorite', e);
+      await loadFavorites(); // Revert on error
     }
   };
 
@@ -35,9 +50,24 @@ export function useFavoritesStore() {
     return favorites.value.some(f => f.offerId === offerId);
   };
 
+  // Initial load if not loaded
+    import { watch } from 'vue';
+  watch(isAuthenticated, (authed) => {
+    if (authed && !isLoaded.value) {
+      loadFavorites();
+    }
+  });
+
+  onMounted(() => {
+    if (!isLoaded.value && isAuthenticated.value) {
+      loadFavorites();
+    }
+  });
+
   return {
     favorites,
     toggleFavorite,
     isFavorite,
+    loadFavorites
   };
 }
