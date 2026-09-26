@@ -36,7 +36,7 @@ const isCheckingAvail = ref(false);
 const filterSource = ref('');
 const filterVehicleType = ref(globalSearchFilters.value.vehicleType || '');
 const filterSortBy = ref('added_desc');
-const filterMatched = ref(false);
+const filterMatched = ref(true); // Default to true as requested
 const dateFrom = ref(globalSearchFilters.value.dateFrom || '');
 const dateTo = ref(globalSearchFilters.value.dateTo || '');
 
@@ -236,17 +236,14 @@ function getOfferStaleness(offer: Offer): Staleness {
 }
 
 function formatAddedAt(ts?: string): string {
-  if (!ts) return t('added_mins_ago', { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), mins: '0' });
+  if (!ts) return t('added_at', { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
   const date = new Date(ts);
   const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const diffMs = Date.now() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   
-  if (diffMins < 60) {
-    return t('added_mins_ago', { time: timeStr, mins: String(diffMins) });
-  } else if (diffMins < 24 * 60) {
-    const hours = Math.floor(diffMins / 60);
-    return t('added_hours_ago', { time: timeStr, hours: String(hours) });
+  if (diffMins < 24 * 60) {
+    return t('added_at', { time: timeStr });
   }
   return date.toLocaleDateString() + ' ' + timeStr;
 }
@@ -278,25 +275,35 @@ function stalenessLabel(staleness: Staleness): string {
         </div>
       </div>
 
-      <!-- Quick Chips: Providers -->
+      <!-- Quick Chips: Mode & Providers -->
       <div class="chips-scroll">
-        <button
-          v-for="p in providers"
-          :key="p.id"
-          class="chip"
-          :class="{ active: filterSource === p.id }"
-          @click="filterSource = p.id"
-        >
-          {{ p.id === '' ? t('all_badge') : p.label }}
-        </button>
-
         <button
           class="chip chip-matched"
           :class="{ active: filterMatched }"
-          @click="filterMatched = !filterMatched"
+          @click="filterMatched = true"
         >
           <Sparkles :size="12" />
           <span>{{ t('filter_only_matched') }}</span>
+        </button>
+
+        <button
+          class="chip"
+          :class="{ active: !filterMatched && filterSource === '' }"
+          @click="filterMatched = false; filterSource = ''"
+        >
+          {{ t('all_badge') }}
+        </button>
+
+        <div class="divider"></div>
+
+        <button
+          v-for="p in providers.filter(p => p.id !== '')"
+          :key="p.id"
+          class="chip"
+          :class="{ active: filterSource === p.id }"
+          @click="filterSource = filterSource === p.id ? '' : p.id"
+        >
+          {{ p.label }}
         </button>
       </div>
 
@@ -603,6 +610,15 @@ function stalenessLabel(staleness: Staleness): string {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--border-subtle);
+}
+
+.divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-subtle);
+  margin: 0 4px;
+  align-self: center;
+  flex-shrink: 0;
 }
 
 @media (min-width: 640px) {

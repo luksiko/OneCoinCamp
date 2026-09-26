@@ -51,6 +51,26 @@ export async function fetchMovacarOffers(
       const ocs = route.origin_country ? route.origin_country.toUpperCase().split(',').map(c => c.trim()) : [];
       return !route.origin_country || route.origin_country === '*' || route.origin_country === 'ALL' || route.origin_country === 'ANY' || ocs.includes(station.country);
     });
+    
+    if (origins.length > 5 && db) {
+      const cursorKey = `movacar_cursor_${route.origin_country || 'ALL'}`;
+      const rawCursor = await db.getSetting(cursorKey);
+      let cursor = rawCursor ? Number(rawCursor) : 0;
+      if (isNaN(cursor) || cursor < 0 || cursor >= origins.length) cursor = 0;
+      
+      const limit = 20; // Scan 20 stations per run for this wildcard route
+      const nextCursor = (cursor + limit) % origins.length;
+      await db.setSetting(cursorKey, nextCursor);
+      
+      if (cursor + limit <= origins.length) {
+        origins = origins.slice(cursor, cursor + limit);
+      } else {
+        origins = [
+          ...origins.slice(cursor),
+          ...origins.slice(0, (cursor + limit) % origins.length),
+        ];
+      }
+    }
   } else {
     origins = [{ id: String(route.origin_id), name: route.origin_name || '', country: route.origin_country || '' }];
   }
