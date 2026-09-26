@@ -4,6 +4,7 @@ import { api } from '../../api/rpc';
 import { useAppStore } from '../../composables/useAppStore';
 import { useI18n } from '../../composables/useI18n';
 import type { AdminUser, AdminPayment, AdminPromoCode, AdminRunLog } from '../../api/types';
+import AnalyticsTab from './AnalyticsTab.vue';
 import { 
   Users, 
   CreditCard, 
@@ -15,7 +16,7 @@ import {
   Plus, 
   Trash2, 
   Check, 
-  AlertCircle,
+  AlertCircle, Activity,
   ShieldCheck,
   Calendar,
   Save,
@@ -26,7 +27,7 @@ import {
 const { showToast, appState, saveAppData, providersHealth, checkHealth, isHealthLoading, loadAppData } = useAppStore();
 const { t } = useI18n();
 
-type AdminSubTab = 'users' | 'payments' | 'promos' | 'broadcast' | 'runs' | 'system';
+type AdminSubTab = 'users' | 'payments' | 'promos' | 'broadcast' | 'runs' | 'system' | 'analytics';
 const activeSubTab = ref<AdminSubTab>('users');
 
 const users = ref<AdminUser[]>([]);
@@ -414,6 +415,14 @@ onMounted(() => {
             <AlertCircle :size="14" />
             <span>{{ t('admin_tab_system') }}</span>
           </button>
+          <button
+            class="sub-tab-btn"
+            :class="{ active: activeSubTab === 'analytics' }"
+            @click="switchSubTab('analytics')"
+          >
+            <Activity :size="14" />
+            <span>{{ t('tab_analytics') || 'Analytics' }}</span>
+          </button>
         </div>
       </div>
     </div>
@@ -792,6 +801,10 @@ onMounted(() => {
           </button>
         </div>
       </div>
+    </div>
+    <!-- 7. ANALYTICS SUBTAB -->
+    <div v-if="activeSubTab === 'analytics'" class="analytics-section">
+      <AnalyticsTab />
     </div>
   </div>
 </template>

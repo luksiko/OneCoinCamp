@@ -109,6 +109,8 @@ export interface OffersFilterPayload {
   dateFrom?: string;
   dateTo?: string;
   isMatched?: boolean;
+  originCountry?: string;
+  destinationCountry?: string;
 }
 
 export interface OffersResponse {

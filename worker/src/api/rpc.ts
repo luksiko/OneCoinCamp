@@ -527,6 +527,8 @@ async function getOffersForUi(ctx: RpcContext, userId: string, filter: any = {})
     if (criteria.isMatched && !offer.matches) return false;
     if (criteria.dateFrom && offer.pickupDate < criteria.dateFrom) return false;
     if (criteria.dateTo && offer.pickupDate > criteria.dateTo) return false;
+    if (criteria.originCountry && offer.originCountry !== criteria.originCountry) return false;
+    if (criteria.destinationCountry && offer.destinationCountry !== criteria.destinationCountry) return false;
     return true;
   });
 

@@ -1,8 +1,8 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 
-export type AppTab = 'main' | 'offers' | 'analytics' | 'settings' | 'admin';
+export type AppTab = 'main' | 'offers' | 'trackings' | 'settings' | 'admin';
 
-const VALID_TABS: AppTab[] = ['main', 'offers', 'analytics', 'settings', 'admin'];
+const VALID_TABS: AppTab[] = ['main', 'offers', 'trackings', 'settings', 'admin'];
 
 function getTabFromHash(): AppTab {
   const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase() as AppTab;

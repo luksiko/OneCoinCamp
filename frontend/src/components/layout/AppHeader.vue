@@ -7,7 +7,7 @@ import { useAuth } from '../../composables/useAuth';
 import { 
   Home, 
   Compass, 
-  BarChart3, 
+  Activity, 
   Settings, 
   ShieldCheck, 
   Crown, 
@@ -32,7 +32,7 @@ const tabs = computed<Array<{ id: AppTab; label: string; icon: any }>>(() => {
   const base = [
     { id: 'main' as AppTab, label: t('tab_main'), icon: Home },
     { id: 'offers' as AppTab, label: t('tab_offers'), icon: Compass },
-    { id: 'analytics' as AppTab, label: t('tab_analytics'), icon: BarChart3 },
+    { id: 'trackings' as AppTab, label: t('tab_trackings'), icon: Activity },
     { id: 'settings' as AppTab, label: t('tab_settings'), icon: Settings },
   ];
   if (isAdmin.value) {

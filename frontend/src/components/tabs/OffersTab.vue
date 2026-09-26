@@ -20,8 +20,11 @@ import {
   CalendarPlus
 } from 'lucide-vue-next';
 
+import { useSearchStore } from '../../composables/useSearchStore';
+
 const { t, getCountryName, currentLang, pluralizeDays } = useI18n();
 const { showToast } = useAppStore();
+const { globalSearchFilters, resetSearch } = useSearchStore();
 
 const offers = ref<Offer[]>([]);
 const totalOffers = ref(0);
@@ -31,11 +34,19 @@ const isLoading = ref(false);
 const isCheckingAvail = ref(false);
 
 const filterSource = ref('');
-const filterVehicleType = ref('');
+const filterVehicleType = ref(globalSearchFilters.value.vehicleType || '');
 const filterSortBy = ref('added_desc');
 const filterMatched = ref(false);
-const dateFrom = ref('');
-const dateTo = ref('');
+const dateFrom = ref(globalSearchFilters.value.dateFrom || '');
+const dateTo = ref(globalSearchFilters.value.dateTo || '');
+
+const filterOriginCountry = ref(globalSearchFilters.value.originCountry || '');
+const filterDestinationCountry = ref(globalSearchFilters.value.destinationCountry || '');
+
+// Clean up global search state after adopting it so it doesn't stick forever
+onMounted(() => {
+  resetSearch();
+});
 
 const providers = [
   { id: '', label: 'all_badge' },
@@ -92,6 +103,8 @@ async function loadOffers() {
       isMatched: filterMatched.value || undefined,
       dateFrom: dateFrom.value || undefined,
       dateTo: dateTo.value || undefined,
+      originCountry: filterOriginCountry.value || undefined,
+      destinationCountry: filterDestinationCountry.value || undefined,
       page: currentPage.value,
       limit: 15,
     };
@@ -194,7 +207,7 @@ function clearDates() {
   loadOffers();
 }
 
-watch([filterSource, filterVehicleType, filterSortBy, filterMatched], () => {
+watch([filterSource, filterVehicleType, filterSortBy, filterMatched, filterOriginCountry, filterDestinationCountry], () => {
   currentPage.value = 1;
   loadOffers();
 });
