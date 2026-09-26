@@ -561,8 +561,6 @@ export class DbClient {
       currency: r.currency,
       booking_url: r.booking_url,
       raw_json: r.raw_json,
-      fingerprint: r.fingerprint,
-    }));
   }
 
   async getOfferArchive(telegramId: string): Promise<any[]> {
