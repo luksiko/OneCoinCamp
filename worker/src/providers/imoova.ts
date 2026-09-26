@@ -54,11 +54,13 @@ export async function fetchImoovaOffers(
     const depCountry = IMOOVA_COUNTRIES[dep.name] || '';
     const delivCountry = IMOOVA_COUNTRIES[deliv.name] || '';
 
-    if (route.origin_country && depCountry && depCountry.toUpperCase() !== route.origin_country.toUpperCase()) {
-      continue;
+    if (route.origin_country && route.origin_country !== '*' && depCountry) {
+      const ocs = route.origin_country.toUpperCase().split(',').map(c => c.trim());
+      if (!ocs.includes(depCountry.toUpperCase())) continue;
     }
-    if (route.destination_country && delivCountry && delivCountry.toUpperCase() !== route.destination_country.toUpperCase()) {
-      continue;
+    if (route.destination_country && route.destination_country !== '*' && delivCountry) {
+      const dcs = route.destination_country.toUpperCase().split(',').map(c => c.trim());
+      if (!dcs.includes(delivCountry.toUpperCase())) continue;
     }
 
     const price = item.hire_unit_rate || item.retail_rate || 1;

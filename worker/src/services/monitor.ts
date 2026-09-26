@@ -56,7 +56,22 @@ export async function runMonitorCycle(
 
     for (const context of activeContexts) {
       userMap.set(context.user.telegram_id, { routes: context.routes, filters: context.filters });
-      allRoutes.push(...context.routes);
+      for (const r of context.routes) {
+        const src = (r.source || '').toLowerCase().trim();
+        if (src === 'all' || src === 'any' || src === '*') {
+          const providers = ['roadsurfer', 'movacar', 'indiecampers', 'imoova'];
+          for (const p of providers) {
+            allRoutes.push({ ...r, source: p });
+          }
+        } else if (src.includes(',')) {
+          const providers = src.split(',').map(s => s.trim());
+          for (const p of providers) {
+            allRoutes.push({ ...r, source: p });
+          }
+        } else {
+          allRoutes.push(r);
+        }
+      }
     }
 
     // Default window dates (fallback looking ahead at least 60 days for roadsurfer rally timeframes)

@@ -1,6 +1,6 @@
 export interface Route {
   id?: string;
-  source: 'roadsurfer' | 'movacar' | 'indiecampers' | 'imoova';
+  source: string;
   enabled: boolean;
   originCountry: string;
   destinationCountry: string;

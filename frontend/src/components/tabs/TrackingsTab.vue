@@ -7,10 +7,8 @@ import {
   Sparkles, 
   Plus, 
   Play, 
-  RefreshCw, 
   Edit3, 
   Trash2, 
-  Activity,
   Calendar,
   Save
 } from 'lucide-vue-next';
@@ -20,9 +18,6 @@ const {
   isPremium, 
   isPaymentModalOpen, 
   triggerManualCheck, 
-  providersHealth, 
-  isHealthLoading, 
-  checkHealth,
   openRouteModal,
   deleteRoute,
   toggleRoute,
@@ -49,7 +44,10 @@ function getProviderName(src: string) {
     indiecampers: 'Indie Campers',
     imoova: 'Imoova',
   };
-  return map[src] || src;
+  const parts = (src || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+  if (parts.length === 0) return 'Any Provider';
+  if (parts.length === 4 || parts.includes('all') || parts.includes('any')) return 'All Providers';
+  return parts.map(p => map[p] || p).join(', ');
 }
 
 function handleAddRoute() {
@@ -209,47 +207,6 @@ function handleSaveMain() {
           <Save :size="15" />
           <span>{{ isSaving ? t('saving') : t('save_main') }}</span>
         </button>
-      </div>
-    </div>
-
-    <!-- Providers Connection Health -->
-    <div class="health-section glass-card">
-      <div class="section-header" style="margin-bottom: 12px;">
-        <div class="section-title">
-          <Activity :size="15" />
-          <span>{{ t('site_status') }}</span>
-        </div>
-        <button class="btn btn-secondary btn-sm" :disabled="isHealthLoading" @click="checkHealth">
-          <RefreshCw :size="12" :class="{ spin: isHealthLoading }" />
-          <span>{{ isHealthLoading ? t('status_checking') : t('refresh') }}</span>
-        </button>
-      </div>
-
-      <div class="health-grid">
-        <div class="health-item">
-          <span class="health-name">🚐 Roadsurfer Rally</span>
-          <span class="health-status" :class="providersHealth?.roadsurfer?.ok ? 'ok' : 'pending'">
-            {{ providersHealth?.roadsurfer ? (providersHealth.roadsurfer.ok ? t('status_operational') : t('status_error_state')) : t('status_checking') }}
-          </span>
-        </div>
-        <div class="health-item">
-          <span class="health-name">🚗 Movacar API</span>
-          <span class="health-status" :class="providersHealth?.movacar?.ok ? 'ok' : 'pending'">
-            {{ providersHealth?.movacar ? (providersHealth.movacar.ok ? t('status_operational') : t('status_error_state')) : t('status_checking') }}
-          </span>
-        </div>
-        <div class="health-item">
-          <span class="health-name">⛺ Indie Campers</span>
-          <span class="health-status" :class="providersHealth?.indiecampers?.ok ? 'ok' : 'pending'">
-            {{ providersHealth?.indiecampers ? (providersHealth.indiecampers.ok ? t('status_operational') : t('status_error_state')) : t('status_checking') }}
-          </span>
-        </div>
-        <div class="health-item">
-          <span class="health-name">🌐 Imoova</span>
-          <span class="health-status" :class="providersHealth?.imoova?.ok ? 'ok' : 'pending'">
-            {{ providersHealth?.imoova ? (providersHealth.imoova.ok ? t('status_operational') : t('status_error_state')) : t('status_checking') }}
-          </span>
-        </div>
       </div>
     </div>
   </div>
@@ -546,52 +503,6 @@ function handleSaveMain() {
   display: flex;
   justify-content: flex-end;
   margin-top: 4px;
-}
-
-/* Health section */
-.health-section {
-  padding: 18px 20px;
-}
-
-.health-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-
-@media (min-width: 640px) {
-  .health-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-.health-item {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.health-name {
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.health-status {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-}
-
-.health-status.ok {
-  color: var(--success);
-}
-
-.health-status.pending {
-  color: var(--warning);
 }
 
 /* Toggle Switch */

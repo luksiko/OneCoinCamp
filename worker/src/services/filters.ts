@@ -31,19 +31,24 @@ export function addDays(date: Date, days: number): Date {
 
 export function routeMatchesOffer(route: UserRoute, offer: NormalizedOffer): boolean {
   if (!route || !route.enabled || !offer) return false;
-  if ((route.source || '').toLowerCase().trim() !== (offer.source || '').toLowerCase().trim()) {
+  
+  const routeSources = (route.source || '').toLowerCase().split(',').map(s => s.trim());
+  const offerSource = (offer.source || '').toLowerCase().trim();
+  if (!routeSources.includes('*') && !routeSources.includes('all') && !routeSources.includes('any') && !routeSources.includes(offerSource)) {
     return false;
   }
 
   // 1. Country checks
   const rOrigCountry = (route.origin_country || '').trim().toUpperCase();
   if (rOrigCountry && rOrigCountry !== '*' && rOrigCountry !== 'ANY' && offer.origin_country) {
-    if (rOrigCountry !== offer.origin_country.trim().toUpperCase()) return false;
+    const allowed = rOrigCountry.split(',').map(c => c.trim());
+    if (!allowed.includes(offer.origin_country.trim().toUpperCase())) return false;
   }
 
   const rDestCountry = (route.destination_country || '').trim().toUpperCase();
   if (rDestCountry && rDestCountry !== '*' && rDestCountry !== 'ANY' && offer.destination_country) {
-    if (rDestCountry !== offer.destination_country.trim().toUpperCase()) return false;
+    const allowed = rDestCountry.split(',').map(c => c.trim());
+    if (!allowed.includes(offer.destination_country.trim().toUpperCase())) return false;
   }
 
   // 2. City / Station checks

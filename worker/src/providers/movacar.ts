@@ -47,7 +47,10 @@ export async function fetchMovacarOffers(
   const offers: NormalizedOffer[] = [];
   let origins: { id: string; name: string; country: string }[];
   if (isWildOrigin) {
-    origins = (await getMovacarAllStations(db)).filter((station) => !route.origin_country || station.country === route.origin_country.toUpperCase());
+    origins = (await getMovacarAllStations(db)).filter((station) => {
+      const ocs = route.origin_country ? route.origin_country.toUpperCase().split(',').map(c => c.trim()) : [];
+      return !route.origin_country || route.origin_country === '*' || ocs.includes(station.country);
+    });
   } else {
     origins = [{ id: String(route.origin_id), name: route.origin_name || '', country: route.origin_country || '' }];
   }
@@ -103,11 +106,13 @@ export async function fetchMovacarOffers(
       '';
 
     // Country filters
-    if (route.origin_country && originCountry && originCountry.toUpperCase() !== route.origin_country.toUpperCase()) {
-      continue;
+    if (route.origin_country && route.origin_country !== '*' && originCountry) {
+      const ocs = route.origin_country.toUpperCase().split(',').map(c => c.trim());
+      if (!ocs.includes(originCountry.toUpperCase())) continue;
     }
-    if (route.destination_country && destCountry && destCountry.toUpperCase() !== route.destination_country.toUpperCase()) {
-      continue;
+    if (route.destination_country && route.destination_country !== '*' && destCountry) {
+      const dcs = route.destination_country.toUpperCase().split(',').map(c => c.trim());
+      if (!dcs.includes(destCountry.toUpperCase())) continue;
     }
 
     const priceData = rels.base_price?.data || {};

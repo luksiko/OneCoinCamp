@@ -238,12 +238,14 @@ export async function fetchRoadsurferOffers(
     const allowedOrigins = (!route.origin_country || route.origin_country === '*') && filters?.allowed_origin_countries
       ? filters.allowed_origin_countries.split(',').map((c) => c.trim().toUpperCase()).filter(Boolean)
       : [];
-    originsToCheck = allStations.filter(
-      (s) =>
+    originsToCheck = allStations.filter((s) => {
+      const ocs = route.origin_country ? route.origin_country.toUpperCase().split(',').map(c => c.trim()) : [];
+      return (
         s.oneWay === true &&
-        (!route.origin_country || route.origin_country === '*' || s.country === route.origin_country.toUpperCase()) &&
+        (!route.origin_country || route.origin_country === '*' || ocs.includes(s.country)) &&
         (allowedOrigins.length === 0 || allowedOrigins.includes(s.country))
-    );
+      );
+    });
     // Limit origins to prevent subrequest exhaustion and rotate cursor across runs
     const limit = Math.min(filters?.roadsurfer_origins_per_run || 2, 2);
     if (originsToCheck.length > limit && db) {
@@ -289,8 +291,9 @@ export async function fetchRoadsurferOffers(
     if (isWildDest) {
       destinationsToCheck = await fetchRoadsurferDestinations(origin.id, allowedDestCountries, db);
       if (route.destination_country) {
+        const dcs = route.destination_country.toUpperCase().split(',').map(c => c.trim());
         destinationsToCheck = destinationsToCheck.filter(
-          (d) => d.country === route.destination_country!.toUpperCase()
+          (d) => dcs.includes(d.country)
         );
       }
     } else {
