@@ -198,7 +198,7 @@ CREATE TABLE IF NOT EXISTS user_favorites (
     telegram_id TEXT NOT NULL,
     fingerprint TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY(telegram_id, offer_id),
+    PRIMARY KEY(telegram_id, fingerprint),
     FOREIGN KEY(telegram_id) REFERENCES users(telegram_id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_user_favorites_user ON user_favorites(telegram_id);
