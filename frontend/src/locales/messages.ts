@@ -1,6 +1,6 @@
 export const messagesData = {
   "de": {
-    "hero_campers": "Camper quer durch Europa",
+    "hero_campers": "Camper <span class=\"text-blue\">quer durch Europa</span>",
     "hero_price": "ab 1 €",
     "loading": "Wird geladen…",
     "routes_title": "Routen",
@@ -303,7 +303,7 @@ export const messagesData = {
     "toast_sub_activated": "🎉 Abonnement aktiviert!"
   },
   "it": {
-    "hero_campers": "Camper in tutta Europa",
+    "hero_campers": "Camper <span class=\"text-blue\">in tutta Europa</span>",
     "hero_price": "da 1 €",
     "loading": "Caricamento…",
     "routes_title": "Itinerari",
@@ -552,7 +552,7 @@ export const messagesData = {
     "admin_expire_now": "Cancella offerte scadute",
     "admin_webhook_reconnect": "Riconnetti webhook Telegram",
     "admin_providers_toggle": "Interruttori fornitori",
-    "provider_desc_roadsurfer": "Camper in tutta Europa",
+    "provider_desc_roadsurfer": "Camper <span class=\"text-blue\">in tutta Europa</span>",
     "provider_desc_movacar": "Auto e camper",
     "provider_desc_indiecampers": "Camper van",
     "provider_desc_imoova": "Trasferimenti internazionali",
@@ -606,7 +606,7 @@ export const messagesData = {
     "toast_sub_activated": "🎉 Abbonamento attivato!"
   },
   "en": {
-    "hero_campers": "Campers across Europe",
+    "hero_campers": "Campers <span class=\"text-blue\">across Europe</span>",
     "hero_price": "from €1",
     "loading": "Loading…",
     "routes_title": "Routes",
@@ -855,7 +855,7 @@ export const messagesData = {
     "admin_expire_now": "Expire past offers",
     "admin_webhook_reconnect": "Reconnect Telegram webhook",
     "admin_providers_toggle": "Provider Toggles",
-    "provider_desc_roadsurfer": "Campers across Europe",
+    "provider_desc_roadsurfer": "Campers <span class=\"text-blue\">across Europe</span>",
     "provider_desc_movacar": "Cars and campers",
     "provider_desc_indiecampers": "Campervans",
     "provider_desc_imoova": "International relocations",
@@ -909,7 +909,7 @@ export const messagesData = {
     "toast_sub_activated": "🎉 Subscription activated!"
   },
   "uk": {
-    "hero_campers": "Кемпери по Європі",
+    "hero_campers": "Кемпери <span class=\"text-blue\">по Європі</span>",
     "hero_price": "від €1",
     "loading": "Завантаження…",
     "routes_title": "Маршрути",
@@ -1212,7 +1212,7 @@ export const messagesData = {
     "toast_sub_activated": "🎉 Підписку активовано!"
   },
   "ru": {
-    "hero_campers": "Кемперы по Европе",
+    "hero_campers": "Кемперы <span class=\"text-blue\">по Европе</span>",
     "hero_price": "от €1",
     "loading": "Загрузка…",
     "routes_title": "Маршруты",

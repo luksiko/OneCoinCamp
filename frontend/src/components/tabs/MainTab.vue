@@ -68,7 +68,7 @@ function getProviderName(src: string) {
   <div class="main-search-tab">
     <div class="hero-section">
       <h1 class="hero-title">
-        <span class="hero-campers-text">{{ t('hero_campers') }}</span>
+        <span class="hero-campers-text" v-html="t('hero_campers')"></span>
         <br>
         <span class="hero-price-text">{{ t('hero_price') }}</span>
       </h1>
@@ -243,8 +243,12 @@ function getProviderName(src: string) {
   margin-bottom: 4px;
 }
 
+:deep(.text-blue) {
+  color: #3b82f6;
+}
+
 .hero-price-text {
-  font-size: 38px;
+  font-size: 32px;
   font-weight: 800;
 }
 
