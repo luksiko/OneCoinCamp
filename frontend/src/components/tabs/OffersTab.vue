@@ -235,6 +235,11 @@ function formatAddedAt(ts?: string): string {
   }
   return date.toLocaleDateString() + ' ' + timeStr;
 }
+
+function getCountryFlag(code?: string): string {
+  if (!code || code.length !== 2) return '';
+  return String.fromCodePoint(code.toUpperCase().charCodeAt(0) + 127397, code.toUpperCase().charCodeAt(1) + 127397) + ' ';
+}
 </script>
 
 <template>
@@ -428,12 +433,12 @@ function formatAddedAt(ts?: string): string {
         <div class="route-display">
           <div class="route-node">
             <span class="node-city">{{ offer.origin }}</span>
-            <span class="node-country">{{ getCountryName(offer.originCountry) }}</span>
+            <span class="node-country">{{ getCountryFlag(offer.originCountry) }}{{ getCountryName(offer.originCountry) }}</span>
           </div>
           <div class="route-arrow">➔</div>
           <div class="route-node">
             <span class="node-city">{{ offer.destination }}</span>
-            <span class="node-country">{{ getCountryName(offer.destinationCountry) }}</span>
+            <span class="node-country">{{ getCountryFlag(offer.destinationCountry) }}{{ getCountryName(offer.destinationCountry) }}</span>
           </div>
         </div>
 
@@ -722,6 +727,105 @@ function formatAddedAt(ts?: string): string {
   background: var(--bg-surface-elevated, rgba(255,255,255,0.03));
 }
 
+
+
+.td-route {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.td-city {
+  color: var(--text-main);
+}
+
+.td-arrow {
+  color: var(--text-subtle);
+  margin: 0 6px;
+  font-size: 11px;
+}
+
+.td-muted {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.td-price {
+  font-weight: 800;
+  color: #10b981;
+  white-space: nowrap;
+}
+
+.td-vehicle {
+  max-width: 140px;
+}
+.vehicle-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vehicle-thumb {
+  width: 40px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.vehicle-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-xs-table {
+  padding: 5px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Offers Grid */
+.offers-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .offers-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.offer-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.offer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+.time-ago {
+  font-size: 11px;
+  color: var(--text-muted);
+}
 
 /* Deep-link highlight: pulsing glow for 3s on the targeted card */
 @keyframes offer-pulse {
