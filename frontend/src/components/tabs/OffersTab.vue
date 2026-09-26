@@ -237,6 +237,22 @@ function getOfferStaleness(offer: Offer): Staleness {
   return 'live';
 }
 
+function formatAddedAt(ts?: string): string {
+  if (!ts) return t('added_mins_ago', { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), mins: '0' });
+  const date = new Date(ts);
+  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const diffMs = Date.now() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  
+  if (diffMins < 60) {
+    return t('added_mins_ago', { time: timeStr, mins: String(diffMins) });
+  } else if (diffMins < 24 * 60) {
+    const hours = Math.floor(diffMins / 60);
+    return t('added_hours_ago', { time: timeStr, hours: String(hours) });
+  }
+  return date.toLocaleDateString() + ' ' + timeStr;
+}
+
 function stalenessLabel(staleness: Staleness): string {
   if (staleness === 'gone') return '🔴 ' + (t('staleness_gone') || 'Likely Gone');
   if (staleness === 'hurry') return '🟡 ' + (t('staleness_hurry') || 'Book Fast');
@@ -354,9 +370,12 @@ function stalenessLabel(staleness: Staleness): string {
             :class="`tr-staleness-${getOfferStaleness(offer)}`"
           >
             <td>
-              <span class="staleness-badge" :class="`staleness-badge--${getOfferStaleness(offer)}`">
-                {{ stalenessLabel(getOfferStaleness(offer)) }}
-              </span>
+              <div class="status-col">
+                <span class="staleness-badge" :class="`staleness-badge--${getOfferStaleness(offer)}`">
+                  {{ stalenessLabel(getOfferStaleness(offer)) }}
+                </span>
+                <span class="time-ago">{{ formatAddedAt(offer.timestamp || offer.lastSeenAt) }}</span>
+              </div>
             </td>
             <td class="td-route">
               <span class="td-city">{{ offer.origin }}</span>
@@ -426,6 +445,10 @@ function stalenessLabel(staleness: Staleness): string {
         </div>
 
         <div class="offer-meta">
+          <div class="meta-item">
+            <Clock :size="13" />
+            <span>{{ formatAddedAt(offer.timestamp || offer.lastSeenAt) }}</span>
+          </div>
           <div class="meta-item">
             <Calendar :size="13" />
             <span>{{ formatDateRange(offer.pickupDate, offer.returnDate, currentLang) }} · {{ calculateDays(offer.pickupDate, offer.returnDate) }} {{ pluralizeDays(calculateDays(offer.pickupDate, offer.returnDate)) }}</span>
@@ -749,6 +772,17 @@ function stalenessLabel(staleness: Staleness): string {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.status-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+.time-ago {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 /* Staleness traffic-light badges */
