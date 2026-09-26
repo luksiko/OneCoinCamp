@@ -510,6 +510,7 @@ async function getOffersForUi(ctx: RpcContext, userId: string, filter: any = {})
       price: row.price,
       currency: row.currency,
       bookingUrl: row.booking_url,
+      imageUrl: row.image_url,
       fingerprint: row.fingerprint,
       matches,
       telegramSentAt: row.telegram_sent_at,

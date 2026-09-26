@@ -450,13 +450,14 @@ export class DbClient {
         `INSERT INTO offers (
           fingerprint, source, offer_id, vehicle_id, vehicle, origin, origin_country,
           destination, destination_country, pickup_date, return_date, price, currency,
-          booking_url, raw_json, is_active, found_at, last_seen_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          booking_url, image_url, raw_json, is_active, found_at, last_seen_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(fingerprint) DO UPDATE SET
           is_active = CASE WHEN offers.is_dismissed = 1 THEN 0 ELSE 1 END,
           last_seen_at = CURRENT_TIMESTAMP,
           price = COALESCE(excluded.price, offers.price),
           booking_url = COALESCE(excluded.booking_url, offers.booking_url),
+          image_url = COALESCE(excluded.image_url, offers.image_url),
           vehicle = COALESCE(excluded.vehicle, offers.vehicle),
           vehicle_id = COALESCE(excluded.vehicle_id, offers.vehicle_id),
           origin = COALESCE(excluded.origin, offers.origin),
@@ -484,6 +485,7 @@ export class DbClient {
         offer.price,
         offer.currency || 'EUR',
         offer.booking_url,
+        offer.image_url || null,
         offer.raw_json || null
       )
       .run();

@@ -89,6 +89,7 @@ export interface NormalizedOffer {
   price: number;
   currency: string;
   booking_url: string;
+  image_url?: string;
   raw_json?: string;
   fingerprint?: string;
   sleeping_places?: number;

@@ -387,7 +387,13 @@ function stalenessLabel(staleness: Staleness): string {
             <td class="td-muted">{{ formatDateRange(offer.pickupDate, offer.returnDate, currentLang) }}</td>
             <td class="td-muted">{{ calculateDays(offer.pickupDate, offer.returnDate) }}d</td>
             <td class="td-price">{{ offer.price }} €</td>
-            <td class="td-muted td-vehicle">{{ offer.vehicle || '—' }}</td>
+            <td class="td-muted td-vehicle">
+              <div class="vehicle-cell">
+                <img v-if="offer.imageUrl" :src="offer.imageUrl" class="vehicle-thumb" :alt="offer.vehicle || 'Vehicle'" @error="offer.imageUrl = ''" />
+                <span v-else>🚐</span>
+                <span class="vehicle-name">{{ offer.vehicle || '—' }}</span>
+              </div>
+            </td>
             <td>
               <div class="table-actions">
                 <a
@@ -452,8 +458,10 @@ function stalenessLabel(staleness: Staleness): string {
             <Calendar :size="13" />
             <span>{{ formatDateRange(offer.pickupDate, offer.returnDate, currentLang) }} · {{ calculateDays(offer.pickupDate, offer.returnDate) }} {{ pluralizeDays(calculateDays(offer.pickupDate, offer.returnDate)) }}</span>
           </div>
-          <div v-if="offer.vehicle" class="vehicle-title">
-            🚐 {{ offer.vehicle }}
+          <div class="meta-item vehicle-info">
+            <img v-if="offer.imageUrl" :src="offer.imageUrl" class="vehicle-thumb" :alt="offer.vehicle || 'Vehicle'" @error="offer.imageUrl = ''" />
+            <span v-else>🚐</span>
+            <span class="vehicle-name">{{ offer.vehicle || '—' }}</span>
           </div>
         </div>
 
@@ -724,6 +732,22 @@ function stalenessLabel(staleness: Staleness): string {
 
 .td-vehicle {
   max-width: 140px;
+}
+.vehicle-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vehicle-thumb {
+  width: 40px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.vehicle-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -917,10 +941,13 @@ function stalenessLabel(staleness: Staleness): string {
   font-weight: 600;
 }
 
-.vehicle-title {
+.vehicle-info {
   font-size: 11px;
   color: var(--text-main);
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .book-btn {

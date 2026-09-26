@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS offers (
     price REAL,
     currency TEXT DEFAULT 'EUR',
     booking_url TEXT,
+    image_url TEXT,
     raw_json TEXT,
     is_active BOOLEAN DEFAULT 1,
     is_dismissed BOOLEAN DEFAULT 0,

@@ -93,6 +93,7 @@ export interface Offer {
   price: number;
   currency: string;
   bookingUrl: string;
+  imageUrl?: string;
   matches?: boolean;
   timestamp?: string;
   lastSeenAt?: string;

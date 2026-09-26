@@ -146,6 +146,7 @@ export async function fetchMovacarOffers(
       price: priceVal,
       currency: 'EUR',
       booking_url: bookingUrl,
+      image_url: attrs.vehicle_image_url || attrs.brand_image_url,
       operator_name: attrs.partner_name || 'Movacar',
       raw_json: JSON.stringify(item),
     });

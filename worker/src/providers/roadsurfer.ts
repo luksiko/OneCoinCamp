@@ -372,6 +372,7 @@ export async function fetchRoadsurferOffers(
               price: Number(price),
               currency: 'EUR',
               booking_url: bookingUrl,
+              image_url: item.image_url || item.imageUrl || item.image || model.image_url || model.imageUrl || model.image || undefined,
               sleeping_places: model.berths || model.sleeping || 4,
               operator_name: 'Roadsurfer',
               raw_json: JSON.stringify(item),

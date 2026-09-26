@@ -80,6 +80,7 @@ export async function fetchIndieCampersOffers(
       vehicle: String(vehicle),
       vehicle_type: 'camper',
       booking_url: bookingUrl,
+      image_url: item.image_url || item.image || item.photo_url || item.picture_url || undefined,
       operator_name: 'Indie Campers',
       sleeping_places: 4,
       raw_json: JSON.stringify(item),

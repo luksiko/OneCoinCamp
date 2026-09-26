@@ -129,6 +129,7 @@ export async function fetchImoovaOffers(
       vehicle: vehicleName,
       vehicle_type: 'camper',
       booking_url: `https://www.imoova.com/relocations/${item.id}`,
+      image_url: item.vehicle?.image_url || item.vehicle?.imageUrl || item.vehicle?.image || item.image_url || undefined,
       operator_name: 'Imoova',
       sleeping_places: 4,
       raw_json: JSON.stringify(item),
