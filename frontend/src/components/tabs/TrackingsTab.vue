@@ -138,12 +138,12 @@ function handleSaveMain() {
 
           <div class="route-display">
             <div class="route-node">
-              <span class="node-city">{{ route.originName || getCountryName(route.originCountry) }}</span>
+              <span class="node-city">{{ route.originName || (route.originCountry === 'ALL' ? (t('all_cities') || 'Все города') : getCountryName(route.originCountry)) }}</span>
               <span class="node-country">{{ getCountryName(route.originCountry) }}</span>
             </div>
             <div class="route-arrow">➔</div>
             <div class="route-node">
-              <span class="node-city">{{ route.destinationName || (route.destinationCountry ? getCountryName(route.destinationCountry) : 'Anywhere') }}</span>
+              <span class="node-city">{{ route.destinationName || (route.destinationCountry === 'ALL' ? (t('all_cities') || 'Все города') : (route.destinationCountry ? getCountryName(route.destinationCountry) : 'Anywhere')) }}</span>
               <span class="node-country" v-if="route.destinationCountry">{{ getCountryName(route.destinationCountry) }}</span>
             </div>
           </div>
