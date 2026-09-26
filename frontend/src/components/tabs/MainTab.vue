@@ -146,6 +146,54 @@ function getProviderName(src: string) {
         </div>
       </div>
     </div>
+
+    <div class="providers-info-section">
+      <h2 class="section-title">Особенности провайдеров</h2>
+      <div class="providers-grid">
+        <div class="provider-info-card glass-card">
+          <div class="provider-info-header">
+            <span class="provider-tag">Roadsurfer (Rally)</span>
+          </div>
+          <ul class="provider-features">
+            <li>Даёт машину на срок <b>до 7 дней</b>. Цены варьируются от €1 до €129+ за поездку.</li>
+            <li>Включён лимит пробега (маршрут + 25%). Доп. пробег оплачивается отдельно.</li>
+            <li>Продлить срок аренды можно за доплату.</li>
+          </ul>
+        </div>
+        
+        <div class="provider-info-card glass-card">
+          <div class="provider-info-header">
+            <span class="provider-tag">Movacar</span>
+          </div>
+          <ul class="provider-features">
+            <li>Обычно перегоны стоят <b>€1</b>.</li>
+            <li>Можно докупить <b>дополнительные дни</b> (до 7 дней) и пакеты километров.</li>
+            <li>Удерживается залог (обычно ~€100), который полностью возвращается.</li>
+          </ul>
+        </div>
+
+        <div class="provider-info-card glass-card">
+          <div class="provider-info-header">
+            <span class="provider-tag">Indie Campers</span>
+          </div>
+          <ul class="provider-features">
+            <li>Фиксированные даты и локации за €1.</li>
+            <li>Доп. дни можно запросить, но они будут стоить по <b>полному тарифу</b> аренды, а не €1.</li>
+            <li>Запрашивать изменения нужно заранее (> 48 ч).</li>
+          </ul>
+        </div>
+
+        <div class="provider-info-card glass-card">
+          <div class="provider-info-header">
+            <span class="provider-tag">Imoova</span>
+          </div>
+          <ul class="provider-features">
+            <li>Доп. дни запрашиваются при бронировании по обычному тарифу.</li>
+            <li>Строгие штрафы за опоздание: нужно сдать авто строго до закрытия депо.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -353,5 +401,49 @@ function getProviderName(src: string) {
   font-weight: 500;
   color: var(--text-main);
   margin-left: auto;
+}
+
+.providers-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.providers-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .providers-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.provider-info-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.provider-info-header {
+  display: flex;
+  align-items: center;
+}
+
+.provider-features {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.provider-features li {
+  margin-bottom: 6px;
+}
+.provider-features li:last-child {
+  margin-bottom: 0;
 }
 </style>
