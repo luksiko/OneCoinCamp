@@ -1,5 +1,7 @@
 export const messagesData = {
   "de": {
+    "hero_campers": "Camper quer durch Europa",
+    "hero_price": "ab 1 €",
     "loading": "Wird geladen…",
     "routes_title": "Routen",
     "add_route": "Route hinzufügen",
@@ -301,6 +303,8 @@ export const messagesData = {
     "toast_sub_activated": "🎉 Abonnement aktiviert!"
   },
   "it": {
+    "hero_campers": "Camper in tutta Europa",
+    "hero_price": "da 1 €",
     "loading": "Caricamento…",
     "routes_title": "Itinerari",
     "add_route": "Aggiungi itinerario",
@@ -602,6 +606,8 @@ export const messagesData = {
     "toast_sub_activated": "🎉 Abbonamento attivato!"
   },
   "en": {
+    "hero_campers": "Campers across Europe",
+    "hero_price": "from €1",
     "loading": "Loading…",
     "routes_title": "Routes",
     "add_route": "Add route",
@@ -903,6 +909,8 @@ export const messagesData = {
     "toast_sub_activated": "🎉 Subscription activated!"
   },
   "uk": {
+    "hero_campers": "Кемпери по Європі",
+    "hero_price": "від €1",
     "loading": "Завантаження…",
     "routes_title": "Маршрути",
     "add_route": "Додати маршрут",
@@ -1204,6 +1212,8 @@ export const messagesData = {
     "toast_sub_activated": "🎉 Підписку активовано!"
   },
   "ru": {
+    "hero_campers": "Кемперы по Европе",
+    "hero_price": "от €1",
     "loading": "Загрузка…",
     "routes_title": "Маршруты",
     "add_route": "Добавить маршрут",

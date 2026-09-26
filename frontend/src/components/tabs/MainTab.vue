@@ -67,12 +67,11 @@ function getProviderName(src: string) {
 <template>
   <div class="main-search-tab">
     <div class="hero-section">
-      <h1 class="hero-title">Дешёвые camper<br>relocation <span class="text-blue">по Европе</span></h1>
-      <p class="hero-subtitle">Все предложения в одном месте</p>
-      
-      <button class="how-it-works-btn">
-        <span class="q-icon">?</span> Как это работает? <span class="arrow">&gt;</span>
-      </button>
+      <h1 class="hero-title">
+        <span class="hero-campers-text">{{ t('hero_campers') }}</span>
+        <br>
+        <span class="hero-price-text">{{ t('hero_price') }}</span>
+      </h1>
     </div>
 
     <div class="search-card glass-card">
@@ -231,54 +230,22 @@ function getProviderName(src: string) {
 }
 
 .hero-title {
-  font-size: 32px;
-  font-weight: 800;
   color: #fff;
   line-height: 1.15;
   margin-bottom: 8px;
 }
 
-.text-blue {
-  color: #3b82f6;
+.hero-campers-text {
+  font-size: 18px;
+  font-weight: 600;
+  opacity: 0.95;
+  display: inline-block;
+  margin-bottom: 4px;
 }
 
-.hero-subtitle {
-  font-size: 15px;
-  color: #cbd5e1;
-  line-height: 1.4;
-  margin-bottom: 24px;
-}
-
-.how-it-works-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #fff;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-}
-
-.q-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #3b82f6;
-  color: #fff;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: bold;
-}
-.arrow {
-  color: rgba(255, 255, 255, 0.5);
-  margin-left: 4px;
+.hero-price-text {
+  font-size: 38px;
+  font-weight: 800;
 }
 
 .search-card {
