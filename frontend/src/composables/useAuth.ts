@@ -9,6 +9,7 @@ const loginCode = ref<string | null>(null);
 const loginUrl = ref<string | null>(null);
 const loginError = ref<string | null>(null);
 let pollTimer: any = null;
+let activePollToken: string | null = null;
 
 function checkInitialAuth() {
   try {
@@ -53,8 +54,11 @@ export function useAuth() {
 
   function startPolling(token: string) {
     if (pollTimer) clearTimeout(pollTimer);
+    activePollToken = token;
 
     const poll = async () => {
+      if (activePollToken !== token) return;
+
       try {
         const res = await api.checkBrowserLoginStatus(token);
         if (res.status === 'approved' && res.token) {
@@ -63,16 +67,18 @@ export function useAuth() {
           isAuthenticated.value = true;
           loginCode.value = null;
           loginUrl.value = null;
+          activePollToken = null;
           return;
         }
         if (res.status === 'expired') {
           loginError.value = 'Срок действия кода истёк. Попробуйте снова.';
           loginCode.value = null;
+          activePollToken = null;
           return;
         }
-        pollTimer = setTimeout(poll, 2000);
+        if (activePollToken === token) pollTimer = setTimeout(poll, 2000);
       } catch (err: any) {
-        pollTimer = setTimeout(poll, 4000);
+        if (activePollToken === token) pollTimer = setTimeout(poll, 4000);
       }
     };
 
@@ -80,6 +86,7 @@ export function useAuth() {
   }
 
   function logout() {
+    activePollToken = null;
     if (pollTimer) clearTimeout(pollTimer);
     localStorage.removeItem('camper_monitor_telegram_session');
     browserSession.value = null;
@@ -90,6 +97,7 @@ export function useAuth() {
   }
 
   function stopPolling() {
+    activePollToken = null;
     if (pollTimer) {
       clearTimeout(pollTimer);
       pollTimer = null;

@@ -18,6 +18,8 @@ const isRouteModalOpen = ref(false);
 const editingRoute = ref<Route | null>(null);
 const editingRouteIndex = ref<number | null>(null);
 
+let saveAbortController: AbortController | null = null;
+
 export function useAppStore() {
   function showToast(message: string, isError = false) {
     if (toastTimer) clearTimeout(toastTimer);
@@ -45,6 +47,12 @@ export function useAppStore() {
   async function saveAppData(updatedFilters?: Partial<UserFilters>, updatedRoutes?: Route[], updatedSettings?: Partial<UserSettings>) {
     if (!appState.value) return;
     isSaving.value = true;
+    
+    if (saveAbortController) {
+      saveAbortController.abort();
+    }
+    saveAbortController = new AbortController();
+
     try {
       const currentFilters: UserFilters = {
         ...appState.value.filters,
@@ -74,7 +82,7 @@ export function useAppStore() {
         filters: currentFilters,
         settings: currentSettings,
         language: appState.value.language,
-      });
+      }, { signal: saveAbortController.signal });
 
       if (res.error) {
         throw new Error(res.error);
@@ -85,9 +93,13 @@ export function useAppStore() {
       appState.value.routes = currentRoutes;
       showToast('Настройки сохранены');
     } catch (err: any) {
-      showToast(err.message || 'Ошибка сохранения', true);
+      if (err.name !== 'AbortError') {
+        showToast(err.message || 'Ошибка сохранения', true);
+      }
     } finally {
-      isSaving.value = false;
+      if (saveAbortController && !saveAbortController.signal.aborted) {
+        isSaving.value = false;
+      }
     }
   }
 

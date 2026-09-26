@@ -10,7 +10,7 @@ import type {
   AdminRunLog,
 } from './types';
 
-const API_BASE = window.location.origin;
+const API_BASE = import.meta.env.VITE_API_BASE || window.location.origin;
 
 function getInitData(): string {
   try {
@@ -28,7 +28,7 @@ function getBrowserSession(): string {
   }
 }
 
-async function callRpc<T = any>(method: string, args: any[] = []): Promise<T> {
+async function callRpc<T = any>(method: string, args: any[] = [], options?: RequestInit): Promise<T> {
   const initData = getInitData();
   const session = getBrowserSession();
 
@@ -46,6 +46,7 @@ async function callRpc<T = any>(method: string, args: any[] = []): Promise<T> {
     method: 'POST',
     headers,
     body: JSON.stringify({ method, args }),
+    ...(options || {})
   });
 
   if (response.status === 401 && session) {
@@ -70,8 +71,8 @@ async function callRpc<T = any>(method: string, args: any[] = []): Promise<T> {
 export const api = {
   // Core user actions
   getUiData: () => callRpc<AppStateData>('getUiData'),
-  saveUiData: (payload: { language?: string; routes?: any[]; filters?: any; settings?: any }) =>
-    callRpc<{ ok: boolean; error?: string }>('saveUiData', [payload]),
+  saveUiData: (payload: { language?: string; routes?: any[]; filters?: any; settings?: any }, options?: RequestInit) =>
+    callRpc<{ ok: boolean; error?: string }>('saveUiData', [payload], options),
   checkProvidersHealth: () => callRpc<ProvidersHealth>('checkProvidersHealth'),
   triggerMonitor: () => callRpc<any>('runMonitorFromUi'),
   checkOffersAvailability: () => callRpc<number>('checkOffersAvailabilityWeb'),
