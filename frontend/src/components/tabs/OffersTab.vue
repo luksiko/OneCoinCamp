@@ -1004,6 +1004,7 @@ function stalenessLabel(staleness: Staleness): string {
   height: 100%;
   object-fit: cover;
   cursor: pointer;
+  border-radius: var(--radius-sm);
 }
 
 .meta-item {
