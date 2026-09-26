@@ -780,7 +780,7 @@ function getCountryFlag(code?: string): string {
 .vehicle-thumb {
   width: 40px;
   height: 28px;
-  object-fit: contain;
+  object-fit: cover;
   border-radius: 4px;
 }
 .vehicle-name {
@@ -933,7 +933,7 @@ function getCountryFlag(code?: string): string {
 .vehicle-image-large {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   cursor: pointer;
   border-radius: var(--radius-sm);
   -webkit-mask-image: none !important;
