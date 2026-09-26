@@ -1329,6 +1329,7 @@ input:checked + .toggle-slider {
 }
 input:checked + .toggle-slider:before {
   transform: translateX(18px);
+}
 .status-card {
   padding: 18px 20px;
 }
