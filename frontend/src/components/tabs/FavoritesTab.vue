@@ -404,8 +404,8 @@ function getCountryFlag(code?: string): string {
                 >
                   {{ t('btn_book') }} ↗
                 </a>
-                <button @click.stop="toggleFavorite(offer)" class="btn btn-secondary btn-xs-table cal-btn-table" :title="isFavorite(offer.offerId) ? 'Remove from Favorites' : 'Add to Favorites'">
-                  <Heart :size="14" :fill="isFavorite(offer.offerId) ? 'var(--accent-primary)' : 'none'" :color="isFavorite(offer.offerId) ? 'var(--accent-primary)' : 'currentColor'" />
+                <button @click.stop="toggleFavorite(offer)" class="btn btn-secondary btn-xs-table cal-btn-table" :title="isFavorite(offer.fingerprint || offer.offerId) ? 'Remove from Favorites' : 'Add to Favorites'">
+                  <Heart :size="14" :fill="isFavorite(offer.fingerprint || offer.offerId) ? 'var(--accent-primary)' : 'none'" :color="isFavorite(offer.fingerprint || offer.offerId) ? 'var(--accent-primary)' : 'currentColor'" />
                 </button>
                 <a :href="getCalendarUrl(offer)" target="_blank" class="btn btn-secondary btn-xs-table cal-btn-table" title="Add to Google Calendar">
                   <CalendarPlus :size="14" />
@@ -481,8 +481,8 @@ function getCountryFlag(code?: string): string {
             <ExternalLink :size="14" />
           </a>
           
-          <button @click.stop="toggleFavorite(offer)" class="btn btn-secondary cal-btn-mobile" :title="isFavorite(offer.offerId) ? 'Remove from Favorites' : 'Add to Favorites'">
-            <Heart :size="16" :fill="isFavorite(offer.offerId) ? 'var(--accent-primary)' : 'none'" :color="isFavorite(offer.offerId) ? 'var(--accent-primary)' : 'currentColor'" />
+          <button @click.stop="toggleFavorite(offer)" class="btn btn-secondary cal-btn-mobile" :title="isFavorite(offer.fingerprint || offer.offerId) ? 'Remove from Favorites' : 'Add to Favorites'">
+            <Heart :size="16" :fill="isFavorite(offer.fingerprint || offer.offerId) ? 'var(--accent-primary)' : 'none'" :color="isFavorite(offer.fingerprint || offer.offerId) ? 'var(--accent-primary)' : 'currentColor'" />
           </button>
           
           <a :href="getCalendarUrl(offer)" target="_blank" class="btn btn-secondary cal-btn-mobile" title="Add to Google Calendar">

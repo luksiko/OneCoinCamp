@@ -24,7 +24,8 @@ export function useFavoritesStore() {
     if (!isAuthenticated.value) return;
     
     // Optimistic UI update
-    const index = favorites.value.findIndex(f => f.offerId === offer.offerId);
+    const key = offer.fingerprint || offer.offerId;
+    const index = favorites.value.findIndex(f => (f.fingerprint || f.offerId) === key);
     let isAdding = false;
     if (index === -1) {
       favorites.value.unshift(offer); // Add to top
@@ -35,7 +36,7 @@ export function useFavoritesStore() {
 
     // Call API
     try {
-      const added = await api.toggleFavorite(offer.offerId);
+      const added = await api.toggleFavorite(key);
       // Sync state if optimistic update was wrong
       if (added !== isAdding) {
         await loadFavorites();
@@ -47,7 +48,9 @@ export function useFavoritesStore() {
   };
 
   const isFavorite = (offerId: string) => {
-    return favorites.value.some(f => f.offerId === offerId);
+    // Note: in template we pass fingerprint || offerId
+
+    return favorites.value.some(f => (f.fingerprint || f.offerId) === offerId);
   };
 
   // Initial load if not loaded

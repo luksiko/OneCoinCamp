@@ -67,6 +67,7 @@ export async function handleRpcRequest(request: Request, ctx: RpcContext): Promi
         // Convert NormalizedOffer to Offer
         result = result.map(o => ({
           offerId: o.offer_id,
+          fingerprint: o.fingerprint,
           source: o.source,
           operator: o.source,
           vehicle: o.vehicle,

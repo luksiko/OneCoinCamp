@@ -494,12 +494,12 @@ export class DbClient {
   
   async toggleFavorite(telegramId: string | number, offerId: string): Promise<boolean> {
     const tid = String(telegramId);
-    const existing = await this.db.prepare('SELECT 1 FROM user_favorites WHERE telegram_id = ? AND offer_id = ?').bind(tid, offerId).first();
+    const existing = await this.db.prepare('SELECT 1 FROM user_favorites WHERE telegram_id = ? AND fingerprint = ?').bind(tid, offerId).first();
     if (existing) {
-      await this.db.prepare('DELETE FROM user_favorites WHERE telegram_id = ? AND offer_id = ?').bind(tid, offerId).run();
+      await this.db.prepare('DELETE FROM user_favorites WHERE telegram_id = ? AND fingerprint = ?').bind(tid, offerId).run();
       return false; // Removed
     } else {
-      await this.db.prepare('INSERT INTO user_favorites (telegram_id, offer_id) VALUES (?, ?)').bind(tid, offerId).run();
+      await this.db.prepare('INSERT INTO user_favorites (telegram_id, fingerprint) VALUES (?, ?)').bind(tid, offerId).run();
       return true; // Added
     }
   }
@@ -509,7 +509,7 @@ export class DbClient {
     const { results } = await this.db
       .prepare(`
         SELECT o.* FROM offers o
-        JOIN user_favorites f ON o.offer_id = f.offer_id
+        JOIN user_favorites f ON o.fingerprint = f.fingerprint
         WHERE f.telegram_id = ?
         ORDER BY f.created_at DESC
       `)

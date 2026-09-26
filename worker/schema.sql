@@ -196,7 +196,7 @@ CREATE INDEX IF NOT EXISTS idx_promo_redemptions_user ON promo_code_redemptions(
 
 CREATE TABLE IF NOT EXISTS user_favorites (
     telegram_id TEXT NOT NULL,
-    offer_id TEXT NOT NULL,
+    fingerprint TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY(telegram_id, offer_id),
     FOREIGN KEY(telegram_id) REFERENCES users(telegram_id) ON DELETE CASCADE
