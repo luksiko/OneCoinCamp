@@ -54,11 +54,11 @@ export async function fetchImoovaOffers(
     const depCountry = IMOOVA_COUNTRIES[dep.name] || '';
     const delivCountry = IMOOVA_COUNTRIES[deliv.name] || '';
 
-    if (route.origin_country && route.origin_country !== '*' && depCountry) {
+    if (route.origin_country && route.origin_country !== '*' && route.origin_country !== 'ALL' && route.origin_country !== 'ANY' && depCountry) {
       const ocs = route.origin_country.toUpperCase().split(',').map(c => c.trim());
       if (!ocs.includes(depCountry.toUpperCase())) continue;
     }
-    if (route.destination_country && route.destination_country !== '*' && delivCountry) {
+    if (route.destination_country && route.destination_country !== '*' && route.destination_country !== 'ALL' && route.destination_country !== 'ANY' && delivCountry) {
       const dcs = route.destination_country.toUpperCase().split(',').map(c => c.trim());
       if (!dcs.includes(delivCountry.toUpperCase())) continue;
     }

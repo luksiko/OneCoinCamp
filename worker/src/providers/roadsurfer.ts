@@ -242,7 +242,7 @@ export async function fetchRoadsurferOffers(
       const ocs = route.origin_country ? route.origin_country.toUpperCase().split(',').map(c => c.trim()) : [];
       return (
         s.oneWay === true &&
-        (!route.origin_country || route.origin_country === '*' || ocs.includes(s.country)) &&
+        (!route.origin_country || route.origin_country === '*' || route.origin_country === 'ALL' || route.origin_country === 'ANY' || ocs.includes(s.country)) &&
         (allowedOrigins.length === 0 || allowedOrigins.includes(s.country))
       );
     });
@@ -290,7 +290,7 @@ export async function fetchRoadsurferOffers(
     let destinationsToCheck: RoadsurferStation[] = [];
     if (isWildDest) {
       destinationsToCheck = await fetchRoadsurferDestinations(origin.id, allowedDestCountries, db);
-      if (route.destination_country) {
+      if (route.destination_country && route.destination_country !== '*' && route.destination_country !== 'ALL' && route.destination_country !== 'ANY') {
         const dcs = route.destination_country.toUpperCase().split(',').map(c => c.trim());
         destinationsToCheck = destinationsToCheck.filter(
           (d) => dcs.includes(d.country)

@@ -232,9 +232,6 @@ describe('Telegram Stars Payment Integration', () => {
     const loginUtils = await import('../src/utils/telegram-login');
     vi.spyOn(loginUtils, 'verifyBrowserSession').mockResolvedValue({
       id: '123456',
-      first_name: 'Test',
-      auth_date: Date.now(),
-      hash: 'hash',
     });
 
     const res = await handleRpcRequest(req, {

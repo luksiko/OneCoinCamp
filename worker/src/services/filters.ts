@@ -40,13 +40,13 @@ export function routeMatchesOffer(route: UserRoute, offer: NormalizedOffer): boo
 
   // 1. Country checks
   const rOrigCountry = (route.origin_country || '').trim().toUpperCase();
-  if (rOrigCountry && rOrigCountry !== '*' && rOrigCountry !== 'ANY' && offer.origin_country) {
+  if (rOrigCountry && rOrigCountry !== '*' && rOrigCountry !== 'ANY' && rOrigCountry !== 'ALL' && offer.origin_country) {
     const allowed = rOrigCountry.split(',').map(c => c.trim());
     if (!allowed.includes(offer.origin_country.trim().toUpperCase())) return false;
   }
 
   const rDestCountry = (route.destination_country || '').trim().toUpperCase();
-  if (rDestCountry && rDestCountry !== '*' && rDestCountry !== 'ANY' && offer.destination_country) {
+  if (rDestCountry && rDestCountry !== '*' && rDestCountry !== 'ANY' && rDestCountry !== 'ALL' && offer.destination_country) {
     const allowed = rDestCountry.split(',').map(c => c.trim());
     if (!allowed.includes(offer.destination_country.trim().toUpperCase())) return false;
   }
